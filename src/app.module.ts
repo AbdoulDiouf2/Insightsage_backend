@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -12,6 +13,8 @@ import { NlqModule } from './nlq/nlq.module';
 import { LogsModule } from './logs/logs.module';
 import { AdminModule } from './admin/admin.module';
 import { RolesModule } from './roles/roles.module';
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { TenantGuard } from './auth/guards/tenant.guard';
 
 @Module({
   imports: [
@@ -36,6 +39,19 @@ import { RolesModule } from './roles/roles.module';
     LogsModule,
     AdminModule,
     RolesModule,
+  ],
+  providers: [
+    // Global guards applied in order:
+    // 1. JwtAuthGuard - Authenticates user (skipped for @Public() routes)
+    // 2. TenantGuard - Ensures multi-tenant isolation
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: TenantGuard,
+    },
   ],
 })
 export class AppModule {}
