@@ -11,6 +11,7 @@ import { WidgetsModule } from './widgets/widgets.module';
 import { NlqModule } from './nlq/nlq.module';
 import { LogsModule } from './logs/logs.module';
 import { AdminModule } from './admin/admin.module';
+import { RolesModule } from './roles/roles.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { AdminModule } from './admin/admin.module';
     NlqModule,
     LogsModule,
     AdminModule,
+    RolesModule,
   ],
 })
-export class AppModule { }
+export class AppModule {}

@@ -34,6 +34,7 @@ model Organization {
   auditLogs   AuditLog[]
   agents      Agent[]
   invitations Invitation[]
+  roles       Role[]
 
   @@map("organizations")
 }
@@ -44,7 +45,6 @@ model User {
   firstName     String?
   lastName      String?
   passwordHash  String // bcrypt hash
-  role          String // "daf" | "admin" | "controller" | "owner"
   isActive      Boolean  @default(true)
   emailVerified Boolean  @default(false)
   createdAt     DateTime @default(now())
@@ -63,6 +63,7 @@ model User {
   ownedOrganization Organization? @relation("OrganizationOwner")
 
   // Relations
+  userRoles  UserRole[]
   dashboards Dashboard[]
   widgets    Widget[]
   auditLogs  AuditLog[]
@@ -75,7 +76,8 @@ model Invitation {
   id             String       @id @default(uuid())
   email          String       @unique
   token          String       @unique
-  role           String // Role constraint (e.g. "controller")
+  roleId         String
+  role           Role         @relation("InvitationRole", fields: [roleId], references: [id])
   expiresAt      DateTime
   isAccepted     Boolean      @default(false)
   createdAt      DateTime     @default(now())
@@ -86,15 +88,63 @@ model Invitation {
   @@map("invitations")
 }
 
-model RolePermission {
-  id        String   @id @default(uuid())
-  role      String // "daf" | "admin" | "controller"
-  resource  String // "dashboard", "widget", "nlq", "export"
-  action    String // "read", "write", "delete", "admin"
+model Role {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
+  isSystem    Boolean @default(false)
+
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  permissions RolePermission[]
+  users       UserRole[]
+  invitations Invitation[]     @relation("InvitationRole")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@map("roles")
+}
+
+model Permission {
+  id          String           @id @default(uuid())
+  action      String // e.g. "read", "write", "manage"
+  resource    String // e.g. "users", "dashboards", "all"
+  description String?
+  roles       RolePermission[]
+
   createdAt DateTime @default(now())
 
-  @@unique([role, resource, action])
+  @@unique([action, resource])
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String     @id @default(uuid())
+  roleId       String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([roleId, permissionId])
   @@map("role_permissions")
+}
+
+model UserRole {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleId String
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
 }
 
 model Dashboard {

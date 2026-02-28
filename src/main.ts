@@ -8,10 +8,12 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   // Global validation (DTOs)
-  app.useGlobalPipes(new ValidationPipe({
-    transform: true,
-    whitelist: true
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+    }),
+  );
 
   // Swagger API docs (front client)
   const config = new DocumentBuilder()
