@@ -21,7 +21,7 @@ model Organization {
   sageType   String? // "X3" | "100"
   sageHost   String?
   sagePort   Int?
-  sageConfig Json? // credentials chiffrés + mapping
+  sageConfig Json? // mapping Sage tables → métriques (AUCUN CREDENTIAL)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -164,10 +164,13 @@ model Agent {
   id         String    @id @default(uuid())
   token      String    @unique // token activation agent
   name       String
-  status     String    @default("pending") // "pending" | "active" | "error"
+  version    String? // version de l'agent installé
+  status     String    @default("pending") // "pending" | "online" | "offline" | "error"
+  lastSeen   DateTime? // heartbeat
   lastSync   DateTime?
   nextSync   DateTime?
   rowsSynced BigInt    @default(0)
+  errorCount Int       @default(0)
   lastError  String?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt

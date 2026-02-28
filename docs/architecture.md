@@ -13,14 +13,34 @@ graph TD
     end
 
     subgraph "Infrastructure Data (On-Prem / Cloud)"
-        API <-->|Tokens / Polling / Webhooks| Agent[Agent On-Prem ou Connecteur]
-        Agent <--> ERP[Sage X3 / 100]
-        Agent --> DWH[(Data Warehouse / Staging)]
-        API -.->|Requêtes OLAP / NLQ| DWH
+        API <-->|Requêtes SQL SAFE (Lecture seule)| Agent[Agent On-Prem]
+        Agent <-->|pyodbc / direct| ERP[Sage X3 / 100]
     end
 ```
 
-## 2. Choix Techniques et Conventions
+## 2. Principes Fondamentaux & Sécurité (Zero-Copy)
+
+* **Zero ERP credentials in SaaS** : L'API ne stocke aucun mot de passe Sage, ils restent dans l'Agent.
+* **No Inbound Connection** : Le Cloud ne se connecte jamais au réseau du client (l'Agent initie une connexion sortante/poll le SaaS).
+* **Agent handles data access** : Seul l'Agent parle à la base de données.
+* **Backend handles security logic** : L'API génère le SQL, l'Agent l'exécute bêtement.
+* **Strict SQL Sandbox** : Requêtes `SELECT` uniquement, limitées à 1000 lignes (`TOP 1000`).
+
+## 3. Rôles et Responsabilités
+
+### Rôle du Backend
+* Authentification & RBAC
+* Isolation multi-tenant stricte (`organization_id`)
+* Gestion de tokens Agent & Rate limiting
+* Génération SQL sécurisée via **Templates validés** (aucune génération SQL libre n'est autorisée par l'IA)
+* Monitoring du statut Agent et de la santé des requêtes
+
+### Modèle Agent (Hors périmètre SaaS)
+* Installé comme service système métier.
+* Gardien des credentials ERP locaux.
+* Maintien d'un heartbeat (`last_seen`) avec le Backend.
+
+## 4. Choix Techniques et Conventions
 
 *   **Framework Principal** : NestJS (TypeScript).
 *   **Base de Données** : PostgreSQL.
