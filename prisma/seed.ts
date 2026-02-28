@@ -82,9 +82,13 @@ const DEFAULT_ROLES = [
     permissions: [
       { action: 'manage', resource: 'organization' },
       { action: 'manage', resource: 'users' },
+      { action: 'manage', resource: 'roles' },
       { action: 'manage', resource: 'agents' },
       { action: 'write', resource: 'dashboards' },
+      { action: 'delete', resource: 'dashboards' },
       { action: 'write', resource: 'widgets' },
+      { action: 'write', resource: 'nlq' },
+      { action: 'read', resource: 'logs' },
     ],
   },
   {
@@ -94,9 +98,13 @@ const DEFAULT_ROLES = [
     permissions: [
       { action: 'manage', resource: 'organization' },
       { action: 'manage', resource: 'users' },
+      { action: 'manage', resource: 'roles' },
       { action: 'manage', resource: 'agents' },
       { action: 'write', resource: 'dashboards' },
+      { action: 'delete', resource: 'dashboards' },
       { action: 'write', resource: 'widgets' },
+      { action: 'write', resource: 'nlq' },
+      { action: 'read', resource: 'logs' },
     ],
   },
   {
@@ -105,8 +113,10 @@ const DEFAULT_ROLES = [
     isSystem: true,
     permissions: [
       { action: 'read', resource: 'users' },
+      { action: 'read', resource: 'roles' },
       { action: 'write', resource: 'dashboards' },
       { action: 'write', resource: 'widgets' },
+      { action: 'write', resource: 'nlq' },
     ],
   },
   {
@@ -116,6 +126,7 @@ const DEFAULT_ROLES = [
     permissions: [
       { action: 'read', resource: 'dashboards' },
       { action: 'read', resource: 'widgets' },
+      { action: 'read', resource: 'nlq' },
     ],
   },
 ];
