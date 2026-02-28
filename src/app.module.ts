@@ -36,4 +36,4 @@ import { AdminModule } from './admin/admin.module';
     AdminModule,
   ],
 })
-export class AppModule { }
+export class AppModule {}
