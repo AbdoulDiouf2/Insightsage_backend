@@ -26,13 +26,14 @@ model Organization {
   updatedAt  DateTime @updatedAt
 
   // Relations
-  ownerId    String?     @unique
-  owner      User?       @relation("OrganizationOwner", fields: [ownerId], references: [id])
-  users      User[]      @relation("UserOrganization")
-  dashboards Dashboard[]
-  widgets    Widget[]
-  auditLogs  AuditLog[]
-  agents     Agent[]
+  ownerId     String?      @unique
+  owner       User?        @relation("OrganizationOwner", fields: [ownerId], references: [id])
+  users       User[]       @relation("UserOrganization")
+  dashboards  Dashboard[]
+  widgets     Widget[]
+  auditLogs   AuditLog[]
+  agents      Agent[]
+  invitations Invitation[]
 
   @@map("organizations")
 }
@@ -49,6 +50,11 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  // Auth fields
+  hashedRefreshToken   String?
+  resetPasswordToken   String?
+  resetPasswordExpires DateTime?
+
   // MULTI-TENANT : CHAQUE USER APPARTIENT À 1 ORG
   organizationId String
   organization   Organization @relation("UserOrganization", fields: [organizationId], references: [id], onDelete: Cascade)
@@ -63,6 +69,21 @@ model User {
 
   @@index([organizationId])
   @@map("users")
+}
+
+model Invitation {
+  id             String       @id @default(uuid())
+  email          String       @unique
+  token          String       @unique
+  role           String // Role constraint (e.g. "controller")
+  expiresAt      DateTime
+  isAccepted     Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("invitations")
 }
 
 model RolePermission {
