@@ -6,6 +6,7 @@ import {
   Req,
   HttpCode,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -15,6 +16,8 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { InviteUserDto } from './dto/invite-user.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { JwtRefreshAuthGuard } from './guards/jwt-refresh-auth.guard';
+import { RolesGuard } from './guards/roles.guard';
+import { Roles } from './decorators/roles.decorator';
 import {
   ApiTags,
   ApiOperation,
@@ -30,15 +33,18 @@ interface RequestWithUser extends Request {
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Post('register')
   @ApiOperation({
-    summary: 'Register a new user (and organization) or join via invite',
+    summary: 'Join an organization via invitation token',
   })
   @ApiResponse({ status: 201, description: 'User registered successfully' })
-  @ApiResponse({ status: 400, description: 'Bad Request' })
+  @ApiResponse({ status: 400, description: 'Bad Request - Missing or invalid invitation' })
   async register(@Body() dto: RegisterDto) {
+    if (!dto.invitationToken) {
+      throw new BadRequestException('Public registration is disabled. An invitation token is required to join an organization.');
+    }
     return this.authService.register(dto);
   }
 
@@ -87,7 +93,8 @@ export class AuthController {
     return this.authService.resetPassword(dto);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin', 'daf')
   @Post('invite')
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)

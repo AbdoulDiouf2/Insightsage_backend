@@ -23,9 +23,13 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private prisma: PrismaService,
-  ) {}
+  ) { }
 
   async register(dto: RegisterDto) {
+    if (!dto.invitationToken) {
+      throw new BadRequestException('Invitation token is required.');
+    }
+
     // Check if user already exists
     const existingUser = await this.usersService.findByEmail(dto.email);
     if (existingUser) {
@@ -35,63 +39,39 @@ export class AuthService {
     const {
       email,
       password,
-      organizationName,
       firstName,
       lastName,
       invitationToken,
     } = dto;
     const passwordHash = await bcrypt.hash(password, 10);
-    let organizationId: string;
-    let role = 'owner';
 
-    if (invitationToken) {
-      // Logic to resolve organization and role from invitation
-      const invite = await this.prisma.invitation.findUnique({
-        where: { token: invitationToken },
-      });
-      if (
-        !invite ||
-        invite.email !== email ||
-        invite.isAccepted ||
-        invite.expiresAt < new Date()
-      ) {
-        throw new BadRequestException('Invalid or expired invitation token');
-      }
-      organizationId = invite.organizationId;
-      role = invite.role;
+    const invite = await this.prisma.invitation.findUnique({
+      where: { token: invitationToken },
+    });
 
-      // Mark invite as accepted
-      await this.prisma.invitation.update({
-        where: { id: invite.id },
-        data: { isAccepted: true },
-      });
-    } else {
-      // Create new organization for the user
-      const org = await this.prisma.organization.create({
-        data: {
-          name: organizationName,
-          size: 'pme', // Default value
-        },
-      });
-      organizationId = org.id;
+    if (
+      !invite ||
+      invite.email !== email ||
+      invite.isAccepted ||
+      invite.expiresAt < new Date()
+    ) {
+      throw new BadRequestException('Invalid or expired invitation token');
     }
+
+    // Mark invite as accepted
+    await this.prisma.invitation.update({
+      where: { id: invite.id },
+      data: { isAccepted: true },
+    });
 
     const user = await this.usersService.create({
       email,
       passwordHash,
       firstName,
       lastName,
-      role,
-      organization: { connect: { id: organizationId } },
+      role: invite.role,
+      organization: { connect: { id: invite.organizationId } },
     });
-
-    // If they created the organization, set them as the owner (Optional, based on schema relation)
-    if (!invitationToken) {
-      await this.prisma.organization.update({
-        where: { id: organizationId },
-        data: { ownerId: user.id },
-      });
-    }
 
     const tokens = await this.getTokens(user.id, user.email);
     await this.updateRefreshTokenHash(user.id, tokens.refreshToken);
