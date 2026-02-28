@@ -1,61 +1,115 @@
-# Module Auth & RBAC (InsightSage)
+# Système RBAC - InsightSage
 
-Ce module gère toute l'authentification, la connexion des utilisateurs, et le contrôle d'accès basé sur les rôles (RBAC) pour le projet InsightSage. Il s'appuie sur `Passport`, `@nestjs/jwt`, `bcrypt` et s'interface avec `Prisma` pour le stockage en base de données.
+## Architecture
 
-> [!IMPORTANT]
-> **SaaS Fermé (Closed SaaS)** : InsightSage n'autorise plus la création de compte au grand public. La création d'une organisation se fait exclusivement par les SuperAdmins via le module `Admin` (`POST /api/admin/clients`). L'endpoint public `/api/auth/register` est verrouillé et sert uniquement à rejoindre une organisation via un jeton d'invitation.
+Le système RBAC (Role-Based Access Control) d'InsightSage est basé sur une architecture **Permissions → Rôles → Utilisateurs** avec isolation multi-tenant.
 
-## Fonctionnalités Principales
+## Guards
 
-1. **Connexion (`/auth/login`) et Déconnexion (`/auth/logout`)**
-   - Génère un couple de tokens courts et longs : `access_token` (valide 15m) et `refresh_token` (valide 7j).
-   - Le `refresh_token` est haché en base de données pour la sécurité.
-   - La déconnexion invalide le `refresh_token` en le supprimant de la base de données.
-2. **Rotation de Tokens (`/auth/refresh`)**
-   - Valide le `refresh_token` envoyé dans le header `Authorization: Bearer <RT>`.
-   - Regénère un nouveau couple Access/Refresh tokens pour maintenir la session active.
-3. **Récupération de mot de passe**
-   - `/auth/forgot-password` génère un jeton temporaire aléatoire permettant à l'utilisateur de réinitialiser son mot de passe (valide 1 heure). En développement, ce jeton est renvoyé dans la réponse HTTP.
-   - `/auth/reset-password` vérifie le jeton et applique le nouveau mot de passe haché.
-4. **Système d'Invitations et Inscription Collaborateur**
-   - `/auth/invite` : Route protégée. Permet d'inviter un nouvel utilisateur dans une organisation spécifique. Protégée par **RBAC**: Réservé aux utilisateurs ayant la permission `manage:users`.
-   - `/auth/register` : Ne sert plus qu'à finaliser l'inscription d'un collaborateur invité (nécessite le `invitationToken`).
+### 1. JwtAuthGuard (Global)
+Authentifie les utilisateurs via JWT. Automatiquement appliqué à toutes les routes sauf celles marquées `@Public()`.
 
-## Routes API Disponibles
+### 2. TenantGuard (Global)
+Assure l'isolation multi-tenant. Vérifie que l'utilisateur a un `organizationId` valide.
 
-| Méthode | Route                | Description                                        | Protection (Guards)          |
-|---------|----------------------|----------------------------------------------------|------------------------------|
-| `POST`  | `/login`             | Authentification email/mot de passe                | *Aucune*                     |
-| `POST`  | `/refresh`           | Renouvellement de l'Access Token                   | `@UseGuards(JwtRefreshGuard)`|
-| `POST`  | `/logout`            | Déconnexion de la session courante                 | `@UseGuards(JwtAuthGuard)`   |
-| `POST`  | `/forgot-password`   | Demande de lien de réinitialisation                | *Aucune*                     |
-| `POST`  | `/reset-password`    | Modification du mot de passe avec le token         | *Aucune*                     |
-| `POST`  | `/invite`            | Création d'un lien d'invitation (collaborateur)    | `@UseGuards(JwtAuthGuard, PermissionsGuard)` + `@RequirePermissions({action: 'manage', resource: 'users'})` |
-| `POST`  | `/register`          | Acceptation d'invitation (Collaborateur)           | *Aucune* (via Token d'invite)|
+### 3. PermissionsGuard
+Vérifie les permissions granulaires. Utilisé avec `@RequirePermissions()`.
 
-## RBAC : Contrôle d'Accès Dynamique par Permissions (Multi-Tables)
+### 4. RolesGuard
+Vérifie les rôles par nom. Utilisé avec `@Roles()`.
 
-Le système exploite une architecture relationnelle RBAC dynamique (`UserRole` -> `Role` -> `RolePermission` -> `Permission`) plutôt qu'un champ texte statique.
+## Décorateurs
 
-**Pour protéger une route globale (ex: dashboards) :**
+| Décorateur | Usage | Exemple |
+|------------|-------|--------|
+| `@Public()` | Route publique (bypass auth) | `@Public() @Get('health')` |
+| `@RequirePermissions()` | Exiger des permissions | `@RequirePermissions({ action: 'manage', resource: 'users' })` |
+| `@Roles()` | Exiger des rôles | `@Roles('daf', 'owner')` |
+| `@CurrentUser()` | Obtenir l'utilisateur courant | `@CurrentUser() user` ou `@CurrentUser('id') userId` |
+| `@OrganizationId()` | Obtenir l'organizationId | `@OrganizationId() orgId: string` |
+
+## Permissions Disponibles
+
+| Action | Resource | Description |
+|--------|----------|-------------|
+| `read` | `dashboards` | Voir les dashboards |
+| `write` | `dashboards` | Créer/éditer des dashboards |
+| `delete` | `dashboards` | Supprimer des dashboards |
+| `read` | `widgets` | Voir les widgets |
+| `write` | `widgets` | Créer/éditer des widgets |
+| `read` | `users` | Lister les utilisateurs |
+| `manage` | `users` | Inviter, éditer, supprimer des utilisateurs |
+| `read` | `roles` | Voir les rôles et permissions |
+| `manage` | `roles` | Créer, éditer, supprimer des rôles |
+| `manage` | `agents` | Gérer les connexions Sage |
+| `read` | `nlq` | Exécuter des requêtes NLQ |
+| `write` | `nlq` | Sauvegarder les résultats NLQ |
+| `read` | `logs` | Voir les logs d'audit |
+| `manage` | `organization` | Gérer l'organisation |
+| `manage` | `all` | SuperAdmin (toutes permissions) |
+
+## Rôles Système
+
+| Rôle | Description | Permissions |
+|------|-------------|-------------|
+| `superadmin` | Développeur InsightSage | `manage:all` |
+| `owner` | Propriétaire organisation | Toutes sauf `manage:all` |
+| `daf` | DAF / Administrateur | Toutes sauf `manage:all` |
+| `controller` | Contrôleur financier | Lecture + écriture dashboards/widgets/NLQ |
+| `analyst` | Analyste (lecture seule) | Lecture dashboards/widgets/NLQ |
+
+## Utilisation dans un Controller
+
 ```typescript
-@UseGuards(JwtAuthGuard)
-@Get('me')
-getMesDashboards() { ... }
+import { Controller, Get, UseGuards } from '@nestjs/common';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermissions, CurrentUser, OrganizationId } from '../auth/decorators';
+
+@Controller('example')
+export class ExampleController {
+  // Route protégée par défaut (JwtAuthGuard + TenantGuard appliqués globalement)
+  @Get('protected')
+  protectedRoute(@CurrentUser('id') userId: string) {
+    return { userId };
+  }
+
+  // Route avec permission spécifique
+  @Get('admin')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions({ action: 'manage', resource: 'users' })
+  adminRoute(@OrganizationId() orgId: string) {
+    return { orgId };
+  }
+
+  // Route publique
+  @Public()
+  @Get('public')
+  publicRoute() {
+    return { message: 'Hello World' };
+  }
+}
 ```
 
-**Pour restreindre l'accès à une permission spécifique :**
+## Audit Logging
+
+Le service `AuditLogService` permet de tracer toutes les actions importantes :
+
 ```typescript
-@UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions({ action: 'manage', resource: 'settings' }) // Vérifie la matrice de permissions relationnelles de l'utilisateur
-@Post('settings')
-updateSettings() { ... }
+import { AuditLogService } from '../logs/audit-log.service';
+
+@Injectable()
+export class MyService {
+  constructor(private auditLog: AuditLogService) {}
+
+  async doSomething(user: User) {
+    // ... logique métier
+    
+    await this.auditLog.log({
+      organizationId: user.organizationId,
+      userId: user.id,
+      event: 'dashboard_created',
+      payload: { dashboardId: '...' },
+    });
+  }
+}
 ```
-
-## Postman / Tests Locaux
-
-1. **Générer un client** : Appelez d'abord `POST /api/admin/clients` (Module Admin) pour créer la coquille de l'entreprise et récupérer un `setupToken`.
-2. **Initialiser le mot de passe** : Appelez `POST /api/auth/reset-password` avec ce Token pour définir le mot de passe du DAF racine.
-3. **Se Connecter** : Appelez `POST /api/auth/login` avec l'email du DAF et le mot de passe défini à l'étape 2. Vous recevrez un `accessToken` et un `refreshToken`.
-4. **Inviter un collaborateur** : Appelez `POST /api/auth/invite` avec un *Bearer Token* = `accessToken`. Le retour contiendra un `token` d'invitation (dans la console).
-5. **Rejoindre** : Le collaborateur appelle `POST /api/auth/register` en fournissant ses coordonnées, un mot de passe et le `invitationToken`.
