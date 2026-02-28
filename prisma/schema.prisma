@@ -1,0 +1,188 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Organization {
+  id         String   @id @default(uuid())
+  name       String   @db.VarChar(255)
+  sector     String?  @db.VarChar(100)
+  size       String // "startup" | "pme" | "business" | "enterprise"
+  plan       String   @default("pme") // plan abonnement
+  sageType   String? // "X3" | "100"
+  sageHost   String?
+  sagePort   Int?
+  sageConfig Json? // credentials chiffrés + mapping
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  ownerId    String?     @unique
+  owner      User?       @relation("OrganizationOwner", fields: [ownerId], references: [id])
+  users      User[]      @relation("UserOrganization")
+  dashboards Dashboard[]
+  widgets    Widget[]
+  auditLogs  AuditLog[]
+  agents     Agent[]
+
+  @@map("organizations")
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique @db.VarChar(255)
+  firstName     String?
+  lastName      String?
+  passwordHash  String // bcrypt hash
+  role          String // "daf" | "admin" | "controller" | "owner"
+  isActive      Boolean  @default(true)
+  emailVerified Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // MULTI-TENANT : CHAQUE USER APPARTIENT À 1 ORG
+  organizationId String
+  organization   Organization @relation("UserOrganization", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Owner d'une orga (1 seul)
+  ownedOrganization Organization? @relation("OrganizationOwner")
+
+  // Relations
+  dashboards Dashboard[]
+  widgets    Widget[]
+  auditLogs  AuditLog[]
+
+  @@index([organizationId])
+  @@map("users")
+}
+
+model RolePermission {
+  id        String   @id @default(uuid())
+  role      String // "daf" | "admin" | "controller"
+  resource  String // "dashboard", "widget", "nlq", "export"
+  action    String // "read", "write", "delete", "admin"
+  createdAt DateTime @default(now())
+
+  @@unique([role, resource, action])
+  @@map("role_permissions")
+}
+
+model Dashboard {
+  id        String   @id @default(uuid())
+  name      String
+  layout    Json // [{x,y,w,h,id},...] grid positions
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // MULTI-TENANT
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  widgets Widget[]
+
+  @@index([organizationId])
+  @@index([userId])
+  @@map("dashboards")
+}
+
+model Widget {
+  id        String   @id @default(uuid())
+  name      String
+  type      String // "kpi" | "chart" | "table"
+  config    Json // {period: "month", metric: "revenue_mom"}
+  exposure  String? // "revenue_mom", "dmp", "ar_aging"
+  vizType   String? // "bar", "line", "gauge", "table"
+  position  Json // {x:0, y:0, w:4, h:3}
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // MULTI-TENANT
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  dashboardId String?
+  dashboard   Dashboard? @relation(fields: [dashboardId], references: [id])
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([dashboardId])
+  @@map("widgets")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  event     String // "widget_added", "nlq_executed", "user_login"
+  payload   Json // données de l'événement
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  // MULTI-TENANT
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model NlqTemplate {
+  id        String   @id @default(uuid())
+  intent    String // "ca_period", "dmp_clients", "ar_aging"
+  keywords  String[] // ["ca", "chiffre affaires", "revenu"]
+  sqlQuery  String // template SQL avec $1, $2 params
+  vizType   String // "bar", "line", "gauge"
+  role      String // "daf" | "controller"
+  createdAt DateTime @default(now())
+
+  @@unique([intent, role])
+  @@map("nlq_templates")
+}
+
+model Agent {
+  id         String    @id @default(uuid())
+  token      String    @unique // token activation agent
+  name       String
+  status     String    @default("pending") // "pending" | "active" | "error"
+  lastSync   DateTime?
+  nextSync   DateTime?
+  rowsSynced BigInt    @default(0)
+  lastError  String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId])
+  @@index([token])
+  @@map("agents")
+}
+
+// Seed data pour RBAC
+model SeedData {
+  id   String @id @default(uuid())
+  type String // "role_permission" | "nlq_template" | "widget_default"
+  data Json
+}
