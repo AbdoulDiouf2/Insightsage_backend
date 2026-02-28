@@ -36,12 +36,24 @@ const DEFAULT_PERMISSIONS = [
     resource: 'users',
     description: 'Invite, edit, delete users',
   },
+  // Roles Management
+  { action: 'read', resource: 'roles', description: 'View roles and permissions' },
+  {
+    action: 'manage',
+    resource: 'roles',
+    description: 'Create, edit, delete custom roles',
+  },
   // Agent & Data
   {
     action: 'manage',
     resource: 'agents',
     description: 'Manage Sage database connections',
   },
+  // NLQ
+  { action: 'read', resource: 'nlq', description: 'Execute NLQ queries' },
+  { action: 'write', resource: 'nlq', description: 'Save NLQ results to dashboard' },
+  // Audit Logs
+  { action: 'read', resource: 'logs', description: 'View audit logs' },
   // Billing / Organization
   {
     action: 'manage',
