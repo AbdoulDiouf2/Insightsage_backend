@@ -10,7 +10,7 @@ La création d'un client passe par l'unique route `POST /api/admin/clients`.
 
 Cette route est :
 - Hautement sécurisée par un jeton JWT (`JwtAuthGuard`).
-- Strictement réservée aux membres de l'équipe système InsightSage (`RolesGuard` avec `@Roles('superadmin')`).
+- Strictement réservée aux membres de l'équipe système InsightSage (`PermissionsGuard` avec `@RequirePermissions({ action: 'manage', resource: 'all' })`).
 
 ### Fonctionnement Interne (`AdminService`)
 

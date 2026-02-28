@@ -4,7 +4,7 @@ import { Prisma, User } from '@prisma/client';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async findByEmail(email: string) {
     return this.prisma.user.findUnique({ where: { email } });
@@ -19,14 +19,26 @@ export class UsersService {
   async findByIdSafe(id: string) {
     return this.prisma.user.findUnique({
       where: { id },
-      select: { id: true, email: true, firstName: true, lastName: true, role: true, organizationId: true, createdAt: true, updatedAt: true }
+      include: {
+        userRoles: {
+          include: {
+            role: {
+              include: { permissions: { include: { permission: true } } },
+            },
+          },
+        },
+      },
     });
   }
 
   async findAllByOrganization(organizationId: string) {
     return this.prisma.user.findMany({
       where: { organizationId },
-      select: { id: true, email: true, firstName: true, lastName: true, role: true, createdAt: true, updatedAt: true }
+      include: {
+        userRoles: {
+          include: { role: true },
+        },
+      },
     });
   }
 
@@ -38,14 +50,18 @@ export class UsersService {
     return this.prisma.user.update({
       where: { id },
       data,
-      select: { id: true, email: true, firstName: true, lastName: true, role: true, organizationId: true, createdAt: true, updatedAt: true }
+      include: {
+        userRoles: {
+          include: { role: true },
+        },
+      },
     });
   }
 
   async remove(id: string) {
     return this.prisma.user.delete({
       where: { id },
-      select: { id: true, email: true } // Only return basic info on delete
+      select: { id: true, email: true }, // Only return basic info on delete
     });
   }
 }

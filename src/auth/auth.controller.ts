@@ -16,8 +16,8 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { InviteUserDto } from './dto/invite-user.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { JwtRefreshAuthGuard } from './guards/jwt-refresh-auth.guard';
-import { RolesGuard } from './guards/roles.guard';
-import { Roles } from './decorators/roles.decorator';
+import { PermissionsGuard } from './guards/permissions.guard';
+import { RequirePermissions } from './decorators/permissions.decorator';
 import {
   ApiTags,
   ApiOperation,
@@ -33,17 +33,22 @@ interface RequestWithUser extends Request {
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(private readonly authService: AuthService) {}
 
   @Post('register')
   @ApiOperation({
     summary: 'Join an organization via invitation token',
   })
   @ApiResponse({ status: 201, description: 'User registered successfully' })
-  @ApiResponse({ status: 400, description: 'Bad Request - Missing or invalid invitation' })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - Missing or invalid invitation',
+  })
   async register(@Body() dto: RegisterDto) {
     if (!dto.invitationToken) {
-      throw new BadRequestException('Public registration is disabled. An invitation token is required to join an organization.');
+      throw new BadRequestException(
+        'Public registration is disabled. An invitation token is required to join an organization.',
+      );
     }
     return this.authService.register(dto);
   }
@@ -93,8 +98,8 @@ export class AuthController {
     return this.authService.resetPassword(dto);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'daf')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions({ action: 'manage', resource: 'users' })
   @Post('invite')
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)

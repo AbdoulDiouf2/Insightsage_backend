@@ -18,7 +18,7 @@ Ce module gère toute l'authentification, la connexion des utilisateurs, et le c
    - `/auth/forgot-password` génère un jeton temporaire aléatoire permettant à l'utilisateur de réinitialiser son mot de passe (valide 1 heure). En développement, ce jeton est renvoyé dans la réponse HTTP.
    - `/auth/reset-password` vérifie le jeton et applique le nouveau mot de passe haché.
 4. **Système d'Invitations et Inscription Collaborateur**
-   - `/auth/invite` : Route protégée. Permet d'inviter un nouvel utilisateur dans une organisation spécifique. Protégée par **RBAC**: Réservé aux rôles `admin` et `daf`.
+   - `/auth/invite` : Route protégée. Permet d'inviter un nouvel utilisateur dans une organisation spécifique. Protégée par **RBAC**: Réservé aux utilisateurs ayant la permission `manage:users`.
    - `/auth/register` : Ne sert plus qu'à finaliser l'inscription d'un collaborateur invité (nécessite le `invitationToken`).
 
 ## Routes API Disponibles
@@ -30,12 +30,12 @@ Ce module gère toute l'authentification, la connexion des utilisateurs, et le c
 | `POST`  | `/logout`            | Déconnexion de la session courante                 | `@UseGuards(JwtAuthGuard)`   |
 | `POST`  | `/forgot-password`   | Demande de lien de réinitialisation                | *Aucune*                     |
 | `POST`  | `/reset-password`    | Modification du mot de passe avec le token         | *Aucune*                     |
-| `POST`  | `/invite`            | Création d'un lien d'invitation (collaborateur)    | `@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles('admin', 'daf')` |
+| `POST`  | `/invite`            | Création d'un lien d'invitation (collaborateur)    | `@UseGuards(JwtAuthGuard, PermissionsGuard)` + `@RequirePermissions({action: 'manage', resource: 'users'})` |
 | `POST`  | `/register`          | Acceptation d'invitation (Collaborateur)           | *Aucune* (via Token d'invite)|
 
-## RBAC : Contrôle d'Accès par Rôles
+## RBAC : Contrôle d'Accès Dynamique par Permissions (Multi-Tables)
 
-Le système exploite le champ `role` natif de la table `User`.
+Le système exploite une architecture relationnelle RBAC dynamique (`UserRole` -> `Role` -> `RolePermission` -> `Permission`) plutôt qu'un champ texte statique.
 
 **Pour protéger une route globale (ex: dashboards) :**
 ```typescript
@@ -44,10 +44,10 @@ Le système exploite le champ `role` natif de la table `User`.
 getMesDashboards() { ... }
 ```
 
-**Pour restreindre l'accès à un rôle spécifique :**
+**Pour restreindre l'accès à une permission spécifique :**
 ```typescript
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('admin', 'daf') // Seuls admin et daf sont autorisés
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions({ action: 'manage', resource: 'settings' }) // Vérifie la matrice de permissions relationnelles de l'utilisateur
 @Post('settings')
 updateSettings() { ... }
 ```

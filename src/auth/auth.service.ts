@@ -23,7 +23,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private prisma: PrismaService,
-  ) { }
+  ) {}
 
   async register(dto: RegisterDto) {
     if (!dto.invitationToken) {
@@ -36,13 +36,7 @@ export class AuthService {
       throw new BadRequestException('User already exists');
     }
 
-    const {
-      email,
-      password,
-      firstName,
-      lastName,
-      invitationToken,
-    } = dto;
+    const { email, password, firstName, lastName, invitationToken } = dto;
     const passwordHash = await bcrypt.hash(password, 10);
 
     const invite = await this.prisma.invitation.findUnique({
@@ -69,8 +63,10 @@ export class AuthService {
       passwordHash,
       firstName,
       lastName,
-      role: invite.role,
       organization: { connect: { id: invite.organizationId } },
+      userRoles: {
+        create: [{ roleId: invite.roleId }],
+      },
     });
 
     const tokens = await this.getTokens(user.id, user.email);
@@ -182,10 +178,21 @@ export class AuthService {
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 7 * 24 * 3600000); // 7 days
 
+    const role = await this.prisma.role.findFirst({
+      where: {
+        name: dto.role,
+        OR: [{ isSystem: true }, { organizationId: dto.organizationId }],
+      },
+    });
+
+    if (!role) {
+      throw new BadRequestException('The specified role does not exist.');
+    }
+
     await this.prisma.invitation.create({
       data: {
         email: dto.email,
-        role: dto.role,
+        roleId: role.id,
         token,
         expiresAt,
         organizationId: dto.organizationId,
