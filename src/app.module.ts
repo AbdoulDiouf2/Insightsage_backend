@@ -13,6 +13,7 @@ import { NlqModule } from './nlq/nlq.module';
 import { LogsModule } from './logs/logs.module';
 import { AdminModule } from './admin/admin.module';
 import { RolesModule } from './roles/roles.module';
+import { HealthModule } from './health/health.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { TenantGuard } from './auth/guards/tenant.guard';
 
@@ -39,6 +40,7 @@ import { TenantGuard } from './auth/guards/tenant.guard';
     LogsModule,
     AdminModule,
     RolesModule,
+    HealthModule,
   ],
   providers: [
     // Global guards applied in order:
