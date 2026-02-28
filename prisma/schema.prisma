@@ -21,18 +21,19 @@ model Organization {
   sageType   String? // "X3" | "100"
   sageHost   String?
   sagePort   Int?
-  sageConfig Json? // credentials chiffrés + mapping
+  sageConfig Json? // mapping Sage tables → métriques (AUCUN CREDENTIAL)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   // Relations
-  ownerId    String?     @unique
-  owner      User?       @relation("OrganizationOwner", fields: [ownerId], references: [id])
-  users      User[]      @relation("UserOrganization")
-  dashboards Dashboard[]
-  widgets    Widget[]
-  auditLogs  AuditLog[]
-  agents     Agent[]
+  ownerId     String?      @unique
+  owner       User?        @relation("OrganizationOwner", fields: [ownerId], references: [id])
+  users       User[]       @relation("UserOrganization")
+  dashboards  Dashboard[]
+  widgets     Widget[]
+  auditLogs   AuditLog[]
+  agents      Agent[]
+  invitations Invitation[]
 
   @@map("organizations")
 }
@@ -49,6 +50,11 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  // Auth fields
+  hashedRefreshToken   String?
+  resetPasswordToken   String?
+  resetPasswordExpires DateTime?
+
   // MULTI-TENANT : CHAQUE USER APPARTIENT À 1 ORG
   organizationId String
   organization   Organization @relation("UserOrganization", fields: [organizationId], references: [id], onDelete: Cascade)
@@ -63,6 +69,21 @@ model User {
 
   @@index([organizationId])
   @@map("users")
+}
+
+model Invitation {
+  id             String       @id @default(uuid())
+  email          String       @unique
+  token          String       @unique
+  role           String // Role constraint (e.g. "controller")
+  expiresAt      DateTime
+  isAccepted     Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("invitations")
 }
 
 model RolePermission {
@@ -164,10 +185,13 @@ model Agent {
   id         String    @id @default(uuid())
   token      String    @unique // token activation agent
   name       String
-  status     String    @default("pending") // "pending" | "active" | "error"
+  version    String? // version de l'agent installé
+  status     String    @default("pending") // "pending" | "online" | "offline" | "error"
+  lastSeen   DateTime? // heartbeat
   lastSync   DateTime?
   nextSync   DateTime?
   rowsSynced BigInt    @default(0)
+  errorCount Int       @default(0)
   lastError  String?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
