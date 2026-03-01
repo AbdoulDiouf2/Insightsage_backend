@@ -13,6 +13,7 @@ async function bootstrap() {
   // Enable CORS for frontend integration
   const allowedOrigins = [
     configService.get<string>('FRONTEND_URL') || 'http://localhost:3001',
+    'http://localhost:5173', // Admin Frontend
     'http://localhost:3000', // Swagger/Backend itself
   ];
 

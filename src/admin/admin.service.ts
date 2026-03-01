@@ -1,6 +1,8 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClientDto } from './dto/create-client.dto';
+import { UpdateOrganizationDto } from './dto/update-organization.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 
@@ -93,6 +95,79 @@ export class AdminService {
           setupToken: token,
         },
       };
+    });
+  }
+
+  // --- Organizations Management ---
+
+  async findAllOrganizations() {
+    return this.prisma.organization.findMany({
+      include: {
+        _count: {
+          select: { users: true, dashboards: true },
+        },
+        owner: {
+          select: { email: true, firstName: true, lastName: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async updateOrganization(id: string, dto: UpdateOrganizationDto) {
+    return this.prisma.organization.update({
+      where: { id },
+      data: dto,
+    });
+  }
+
+  // --- Users Management ---
+
+  async findAllUsers() {
+    return this.prisma.user.findMany({
+      include: {
+        organization: {
+          select: { name: true },
+        },
+        userRoles: {
+          include: {
+            role: {
+              select: { name: true },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async updateUser(id: string, dto: UpdateUserDto) {
+    return this.prisma.user.update({
+      where: { id },
+      data: dto,
+    });
+  }
+
+  async deleteUser(id: string) {
+    return this.prisma.user.delete({
+      where: { id },
+    });
+  }
+
+  // --- Audit Logs ---
+
+  async findAllAuditLogs() {
+    return this.prisma.auditLog.findMany({
+      include: {
+        user: {
+          select: { email: true },
+        },
+        organization: {
+          select: { name: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100, // Limit to last 100 for now
     });
   }
 }
