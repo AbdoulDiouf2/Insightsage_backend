@@ -1,0 +1,51 @@
+# InsightSage Agent Configuration
+# Copier ce fichier vers config.yaml et modifier les valeurs
+
+# Connexion Sage SQL Server
+sage:
+  host: "localhost"
+  port: 1433
+  database: "SAGE_COMPANY"
+  username: "sa_readonly"
+  password: "CHANGE_ME"  # ⚠️ Modifier obligatoirement
+  driver: "ODBC Driver 17 for SQL Server"
+  # Type de Sage: "X3" ou "100"
+  type: "100"
+  version: "v12"
+
+# Connexion au Backend SaaS InsightSage
+backend:
+  url: "https://api.insightsage.com"
+  # Token généré lors de l'onboarding
+  agent_token: "VOTRE_TOKEN_ICI"
+  # Intervalle heartbeat en secondes
+  heartbeat_interval: 30
+
+# Sécurité
+security:
+  # Tables autorisées (whitelist)
+  allowed_tables:
+    - "F_DOCENTETE"      # Factures
+    - "F_DOCLIGNE"       # Lignes factures  
+    - "F_COMPTET"        # Comptes tiers (clients)
+    - "F_ECRITUREC"      # Écritures comptables
+    - "F_COMPTEG"        # Comptes généraux
+    - "F_BANQUE"         # Banques
+    - "F_REGLECH"        # Règlements
+    - "F_PIECE"          # Pièces comptables
+  # Limite de lignes par requête
+  max_rows: 1000
+  # Timeout requête en secondes
+  query_timeout: 5
+  # Rate limit: requêtes par minute
+  rate_limit: 10
+
+# Agent
+agent:
+  name: "InsightSage-Agent-01"
+  # Port du serveur local (pour health check)
+  port: 8080
+  # Niveau de log: DEBUG, INFO, WARNING, ERROR
+  log_level: "INFO"
+  # Dossier des logs
+  log_dir: "./logs"
