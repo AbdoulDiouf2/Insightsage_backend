@@ -9,9 +9,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 
+import { AuditLogService } from '../logs/audit-log.service';
+
 @Injectable()
 export class RolesService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private auditLog: AuditLogService,
+  ) { }
 
   async findAllPermissions() {
     return this.prisma.permission.findMany({
@@ -41,7 +46,7 @@ export class RolesService {
     if (existingRole)
       throw new BadRequestException(`A role named ${dto.name} already exists.`);
 
-    return this.prisma.role.create({
+    const role = await this.prisma.role.create({
       data: {
         name: dto.name,
         description: dto.description,
@@ -55,6 +60,14 @@ export class RolesService {
         permissions: { include: { permission: true } },
       },
     });
+
+    await this.auditLog.log({
+      organizationId,
+      event: 'role_created',
+      payload: { roleId: role.id, name: role.name },
+    });
+
+    return role;
   }
 
   async update(id: string, organizationId: string, dto: UpdateRoleDto) {
@@ -82,13 +95,21 @@ export class RolesService {
       };
     }
 
-    return this.prisma.role.update({
+    const updatedRole = await this.prisma.role.update({
       where: { id },
       data: updateData,
       include: {
         permissions: { include: { permission: true } },
       },
     });
+
+    await this.auditLog.log({
+      organizationId,
+      event: 'role_updated',
+      payload: { roleId: id, name: updatedRole.name },
+    });
+
+    return updatedRole;
   }
 
   async remove(id: string, organizationId: string) {
@@ -102,6 +123,14 @@ export class RolesService {
         'Cannot delete roles from other organizations.',
       );
 
-    return this.prisma.role.delete({ where: { id } });
+    const deletedRole = await this.prisma.role.delete({ where: { id } });
+
+    await this.auditLog.log({
+      organizationId,
+      event: 'role_deleted',
+      payload: { roleId: id, name: role.name },
+    });
+
+    return deletedRole;
   }
 }

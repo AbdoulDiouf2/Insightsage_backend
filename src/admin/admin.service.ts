@@ -4,9 +4,14 @@ import { CreateClientDto } from './dto/create-client.dto';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 
+import { AuditLogService } from '../logs/audit-log.service';
+
 @Injectable()
 export class AdminService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private auditLog: AuditLogService,
+  ) { }
 
   async createClientAccount(dto: CreateClientDto) {
     // 1. Verify if user already exists
@@ -70,6 +75,13 @@ export class AdminService {
 
       // E. (Optional / ToDo) Send Welcome Email with the link:
       // https://your-front.com/reset-password?token=${token}
+
+      await this.auditLog.log({
+        organizationId: organization.id,
+        userId: user.id,
+        event: 'organization_updated',
+        payload: { action: 'client_onboarding', organizationName: organization.name },
+      });
 
       return {
         message: 'Client organization and root user created successfully.',
