@@ -210,7 +210,10 @@ export class AgentsService {
       agent: {
         id: primaryAgent.id,
         name: primaryAgent.name,
-        status: isStale && primaryAgent.status === 'online' ? 'offline' : primaryAgent.status,
+        status:
+          isStale && primaryAgent.status === 'online'
+            ? 'offline'
+            : primaryAgent.status,
         version: primaryAgent.version,
         lastSeen: primaryAgent.lastSeen,
         lastSync: primaryAgent.lastSync,
