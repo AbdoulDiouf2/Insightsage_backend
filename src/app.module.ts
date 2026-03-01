@@ -16,8 +16,7 @@ import { RolesModule } from './roles/roles.module';
 import { HealthModule } from './health/health.module';
 import { AgentsModule } from './agents/agents.module';
 import { AuditLogModule } from './logs/audit-log.module';
-// AdminJS désactivé temporairement (incompatibilité ESM/CJS avec NestJS)
-// import { AdminPanelModule } from './admin-panel/admin-panel.module';
+// import { AdminPanelModule } from './admin-panel/admin-panel.module'; // Désactivé (AdminJS)
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { TenantGuard } from './auth/guards/tenant.guard';
 
@@ -47,7 +46,7 @@ import { TenantGuard } from './auth/guards/tenant.guard';
     HealthModule,
     AgentsModule,
     AuditLogModule,
-    // AdminPanelModule, // Désactivé - utiliser Prisma Studio à la place
+    // AdminPanelModule, // Désactivé (AdminJS)
   ],
   providers: [
     // Global guards applied in order:

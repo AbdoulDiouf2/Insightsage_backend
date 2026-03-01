@@ -2,22 +2,31 @@ import { Module } from '@nestjs/common';
 import { AdminModule } from '@adminjs/nestjs';
 import AdminJS from 'adminjs';
 import * as bcrypt from 'bcrypt';
-import { PrismaClient } from '@prisma/client';
+import * as AdminJSPrisma from '@adminjs/prisma';
+import { PrismaService } from '../prisma/prisma.service';
+import { PrismaModule } from '../prisma/prisma.module';
 
-// Create a separate Prisma client for AdminJS
-const prisma = new PrismaClient();
+// Register adapter
+AdminJS.registerAdapter({
+  Resource: AdminJSPrisma.Resource,
+  Database: AdminJSPrisma.Database,
+});
 
-// Admin credentials from environment
+// Admin credentials
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@insightsage.com';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123!';
 
 @Module({
   imports: [
+    PrismaModule,
     AdminModule.createAdminAsync({
-      useFactory: async () => {
+      imports: [PrismaModule],
+      inject: [PrismaService],
+      useFactory: async (prisma: PrismaService) => {
         return {
           adminJsOptions: {
             rootPath: '/admin',
+            databases: [prisma],
             branding: {
               companyName: 'InsightSage Admin',
               logo: false,
@@ -37,19 +46,40 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123!';
                   AuditLog: "Logs d'audit",
                   Invitation: 'Invitations',
                   NlqTemplate: 'Templates NLQ',
+                  SeedData: 'Données de Seed',
+                  UserRole: 'Rôles Utilisateurs',
+                  RolePermission: 'Permissions Rôles',
                 },
               },
             },
-            resources: [],
+            resources: [
+              // Identité
+              { resource: { model: 'User', client: prisma }, options: { navigation: { name: 'Identité', icon: 'User' } } },
+              { resource: { model: 'Role', client: prisma }, options: { navigation: { name: 'Identité', icon: 'Shield' } } },
+              { resource: { model: 'Permission', client: prisma }, options: { navigation: { name: 'Identité', icon: 'Lock' } } },
+              { resource: { model: 'UserRole', client: prisma }, options: { navigation: { name: 'Identité', icon: 'Users' } } },
+              { resource: { model: 'RolePermission', client: prisma }, options: { navigation: { name: 'Identité', icon: 'Key' } } },
+              { resource: { model: 'Invitation', client: prisma }, options: { navigation: { name: 'Identité', icon: 'Mail' } } },
+              // Structure
+              { resource: { model: 'Organization', client: prisma }, options: { navigation: { name: 'Structure', icon: 'Home' } } },
+              { resource: { model: 'Agent', client: prisma }, options: { navigation: { name: 'Structure', icon: 'Cpu' } } },
+              // Contenu
+              { resource: { model: 'Dashboard', client: prisma }, options: { navigation: { name: 'Contenu', icon: 'Layout' } } },
+              { resource: { model: 'Widget', client: prisma }, options: { navigation: { name: 'Contenu', icon: 'Grid' } } },
+              { resource: { model: 'NlqTemplate', client: prisma }, options: { navigation: { name: 'Contenu', icon: 'MessageSquare' } } },
+              // Système
+              { resource: { model: 'AuditLog', client: prisma }, options: { navigation: { name: 'Système', icon: 'Activity' } } },
+              { resource: { model: 'SeedData', client: prisma }, options: { navigation: { name: 'Système', icon: 'Database' } } },
+            ],
           },
+
           auth: {
             authenticate: async (email: string, password: string) => {
-              // Check hardcoded admin first
+              // Hardcoded superadmin
               if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
                 return { email: ADMIN_EMAIL, title: 'SuperAdmin' };
               }
 
-              // Check against superadmin users in database
               try {
                 const user = await prisma.user.findUnique({
                   where: { email },
@@ -70,7 +100,6 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123!';
 
                 if (!user) return null;
 
-                // Check if user has superadmin role
                 const isSuperAdmin = user.userRoles.some((ur) =>
                   ur.role.permissions.some(
                     (rp) =>
@@ -81,15 +110,12 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123!';
 
                 if (!isSuperAdmin) return null;
 
-                const isPasswordValid = await bcrypt.compare(
-                  password,
-                  user.passwordHash,
-                );
-                if (!isPasswordValid) return null;
+                const valid = await bcrypt.compare(password, user.passwordHash);
+                if (!valid) return null;
 
                 return { email: user.email, title: 'SuperAdmin' };
-              } catch (error) {
-                console.error('Admin auth error:', error);
+              } catch (err) {
+                console.error('Admin auth error:', err);
                 return null;
               }
             },
@@ -98,6 +124,7 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123!';
               process.env.ADMIN_COOKIE_SECRET ||
               'super-secret-and-long-cookie-password-32chars',
           },
+
           sessionOptions: {
             resave: false,
             saveUninitialized: false,
@@ -110,4 +137,4 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123!';
     }),
   ],
 })
-export class AdminPanelModule {}
+export class AdminPanelModule { }
