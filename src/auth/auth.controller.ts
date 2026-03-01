@@ -3,7 +3,6 @@ import {
   Post,
   Body,
   UseGuards,
-  Req,
   HttpCode,
   HttpStatus,
   BadRequestException,
@@ -14,27 +13,22 @@ import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { InviteUserDto } from './dto/invite-user.dto';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { JwtRefreshAuthGuard } from './guards/jwt-refresh-auth.guard';
 import { PermissionsGuard } from './guards/permissions.guard';
-import { RequirePermissions } from './decorators/permissions.decorator';
+import { Public, RequirePermissions, CurrentUser } from './decorators';
 import {
   ApiTags,
   ApiOperation,
   ApiBearerAuth,
   ApiResponse,
 } from '@nestjs/swagger';
-import type { Request } from 'express';
-
-interface RequestWithUser extends Request {
-  user: { id: string; refreshToken?: string; email?: string } | any; // 'any' for passport generic type support
-}
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Public()
   @Post('register')
   @ApiOperation({
     summary: 'Join an organization via invitation token',
@@ -53,6 +47,7 @@ export class AuthController {
     return this.authService.register(dto);
   }
 
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login user' })
@@ -62,35 +57,38 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post('logout')
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Logout user' })
   @ApiResponse({ status: 200, description: 'User logged out successfully' })
-  async logout(@Req() req: RequestWithUser) {
-    const user = req.user as { id: string };
-    return this.authService.logout(user.id);
+  async logout(@CurrentUser('id') userId: string) {
+    return this.authService.logout(userId);
   }
 
+  @Public()
   @UseGuards(JwtRefreshAuthGuard)
   @Post('refresh')
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh access token' })
   @ApiResponse({ status: 200, description: 'Tokens refreshed successfully' })
-  async refreshTokens(@Req() req: RequestWithUser) {
-    const user = req.user as { id: string; refreshToken: string };
-    return this.authService.refreshTokens(user.id, user.refreshToken);
+  async refreshTokens(
+    @CurrentUser('id') userId: string,
+    @CurrentUser('refreshToken') refreshToken: string,
+  ) {
+    return this.authService.refreshTokens(userId, refreshToken);
   }
 
+  @Public()
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Request password resetlink' })
+  @ApiOperation({ summary: 'Request password reset link' })
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.authService.forgotPassword(dto);
   }
 
+  @Public()
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reset password using token' })
@@ -98,16 +96,24 @@ export class AuthController {
     return this.authService.resetPassword(dto);
   }
 
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @UseGuards(PermissionsGuard)
   @RequirePermissions({ action: 'manage', resource: 'users' })
   @Post('invite')
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Invite a user to an organization' })
-  async inviteUser(@Body() dto: InviteUserDto) {
-    // In a real scenario, we should verify that `req.user` has the right ROLES
-    // to invite other users to the `dto.organizationId`.
-    // For MVP, we pass it down to the service.
+  @ApiResponse({ status: 200, description: 'Invitation sent successfully' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  async inviteUser(
+    @Body() dto: InviteUserDto,
+    @CurrentUser('organizationId') requesterOrgId: string,
+  ) {
+    // Ensure user can only invite to their own organization
+    if (dto.organizationId !== requesterOrgId) {
+      throw new BadRequestException(
+        'You can only invite users to your own organization.',
+      );
+    }
     return this.authService.inviteUser(dto);
   }
 }

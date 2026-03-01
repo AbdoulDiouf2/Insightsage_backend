@@ -8,9 +8,8 @@ import {
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { CreateClientDto } from './dto/create-client.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
-import { RequirePermissions } from '../auth/decorators/permissions.decorator';
+import { RequirePermissions } from '../auth/decorators';
 import {
   ApiTags,
   ApiOperation,
@@ -20,8 +19,8 @@ import {
 
 @ApiTags('Admin')
 @Controller('admin')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions({ action: 'manage', resource: 'all' }) // Only InsightSage developers/superadmins can access this Controller
+@UseGuards(PermissionsGuard)
+@RequirePermissions({ action: 'manage', resource: 'all' }) // Only InsightSage developers/superadmins
 @ApiBearerAuth()
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}

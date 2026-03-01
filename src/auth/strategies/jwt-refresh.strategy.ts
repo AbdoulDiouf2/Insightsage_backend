@@ -14,12 +14,15 @@ export class JwtRefreshStrategy extends PassportStrategy(
     private configService: ConfigService,
     private usersService: UsersService,
   ) {
+    const jwtRefreshSecret = configService.get<string>('JWT_REFRESH_SECRET');
+    if (!jwtRefreshSecret) {
+      throw new Error('JWT_REFRESH_SECRET environment variable is not defined');
+    }
+
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey:
-        configService.get<string>('JWT_REFRESH_SECRET') ||
-        'defaultRefreshSecret',
+      secretOrKey: jwtRefreshSecret,
       passReqToCallback: true,
     });
   }
@@ -29,9 +32,9 @@ export class JwtRefreshStrategy extends PassportStrategy(
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token malformed');
     }
-    const user = await this.usersService.findById(payload.sub);
-    if (!user) {
-      throw new UnauthorizedException();
+    const user = await this.usersService.findByIdSafe(payload.sub);
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('User not found or inactive');
     }
     return { ...user, refreshToken };
   }

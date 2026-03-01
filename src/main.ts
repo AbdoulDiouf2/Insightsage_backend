@@ -2,30 +2,49 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
+  
   app.setGlobalPrefix('api');
+
+  // Enable CORS for frontend integration
+  app.enableCors({
+    origin: configService.get<string>('FRONTEND_URL') || 'http://localhost:3001',
+    credentials: true,
+  });
 
   // Global validation (DTOs)
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
       whitelist: true,
+      forbidNonWhitelisted: true,
     }),
   );
 
   // Swagger API docs (front client)
   const config = new DocumentBuilder()
     .setTitle('InsightSage API')
-    .setDescription('MVP Back-end DAF')
+    .setDescription('MVP Back-end DAF - SaaS BI Platform')
     .setVersion('1.0')
     .addBearerAuth()
+    .addTag('Auth', 'Authentication & Authorization')
+    .addTag('Users', 'User management')
+    .addTag('Roles', 'RBAC role management')
+    .addTag('Admin', 'Platform administration')
+    .addTag('Dashboards', 'Dashboard management')
+    .addTag('Widgets', 'Widget management')
+    .addTag('NLQ', 'Natural Language Query')
+    .addTag('Onboarding', 'Client onboarding wizard')
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  await app.listen(3000);
-  console.log('🚀 InsightSage API: http://localhost:3000/api');
+  const port = configService.get<number>('PORT') || 3000;
+  await app.listen(port);
+  console.log(`🚀 InsightSage API: http://localhost:${port}/api`);
 }
 bootstrap();
