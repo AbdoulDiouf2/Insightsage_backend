@@ -1,18 +1,18 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { RolesController } from './roles.controller';
-import { RolesService } from './roles.service';
+import { SubscriptionsController } from './subscriptions.controller';
+import { SubscriptionsService } from './subscriptions.service';
 import { UsersService } from '../users/users.service';
 import { Reflector } from '@nestjs/core';
 
-describe('RolesController', () => {
-  let controller: RolesController;
+describe('SubscriptionsController', () => {
+  let controller: SubscriptionsController;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [RolesController],
+      controllers: [SubscriptionsController],
       providers: [
         {
-          provide: RolesService,
+          provide: SubscriptionsService,
           useValue: {},
         },
         {
@@ -26,7 +26,7 @@ describe('RolesController', () => {
       ],
     }).compile();
 
-    controller = module.get<RolesController>(RolesController);
+    controller = module.get<SubscriptionsController>(SubscriptionsController);
   });
 
   it('should be defined', () => {

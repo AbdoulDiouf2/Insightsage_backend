@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma, User } from '@prisma/client';
+import { AuditLogService } from '../logs/audit-log.service';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private auditLog: AuditLogService,
+  ) { }
 
   async findByEmail(email: string) {
     return this.prisma.user.findUnique({ where: { email } });
@@ -47,7 +51,7 @@ export class UsersService {
   }
 
   async update(id: string, data: Prisma.UserUpdateInput) {
-    return this.prisma.user.update({
+    const user = await this.prisma.user.update({
       where: { id },
       data,
       include: {
@@ -56,12 +60,33 @@ export class UsersService {
         },
       },
     });
+
+    await this.auditLog.log({
+      organizationId: user.organizationId,
+      userId: user.id,
+      event: 'user_updated',
+      payload: { fields: Object.keys(data) },
+    });
+
+    return user;
   }
 
   async remove(id: string) {
-    return this.prisma.user.delete({
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    const deletedUser = await this.prisma.user.delete({
       where: { id },
-      select: { id: true, email: true }, // Only return basic info on delete
+      select: { id: true, email: true, organizationId: true },
     });
+
+    if (user) {
+      await this.auditLog.log({
+        organizationId: user.organizationId,
+        userId: user.id,
+        event: 'user_deleted',
+        payload: { email: user.email },
+      });
+    }
+
+    return deletedUser;
   }
 }

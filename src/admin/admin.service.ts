@@ -1,12 +1,19 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClientDto } from './dto/create-client.dto';
+import { UpdateOrganizationDto } from './dto/update-organization.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 
+import { AuditLogService } from '../logs/audit-log.service';
+
 @Injectable()
 export class AdminService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private auditLog: AuditLogService,
+  ) { }
 
   async createClientAccount(dto: CreateClientDto) {
     // 1. Verify if user already exists
@@ -71,6 +78,13 @@ export class AdminService {
       // E. (Optional / ToDo) Send Welcome Email with the link:
       // https://your-front.com/reset-password?token=${token}
 
+      await this.auditLog.log({
+        organizationId: organization.id,
+        userId: user.id,
+        event: 'organization_updated',
+        payload: { action: 'client_onboarding', organizationName: organization.name },
+      });
+
       return {
         message: 'Client organization and root user created successfully.',
         organizationId: organization.id,
@@ -81,6 +95,79 @@ export class AdminService {
           setupToken: token,
         },
       };
+    });
+  }
+
+  // --- Organizations Management ---
+
+  async findAllOrganizations() {
+    return this.prisma.organization.findMany({
+      include: {
+        _count: {
+          select: { users: true, dashboards: true },
+        },
+        owner: {
+          select: { email: true, firstName: true, lastName: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async updateOrganization(id: string, dto: UpdateOrganizationDto) {
+    return this.prisma.organization.update({
+      where: { id },
+      data: dto,
+    });
+  }
+
+  // --- Users Management ---
+
+  async findAllUsers() {
+    return this.prisma.user.findMany({
+      include: {
+        organization: {
+          select: { name: true },
+        },
+        userRoles: {
+          include: {
+            role: {
+              select: { name: true },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async updateUser(id: string, dto: UpdateUserDto) {
+    return this.prisma.user.update({
+      where: { id },
+      data: dto,
+    });
+  }
+
+  async deleteUser(id: string) {
+    return this.prisma.user.delete({
+      where: { id },
+    });
+  }
+
+  // --- Audit Logs ---
+
+  async findAllAuditLogs() {
+    return this.prisma.auditLog.findMany({
+      include: {
+        user: {
+          select: { email: true },
+        },
+        organization: {
+          select: { name: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100, // Limit to last 100 for now
     });
   }
 }

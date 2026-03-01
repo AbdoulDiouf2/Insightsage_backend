@@ -1,0 +1,84 @@
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+
+export interface AuditLogFilters {
+  userId?: string;
+  event?: string;
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+  offset?: number;
+}
+
+@Injectable()
+export class LogsService {
+  constructor(private prisma: PrismaService) {}
+
+  async findAll(organizationId: string, filters: AuditLogFilters = {}) {
+    const {
+      userId,
+      event,
+      startDate,
+      endDate,
+      limit = 50,
+      offset = 0,
+    } = filters;
+
+    const where: any = {
+      organizationId,
+    };
+
+    if (userId) {
+      where.userId = userId;
+    }
+
+    if (event) {
+      where.event = { contains: event, mode: 'insensitive' };
+    }
+
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) where.createdAt.gte = startDate;
+      if (endDate) where.createdAt.lte = endDate;
+    }
+
+    const [logs, total] = await Promise.all([
+      this.prisma.auditLog.findMany({
+        where,
+        include: {
+          user: {
+            select: { id: true, email: true, firstName: true, lastName: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: Math.min(limit, 100), // Max 100 per request
+        skip: offset,
+      }),
+      this.prisma.auditLog.count({ where }),
+    ]);
+
+    return {
+      data: logs,
+      meta: {
+        total,
+        limit,
+        offset,
+        hasMore: offset + logs.length < total,
+      },
+    };
+  }
+
+  async getEventTypes(organizationId: string) {
+    const events = await this.prisma.auditLog.groupBy({
+      by: ['event'],
+      where: { organizationId },
+      _count: { event: true },
+      orderBy: { _count: { event: 'desc' } },
+    });
+
+    return events.map((e) => ({
+      event: e.event,
+      count: e._count.event,
+    }));
+  }
+}

@@ -1,22 +1,20 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { RolesService } from './roles.service';
+import { UsersService } from './users.service';
 import { PrismaService } from '../prisma/prisma.service';
 
-describe('RolesService', () => {
-  let service: RolesService;
+describe('UsersService', () => {
+  let service: UsersService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        RolesService,
+        UsersService,
         {
           provide: PrismaService,
           useValue: {
-            permission: { findMany: jest.fn() },
-            role: {
-              findMany: jest.fn(),
+            user: {
               findUnique: jest.fn(),
-              findFirst: jest.fn(),
+              findMany: jest.fn(),
               create: jest.fn(),
               update: jest.fn(),
               delete: jest.fn(),
@@ -26,7 +24,7 @@ describe('RolesService', () => {
       ],
     }).compile();
 
-    service = module.get<RolesService>(RolesService);
+    service = module.get<UsersService>(UsersService);
   });
 
   it('should be defined', () => {

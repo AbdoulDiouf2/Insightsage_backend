@@ -8,8 +8,16 @@ import {
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { CreateClientDto } from './dto/create-client.dto';
+import { UpdateOrganizationDto } from './dto/update-organization.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermissions } from '../auth/decorators';
+import {
+  Get,
+  Patch,
+  Delete,
+  Param,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -23,7 +31,7 @@ import {
 @RequirePermissions({ action: 'manage', resource: 'all' }) // Only InsightSage developers/superadmins
 @ApiBearerAuth()
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(private readonly adminService: AdminService) { }
 
   @Post('clients')
   @HttpCode(HttpStatus.CREATED)
@@ -37,5 +45,47 @@ export class AdminController {
   })
   async createClient(@Body() dto: CreateClientDto) {
     return this.adminService.createClientAccount(dto);
+  }
+
+  // --- Organizations Management ---
+
+  @Get('organizations')
+  @ApiOperation({ summary: 'List all organizations (SuperAdmin only)' })
+  async findAllOrganizations() {
+    return this.adminService.findAllOrganizations();
+  }
+
+  @Patch('organizations/:id')
+  @ApiOperation({ summary: 'Update organization details' })
+  async updateOrganization(@Param('id') id: string, @Body() dto: UpdateOrganizationDto) {
+    return this.adminService.updateOrganization(id, dto);
+  }
+
+  // --- Users Management ---
+
+  @Get('users')
+  @ApiOperation({ summary: 'List all users across all organizations' })
+  async findAllUsers() {
+    return this.adminService.findAllUsers();
+  }
+
+  @Patch('users/:id')
+  @ApiOperation({ summary: 'Update user details' })
+  async updateUser(@Param('id') id: string, @Body() dto: UpdateUserDto) {
+    return this.adminService.updateUser(id, dto);
+  }
+
+  @Delete('users/:id')
+  @ApiOperation({ summary: 'Delete a user' })
+  async deleteUser(@Param('id') id: string) {
+    return this.adminService.deleteUser(id);
+  }
+
+  // --- Audit Logs ---
+
+  @Get('audit-logs')
+  @ApiOperation({ summary: 'View system-wide audit logs' })
+  async findAllAuditLogs() {
+    return this.adminService.findAllAuditLogs();
   }
 }

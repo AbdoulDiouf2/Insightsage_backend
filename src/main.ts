@@ -7,12 +7,30 @@ import { ConfigService } from '@nestjs/config';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
-  
-  app.setGlobalPrefix('api');
+
+  app.setGlobalPrefix('api', { exclude: ['admin/(.*)', 'admin'] });
 
   // Enable CORS for frontend integration
+  const allowedOrigins = [
+    configService.get<string>('FRONTEND_URL') || 'http://localhost:3001',
+    'http://localhost:5173', // Admin Frontend
+    'http://localhost:3000', // Swagger/Backend itself
+  ];
+
+  // In development, we also allow 'null' for opening the playground as a local file
+  if (configService.get<string>('NODE_ENV') !== 'production') {
+    allowedOrigins.push('null');
+  }
+
   app.enableCors({
-    origin: configService.get<string>('FRONTEND_URL') || 'http://localhost:3001',
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl) or in allowed list
+      if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes(String(origin))) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
   });
 

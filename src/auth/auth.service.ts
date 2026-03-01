@@ -13,6 +13,7 @@ import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { InviteUserDto } from './dto/invite-user.dto';
+import { AuditLogService } from '../logs/audit-log.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
@@ -23,7 +24,8 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private prisma: PrismaService,
-  ) {}
+    private auditLog: AuditLogService,
+  ) { }
 
   async register(dto: RegisterDto) {
     if (!dto.invitationToken) {
@@ -71,6 +73,14 @@ export class AuthService {
 
     const tokens = await this.getTokens(user.id, user.email);
     await this.updateRefreshTokenHash(user.id, tokens.refreshToken);
+
+    await this.auditLog.log({
+      organizationId: invite.organizationId,
+      userId: user.id,
+      event: 'user_created',
+      payload: { email: user.email, method: 'invitation' },
+    });
+
     return tokens;
   }
 
@@ -90,11 +100,29 @@ export class AuthService {
 
     const tokens = await this.getTokens(user.id, user.email);
     await this.updateRefreshTokenHash(user.id, tokens.refreshToken);
+
+    await this.auditLog.log({
+      organizationId: user.organizationId,
+      userId: user.id,
+      event: 'user_login',
+      payload: { email: user.email },
+    });
+
     return tokens;
   }
 
   async logout(userId: string) {
+    const user = await this.usersService.findById(userId);
     await this.usersService.update(userId, { hashedRefreshToken: null });
+
+    if (user) {
+      await this.auditLog.log({
+        organizationId: user.organizationId,
+        userId: user.id,
+        event: 'user_logout',
+      });
+    }
+
     return { message: 'Logged out successfully' };
   }
 
@@ -142,6 +170,13 @@ export class AuthService {
       };
     }
 
+    await this.auditLog.log({
+      organizationId: user.organizationId,
+      userId: user.id,
+      event: 'password_reset_requested',
+      payload: { email: user.email },
+    });
+
     return {
       message: 'If that email is in our database, we will send a reset link.',
     };
@@ -164,6 +199,13 @@ export class AuthService {
       passwordHash,
       resetPasswordToken: null,
       resetPasswordExpires: null,
+    });
+
+    await this.auditLog.log({
+      organizationId: user.organizationId,
+      userId: user.id,
+      event: 'password_reset_completed',
+      payload: { email: user.email },
     });
 
     return { message: 'Password reset successfully' };
@@ -201,6 +243,12 @@ export class AuthService {
 
     // In a real application, send the invitation email here
     console.log(`Invitation token for ${dto.email}: ${token}`);
+
+    await this.auditLog.log({
+      organizationId: dto.organizationId,
+      event: 'user_invited',
+      payload: { email: dto.email, role: dto.role },
+    });
 
     return { message: 'Invitation sent successfully' };
   }

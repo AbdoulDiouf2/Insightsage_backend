@@ -1,0 +1,32 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { AdminService } from './admin.service';
+import { PrismaService } from '../prisma/prisma.service';
+
+describe('AdminService', () => {
+  let service: AdminService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AdminService,
+        {
+          provide: PrismaService,
+          useValue: {
+            organization: { create: jest.fn(), findUnique: jest.fn() },
+            user: { create: jest.fn() },
+            role: { findFirst: jest.fn() },
+            $transaction: jest.fn((cb) =>
+              cb({ organization: {}, user: {}, role: {} }),
+            ),
+          },
+        },
+      ],
+    }).compile();
+
+    service = module.get<AdminService>(AdminService);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+});
