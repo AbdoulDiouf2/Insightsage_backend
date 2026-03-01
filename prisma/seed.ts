@@ -44,6 +44,7 @@ const DEFAULT_PERMISSIONS = [
     description: 'Create, edit, delete custom roles',
   },
   // Agent & Data
+  { action: 'read', resource: 'agents', description: 'View agent status' },
   {
     action: 'manage',
     resource: 'agents',
@@ -84,6 +85,7 @@ const DEFAULT_ROLES = [
       { action: 'manage', resource: 'users' },
       { action: 'manage', resource: 'roles' },
       { action: 'manage', resource: 'agents' },
+      { action: 'read', resource: 'agents' },
       { action: 'write', resource: 'dashboards' },
       { action: 'delete', resource: 'dashboards' },
       { action: 'write', resource: 'widgets' },
@@ -100,6 +102,7 @@ const DEFAULT_ROLES = [
       { action: 'manage', resource: 'users' },
       { action: 'manage', resource: 'roles' },
       { action: 'manage', resource: 'agents' },
+      { action: 'read', resource: 'agents' },
       { action: 'write', resource: 'dashboards' },
       { action: 'delete', resource: 'dashboards' },
       { action: 'write', resource: 'widgets' },
@@ -114,6 +117,7 @@ const DEFAULT_ROLES = [
     permissions: [
       { action: 'read', resource: 'users' },
       { action: 'read', resource: 'roles' },
+      { action: 'read', resource: 'agents' },
       { action: 'write', resource: 'dashboards' },
       { action: 'write', resource: 'widgets' },
       { action: 'write', resource: 'nlq' },

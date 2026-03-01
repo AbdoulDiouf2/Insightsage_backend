@@ -1,0 +1,63 @@
+# InsightSage Agent - Docker Compose
+# Pour déploiement rapide sur serveurs
+
+version: '3.8'
+
+services:
+  insightsage-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: insightsage/agent:1.0.0
+    container_name: insightsage-agent
+    restart: always
+    
+    # Ports
+    ports:
+      - "8080:8080"
+    
+    # Volumes pour la configuration et les logs
+    volumes:
+      - ./config/config.yaml:/app/config/config.yaml:ro
+      - agent-logs:/app/logs
+    
+    # Variables d'environnement (optionnel, override config.yaml)
+    environment:
+      - LOG_LEVEL=INFO
+    
+    # Réseau - doit pouvoir atteindre SQL Server Sage
+    # Option 1: host network (accès direct au réseau de l'hôte)
+    # network_mode: host
+    
+    # Option 2: Réseau bridge avec extra_hosts pour SQL Server
+    extra_hosts:
+      - "sage-server:192.168.1.10"  # Remplacer par l'IP de votre serveur Sage
+    
+    # Healthcheck
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    
+    # Limites de ressources
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  agent-logs:
+    driver: local

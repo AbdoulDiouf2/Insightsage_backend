@@ -1,0 +1,38 @@
+# Docker ignore file
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Config avec secrets
+config/config.yaml
+
+# Logs
+logs/
+*.log
+
+# Build artifacts
+dist/
+build/
+*.exe
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Git
+.git/
+.gitignore
+
+# Tests
+tests/
+.pytest_cache/
+.coverage
+
+# Docs (pas nécessaires dans l'image)
+docs/
+*.md
+!README.md

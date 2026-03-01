@@ -35,10 +35,13 @@ async function bootstrap() {
     .addTag('Users', 'User management')
     .addTag('Roles', 'RBAC role management')
     .addTag('Admin', 'Platform administration')
+    .addTag('Agents', 'On-premise agent management')
     .addTag('Dashboards', 'Dashboard management')
     .addTag('Widgets', 'Widget management')
     .addTag('NLQ', 'Natural Language Query')
     .addTag('Onboarding', 'Client onboarding wizard')
+    .addTag('Logs', 'Audit logs')
+    .addTag('Health', 'Health checks')
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
