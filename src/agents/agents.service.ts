@@ -190,40 +190,27 @@ export class AgentsService {
       orderBy: { createdAt: 'desc' },
     });
 
-    if (agents.length === 0) {
+    const now = new Date().getTime();
+
+    return agents.map((agent) => {
+      // Calculate if agent is stale (no heartbeat in 2 minutes)
+      const isStale = agent.lastSeen
+        ? now - agent.lastSeen.getTime() > 2 * 60 * 1000
+        : true;
+
       return {
-        hasAgent: false,
-        message: 'No agent configured for this organization',
-      };
-    }
-
-    // Get primary agent (most recent)
-    const primaryAgent = agents[0];
-
-    // Calculate if agent is stale (no heartbeat in 2 minutes)
-    const isStale = primaryAgent.lastSeen
-      ? new Date().getTime() - primaryAgent.lastSeen.getTime() > 2 * 60 * 1000
-      : true;
-
-    return {
-      hasAgent: true,
-      agent: {
-        id: primaryAgent.id,
-        name: primaryAgent.name,
-        status:
-          isStale && primaryAgent.status === 'online'
-            ? 'offline'
-            : primaryAgent.status,
-        version: primaryAgent.version,
-        lastSeen: primaryAgent.lastSeen,
-        lastSync: primaryAgent.lastSync,
-        rowsSynced: primaryAgent.rowsSynced.toString(),
-        errorCount: primaryAgent.errorCount,
-        lastError: primaryAgent.lastError,
+        id: agent.id,
+        name: agent.name,
+        status: isStale && agent.status === 'online' ? 'offline' : agent.status,
+        version: agent.version,
+        lastSeen: agent.lastSeen,
+        lastSync: agent.lastSync,
+        rowsSynced: Number(agent.rowsSynced),
+        errorCount: agent.errorCount,
+        lastError: agent.lastError,
         isStale,
-      },
-      totalAgents: agents.length,
-    };
+      };
+    });
   }
 
   /**

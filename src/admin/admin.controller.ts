@@ -12,12 +12,7 @@ import { UpdateOrganizationDto } from './dto/update-organization.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermissions } from '../auth/decorators';
-import {
-  Get,
-  Patch,
-  Delete,
-  Param,
-} from '@nestjs/common';
+import { Get, Patch, Delete, Param } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -31,7 +26,13 @@ import {
 @RequirePermissions({ action: 'manage', resource: 'all' }) // Only InsightSage developers/superadmins
 @ApiBearerAuth()
 export class AdminController {
-  constructor(private readonly adminService: AdminService) { }
+  constructor(private readonly adminService: AdminService) {}
+
+  @Get('dashboard-stats')
+  @ApiOperation({ summary: 'Get overall system statistics for dashboard' })
+  async getDashboardStats() {
+    return this.adminService.getDashboardStats();
+  }
 
   @Post('clients')
   @HttpCode(HttpStatus.CREATED)
@@ -57,7 +58,10 @@ export class AdminController {
 
   @Patch('organizations/:id')
   @ApiOperation({ summary: 'Update organization details' })
-  async updateOrganization(@Param('id') id: string, @Body() dto: UpdateOrganizationDto) {
+  async updateOrganization(
+    @Param('id') id: string,
+    @Body() dto: UpdateOrganizationDto,
+  ) {
     return this.adminService.updateOrganization(id, dto);
   }
 
