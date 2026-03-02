@@ -44,3 +44,23 @@ sequenceDiagram
     Client_DAF->>API_Admin: /api/auth/reset-password (Définit son mot de passe avec le token)
     Client_DAF->>API_Admin: /api/auth/login (Bienvenue dans le Dashboard)
 ```
+
+## Gestion Globale (SuperAdmin)
+
+Outre la création de clients, le module `Admin` expose d'autres endpoints de gestion globale réservés aux superadministrateurs (rôle `manage:all`) :
+
+### Dashboard Stats
+- `GET /api/admin/dashboard-stats` : Statistiques globales de l'instance InsightSage.
+
+### Gestion des Organisations
+- `GET /api/admin/organizations` : Liste toutes les organisations.
+- `PATCH /api/admin/organizations/:id` : Met à jour les détails d'une organisation.
+- `DELETE /api/admin/organizations/:id` : Supprime une organisation et toutes ses données associées.
+
+### Gestion des Utilisateurs
+- `GET /api/admin/users` : Liste tous les utilisateurs du système.
+- `PATCH /api/admin/users/:id` : Modifie les informations d'un utilisateur.
+- `DELETE /api/admin/users/:id` : Supprime un utilisateur.
+
+### Audit Logs
+- `GET /api/admin/audit-logs` : Permet de consulter les logs d'audit du système de manière globale.
