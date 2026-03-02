@@ -1,0 +1,424 @@
+/* ============================================================
+   Cockpit Documentation — Custom Stylesheet  v2
+   Header sombre (branding) dans les deux modes.
+   Sidebar, contenu, Mermaid et cards adaptent au scheme.
+   ============================================================ */
+
+/* ─────────────────────────────────────────────────────────────
+   1. VARIABLES — Mode sombre (slate)
+   ───────────────────────────────────────────────────────────── */
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color:          #0f172a;     /* fond header */
+  --md-primary-fg-color--light:   #1e293b;
+  --md-primary-fg-color--dark:    #020617;
+  --md-primary-bg-color:          #e2e8f0;     /* texte sur header */
+  --md-accent-fg-color:           #2dd4bf;
+  --md-default-bg-color:          #0f172a;
+  --md-default-fg-color:          #e2e8f0;
+  --md-default-fg-color--light:   #94a3b8;
+  --md-default-fg-color--lighter: #64748b;
+  --md-code-bg-color:             #1e293b;
+  --md-code-fg-color:             #94a3b8;
+  --md-typeset-a-color:           #2dd4bf;     /* liens dans le contenu */
+}
+
+/* ─────────────────────────────────────────────────────────────
+   2. VARIABLES — Mode clair (default)
+   ───────────────────────────────────────────────────────────── */
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color:          #0f172a;     /* header reste sombre (branding) */
+  --md-primary-fg-color--light:   #1e293b;
+  --md-primary-fg-color--dark:    #020617;
+  --md-primary-bg-color:          #f8fafc;     /* texte sur header */
+  --md-accent-fg-color:           #0d9488;
+  --md-typeset-a-color:           #0d9488;     /* liens dans le contenu */
+}
+
+:root {
+  --cockpit-teal: #0d9488;
+  --cockpit-glow: rgba(13, 148, 136, 0.15);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   3. HEADER — toujours sombre (identité Cockpit)
+   ───────────────────────────────────────────────────────────── */
+.md-header {
+  background: linear-gradient(135deg, #0f172a 0%, #0d1b2a 100%) !important;
+  border-bottom: 1px solid rgba(13, 148, 136, 0.2);
+  box-shadow: 0 1px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* Logo, titre et boutons du header — toujours en clair */
+.md-header__title {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-size: 1.1rem;
+  color: #e2e8f0 !important;
+}
+
+.md-header__button {
+  color: #e2e8f0 !important;
+}
+
+.md-header__button .md-icon {
+  color: #e2e8f0 !important;
+}
+
+/* Logo image — taille et forme adaptées */
+.md-header__button.md-logo img,
+.md-header__button.md-logo svg {
+  height: 32px;
+  width: auto;
+  border-radius: 6px;
+  object-fit: contain;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   4. TABS — toujours sombres
+   ───────────────────────────────────────────────────────────── */
+.md-tabs {
+  background: #0f172a !important;
+  border-bottom: 1px solid rgba(13, 148, 136, 0.15);
+}
+
+.md-tabs__link {
+  color: #94a3b8 !important;
+  opacity: 1 !important;
+}
+
+.md-tabs__link--active,
+.md-tabs__link:hover,
+.md-tabs__link:focus {
+  color: #2dd4bf !important;
+  opacity: 1 !important;
+}
+
+.md-tabs__link--active {
+  border-bottom: 2px solid #0d9488;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   5. SIDEBAR
+   ───────────────────────────────────────────────────────────── */
+[data-md-color-scheme="slate"] .md-sidebar {
+  background: #0a0f1e;
+}
+
+/* Titres de section */
+.md-nav__title {
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+[data-md-color-scheme="slate"] .md-nav__title {
+  color: #475569;
+}
+
+[data-md-color-scheme="default"] .md-nav__title {
+  color: #94a3b8;
+}
+
+/* Liens de navigation */
+[data-md-color-scheme="slate"] .md-nav__link {
+  color: #94a3b8;
+}
+
+[data-md-color-scheme="default"] .md-nav__link {
+  color: #475569;
+}
+
+.md-nav__link--active {
+  color: var(--md-accent-fg-color) !important;
+  font-weight: 600;
+}
+
+.md-nav__link:hover {
+  color: var(--md-accent-fg-color) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   6. CONTENU — liens & texte
+   ───────────────────────────────────────────────────────────── */
+.md-content__inner {
+  max-width: 900px;
+}
+
+/* Liens dans le contenu — couleurs explicites par scheme */
+[data-md-color-scheme="slate"] .md-typeset a {
+  color: #2dd4bf;
+}
+
+[data-md-color-scheme="slate"] .md-typeset a:hover,
+[data-md-color-scheme="slate"] .md-typeset a:focus {
+  color: #5eead4;
+}
+
+[data-md-color-scheme="default"] .md-typeset a {
+  color: #0d9488;
+}
+
+[data-md-color-scheme="default"] .md-typeset a:hover,
+[data-md-color-scheme="default"] .md-typeset a:focus {
+  color: #0f766e;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   7. HERO (bloc décoratif — fond sombre fixe)
+   ───────────────────────────────────────────────────────────── */
+.cockpit-hero {
+  background: linear-gradient(135deg, #0f172a 0%, #0d1f2d 50%, #0a1628 100%);
+  border: 1px solid rgba(13, 148, 136, 0.25);
+  border-radius: 16px;
+  padding: 3rem 2.5rem;
+  margin-bottom: 2.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.cockpit-hero::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -20%;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(13, 148, 136, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.cockpit-hero h1 {
+  font-size: 2.8rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #e2e8f0 0%, #2dd4bf 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.75rem;
+  line-height: 1.1;
+}
+
+.cockpit-hero p {
+  color: #94a3b8;
+  font-size: 1.15rem;
+  line-height: 1.7;
+  max-width: 650px;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   8. FEATURE CARDS
+   ───────────────────────────────────────────────────────────── */
+.cockpit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.25rem;
+  margin: 1.5rem 0;
+}
+
+.cockpit-card {
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.2s ease;
+  text-decoration: none !important;
+  display: block;
+}
+
+[data-md-color-scheme="slate"] .cockpit-card {
+  background: linear-gradient(135deg, #1e293b 0%, #162032 100%);
+  border: 1px solid rgba(13, 148, 136, 0.2);
+}
+
+[data-md-color-scheme="default"] .cockpit-card {
+  background: #f0fdf9;
+  border: 1px solid rgba(13, 148, 136, 0.25);
+}
+
+.cockpit-card:hover {
+  border-color: rgba(13, 148, 136, 0.5) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(13, 148, 136, 0.1);
+}
+
+.cockpit-card h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+  color: var(--md-accent-fg-color);
+}
+
+[data-md-color-scheme="slate"] .cockpit-card p {
+  color: #94a3b8;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+[data-md-color-scheme="default"] .cockpit-card p {
+  color: #475569;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   9. STAT BADGES
+   ───────────────────────────────────────────────────────────── */
+.cockpit-stats {
+  display: flex;
+  gap: 2rem;
+  padding: 1.25rem 1.5rem;
+  background: rgba(13, 148, 136, 0.05);
+  border: 1px solid rgba(13, 148, 136, 0.15);
+  border-radius: 10px;
+  margin: 1.5rem 0;
+  flex-wrap: wrap;
+}
+
+.cockpit-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.cockpit-stat strong {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--md-accent-fg-color);
+}
+
+.cockpit-stat span {
+  font-size: 0.75rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   10. STATUS BADGES
+   ───────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-online  { background: rgba(34, 197, 94, 0.15);   color: #16a34a; border: 1px solid rgba(34, 197, 94, 0.3); }
+.badge-offline { background: rgba(100, 116, 139, 0.15); color: #64748b; border: 1px solid rgba(100, 116, 139, 0.3); }
+.badge-error   { background: rgba(239, 68, 68, 0.15);   color: #dc2626; border: 1px solid rgba(239, 68, 68, 0.3); }
+.badge-pending { background: rgba(234, 179, 8, 0.15);   color: #d97706; border: 1px solid rgba(234, 179, 8, 0.3); }
+.badge-new     { background: rgba(13, 148, 136, 0.15);  color: #0d9488; border: 1px solid rgba(13, 148, 136, 0.3); }
+
+/* ─────────────────────────────────────────────────────────────
+   11. CODE BLOCKS
+   ───────────────────────────────────────────────────────────── */
+[data-md-color-scheme="slate"] .md-typeset code {
+  background: #1e293b;
+  color: #94a3b8;
+}
+
+.md-typeset pre > code {
+  border-radius: 8px;
+}
+
+.md-typeset .highlight {
+  border-radius: 8px;
+  border: 1px solid rgba(13, 148, 136, 0.15);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   12. MERMAID — adaptatif selon le scheme
+   ───────────────────────────────────────────────────────────── */
+.mermaid {
+  border-radius: 10px;
+  padding: 1.5rem;
+  margin: 1rem 0;
+  overflow-x: auto;
+}
+
+[data-md-color-scheme="slate"] .mermaid {
+  background: #1e293b;
+  border: 1px solid rgba(13, 148, 136, 0.2);
+}
+
+[data-md-color-scheme="default"] .mermaid {
+  background: #f0fdf9;
+  border: 1px solid rgba(13, 148, 136, 0.25);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   13. ADMONITIONS
+   ───────────────────────────────────────────────────────────── */
+.md-typeset .admonition,
+.md-typeset details {
+  border-radius: 8px;
+  border-left-width: 3px;
+}
+
+.md-typeset .note {
+  border-color: #0d9488;
+}
+
+.md-typeset .tip > .admonition-title,
+.md-typeset .tip > summary {
+  background: rgba(13, 148, 136, 0.12);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   14. TABLES
+   ───────────────────────────────────────────────────────────── */
+.md-typeset table:not([class]) {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(13, 148, 136, 0.15);
+}
+
+.md-typeset table:not([class]) th {
+  background: rgba(13, 148, 136, 0.1);
+  border-color: rgba(13, 148, 136, 0.2);
+  font-weight: 700;
+  color: var(--md-accent-fg-color);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   15. FOOTER — toujours sombre
+   ───────────────────────────────────────────────────────────── */
+.md-footer {
+  background: #0f172a !important;
+  border-top: 1px solid rgba(13, 148, 136, 0.15);
+}
+
+.md-footer-meta {
+  background: #0a0f1e !important;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   16. SEARCH
+   ───────────────────────────────────────────────────────────── */
+.md-search__input {
+  border-radius: 8px;
+}
+
+[data-md-color-scheme="slate"] .md-search__input {
+  background: #1e293b;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   17. TOC
+   ───────────────────────────────────────────────────────────── */
+.md-nav--secondary .md-nav__link--active {
+  color: var(--md-accent-fg-color) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   18. SCROLLBAR
+   ───────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0f172a; }
+::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #0d9488; }

@@ -1,96 +1,159 @@
-# InsightSage (Backend API)
+# InsightSage Backend — API Cockpit
 
-Bienvenue sur le dépôt du backend API d’**InsightSage**, une plateforme SaaS unifiée d’analyse de données conçue pour les PME, permettant l'interrogation en langage naturel et la génération dynamique de tableaux de bord avancés à partir de données ERP (Sage).
+> Plateforme SaaS multi-tenant d'analyse de données ERP pour PME — Backend NestJS + Admin Cockpit React
 
-## 🚀 Fonctionnalités principales
+[![NestJS](https://img.shields.io/badge/NestJS-v11-E0234E?logo=nestjs)](https://nestjs.com/)
+[![Prisma](https://img.shields.io/badge/Prisma-v7.4.2-2D3748?logo=prisma)](https://www.prisma.io/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript)](https://www.typescriptlang.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Supabase-4169E1?logo=postgresql)](https://supabase.com/)
 
-*   **Multi-Tenancy Strict** : Architecture SaaS permettant d'isoler hermétiquement les données, utilisateurs et abonnements de plusieurs organisations.
-*   **Contrôle d'Accès (RBAC Dynamique)** : Gestion granulaire des rôles et permissions (DAF, DG, Admin, Analyste) bloquant/autorisant l'accès aux ressources via une matrice de permissions.
-*   **Agents On-Premise (Data Syncer)** : Interface sécurisée pour la communication HTTPS unidirectionnelle avec les agents locaux Sage des clients, sans ouverture de ports entrants.
-*   **Tableaux de Bord & Widgets** : Moteur de personnalisation des cockpits CFO/DAF avec des packs de KPIs et un Widget Store.
-*   **Connexion & Sécurité** : Authentification par JWT (Access/Refresh tokens), sécurisation des payloads et audit log complet des actions sensibles.
-*   **Interface NLQ** : Moteur permettant d'interpréter des requêtes utilisateur en langage naturel vers des requêtes SQL ultra-sécurisées (`SELECT` only, templates validés).
+---
 
-## 🛠️ Stack Technique
+## Vue d'ensemble
 
-*   **Framework** : [NestJS](https://nestjs.com/) v11 (Node.js/TypeScript)
-*   **Base de Données** : PostgreSQL via [Prisma ORM](https://www.prisma.io/) v7
-*   **Authentification** : JWT (JSON Web Tokens) & Bcrypt (hachage des mots de passe)
-*   **Langage** : TypeScript au standard ECMAScript strict
+**InsightSage** est une plateforme qui permet aux équipes financières (DAF, contrôleurs de gestion) d'interroger leurs données ERP **Sage** en langage naturel et de visualiser des tableaux de bord CFO personnalisés.
 
-## 📂 Architecture & Modules (`src/`)
+L'écosystème se compose de trois composants :
 
-L'application est découpée en modules métier (Domain-Driven Design), chacun disposant de son propre `README.md` détaillé :
+| Composant | Rôle | Dépôt |
+|-----------|------|-------|
+| **InsightSage API** (ce dépôt) | Backend NestJS — API REST, RBAC, multi-tenant | `Insightsage_backend/` |
+| **Admin Cockpit** | Frontend React — tableau de bord de supervision | `admin-cockpit/` |
+| **Agent On-Premise** | Pont Python/Docker — synchronisation Sage ERP | Déployé chez le client |
 
-*   **`admin`** : Point d'entrée exclusif pour l'équipe InsightSage (SuperAdmin) pour créer les clients (onboarding initial) et superviser le système.
-*   **`admin-panel`** : Interface d'administration visuelle (AdminJS / Prisma Studio).
-*   **`agents`** : Gestion des tokens d'agents on-premise, heartbeat, monitoring des statuts et révocations.
-*   **`auth`** : Authentification globale, JWT, Reset de mot de passe, et système d'invitations.
-*   **`dashboards`** : Gestion personnalisée des cockpits et des vues par profil.
-*   **`health`** : Endpoints vitaux de monitoring et de disponibilité système.
-*   **`logs`** : Centralisation et restitution paginée des journaux d'audit (Audit Logs).
-*   **`nlq`** : Traitement des requêtes en langage naturel (Natural Language Querying).
-*   **`onboarding`** : Tunnel de configuration d'un compte Wizard à 5 étapes (Plans, Profils, Sage, KPIs, Invites) adossé à une machine à états en base de données.
-*   **`organizations`** : Paramètres et cycle de vie d'un espace client (Tenant).
-*   **`prisma`** : Configuration centralisée de l'accès à la base de données.
-*   **`roles`** : Création et gestion des rôles sur-mesure et matrice de permissions.
-*   **`subscriptions`** : Gestion dynamique et persistante des abonnements en base de données (Startup, PME, Enterprise).
-*   **`users`** : Profil personnel et administration de son équipe (DAF).
-*   **`widgets`** : Bibliothèque de composants analytiques (Widget Store, KPI Packs).
+---
 
-## ⚙️ Variables d'Environnement
+## Documentation
 
-L'application requiert plusieurs variables d'environnement. Copiez le modèle existant vers votre environnement cible :
+La documentation complète est disponible via MkDocs Material :
 
 ```bash
-# Pour le développement local (à créer)
-cp .env.example .env.dev
+# Installer MkDocs Material (une seule fois)
+pip install mkdocs-material
+
+# Lancer le serveur local (hot reload)
+mkdocs serve
+# → http://localhost:8000
 ```
 
-Le module Config lira en priorité `.env.dev`, `.env.test`, ou `.env.prod` selon `NODE_ENV`. *(Ne commitez jamais de vrais secrets dans `.env`).*
+Sections couvertes : Architecture · API Reference · Sécurité · Base de données · Modules · Frontend · Agent · Guides fonctionnels · CI/CD · Déploiement.
 
-## 💻 Installation & Développement
+---
 
-Assurez-vous d'avoir installé **Node.js** (v20+) et une base de données **PostgreSQL**.
+## Stack technique
 
-### 1️⃣ Installation des dépendances
+| Couche | Technologie |
+|--------|-------------|
+| Framework | NestJS v11 (Node.js / TypeScript strict) |
+| ORM | Prisma v7.4.2 + adaptateur `@prisma/adapter-pg` |
+| Base de données | PostgreSQL — hébergé sur Supabase (pooling PgBouncer) |
+| Auth | JWT Access (15 min) + Refresh (7 j) + Tokens agents (30 j) |
+| Validation | `class-validator` + `class-transformer` |
+| Logs | AuditLogService global — masquage PII automatique |
+| Tests | Jest + couverture Istanbul |
+| Docs | MkDocs Material 9.x |
+
+---
+
+## Architecture & modules
+
+```
+src/
+├── auth/           # JWT, refresh, invitations, reset password
+├── users/          # Profils, équipe (DAF)
+├── organizations/  # Cycle de vie d'un tenant
+├── agents/         # Tokens on-premise, heartbeat, révocation
+├── onboarding/     # Wizard 5 étapes avec machine à états
+├── roles/          # RBAC granulaire — rôles & permissions
+├── logs/           # Audit logs paginés + masquage PII
+├── dashboards/     # Cockpits CFO personnalisés
+├── widgets/        # Widget Store + KPI Packs
+├── nlq/            # Natural Language Querying → SQL sécurisé
+├── subscriptions/  # Plans Startup / PME / Business / Enterprise
+├── admin/          # SuperAdmin — CRUD clients, users, plans
+├── health/         # Endpoint de disponibilité
+└── prisma/         # PrismaService singleton
+```
+
+Guards globaux : `JwtAuthGuard` → `TenantGuard` (isolation multi-tenant stricte par `organizationId`).
+
+---
+
+## Installation locale
+
+### Prérequis
+
+- Node.js v20+
+- PostgreSQL (ou compte Supabase)
+
+### 1. Dépendances
 
 ```bash
 npm install
 ```
 
-### 2️⃣ Initialisation de la Base de Données
-
-Générez les définitions de types Prisma et déployez les tables vers votre base :
+### 2. Variables d'environnement
 
 ```bash
-# Générer le client Prisma TypeScript
-npx prisma generate
+cp .env.example .env
+# Remplir DATABASE_URL, DIRECT_URL, JWT_SECRET, JWT_REFRESH_SECRET, FRONTEND_URL
+```
 
-# Pousser les modifications du schéma vers la base de données (Développement)
+### 3. Base de données
+
+```bash
+# Pousser le schéma (pas de migrations — stratégie db push)
 npx prisma db push
+
+# Seed RBAC + plans d'abonnement
+npx ts-node prisma/seed.ts
 ```
 
-*Note : Pour la production, préférez `npx prisma migrate deploy`.*
-
-### 3️⃣ Lancement du serveur
-
-Pour instancier l'API en développement (Mode Watch) sur le port défini par votre `.env.dev` (ex: `http://localhost:3000`) :
+### 4. Démarrage
 
 ```bash
+# Développement (hot reload)
 npm run start:dev
+
+# Build production
+npm run build && npm run start:prod
 ```
 
-Pour compiler et lancer le build final :
-
-```bash
-npm run build
-npm run start:prod
-```
-
-## 🔐 Licences & Maintien
-
-Ce projet est la propriété stricte du projet **InsightSage**. `UNLICENSED` par défaut.
+L'API écoute sur `http://localhost:3000`.
+Swagger disponible sur `http://localhost:3000/api`.
 
 ---
-**Mainteneur :** Équipe InsightSage.
+
+## Tests
+
+```bash
+npm run test          # Jest en mode watch
+npm run test:cov      # Avec couverture Istanbul → coverage/
+npm run test:e2e      # Tests end-to-end
+```
+
+---
+
+## Sécurité
+
+- **Multi-tenancy** : chaque requête Prisma filtre par `organizationId`
+- **RBAC** : 5 rôles système (`superadmin`, `owner`, `daf`, `controller`, `analyst`) + permissions granulaires `action:resource`
+- **PII** : emails et mots de passe masqués dans tous les audit logs (`j***@acme.com`, `[REDACTED]`)
+- **Secrets** : `.env*` protégé par `.gitignore`, jamais commité
+
+---
+
+## Déploiement
+
+Production via Docker Compose + Nginx + Supabase. Voir la documentation — section **Déploiement** et **CI/CD**.
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+---
+
+## Mainteneur
+
+**Nafaka Tech** — Équipe InsightSage.
+Ce projet est propriétaire (`UNLICENSED`).
