@@ -20,9 +20,13 @@ export type AuditEventType =
   | 'nlq_executed'
   | 'nlq_saved_to_dashboard'
   | 'agent_registered'
+  | 'agent_token_generated'
+  | 'agent_token_regenerated'
   | 'agent_heartbeat'
   | 'agent_error'
+  | 'organization_created'
   | 'organization_updated'
+  | 'organization_deleted'
   | 'password_reset_requested'
   | 'password_reset_completed';
 

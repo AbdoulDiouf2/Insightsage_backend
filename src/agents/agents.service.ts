@@ -55,7 +55,7 @@ export class AgentsService {
 
     await this.auditLog.log({
       organizationId,
-      event: 'agent_registered',
+      event: 'agent_token_generated',
       payload: { agentId: agent.id, agentName: agent.name },
     });
 
@@ -267,8 +267,8 @@ export class AgentsService {
 
     await this.auditLog.log({
       organizationId,
-      event: 'agent_registered',
-      payload: { agentId, action: 'token_regenerated' },
+      event: 'agent_token_regenerated',
+      payload: { agentId, agentName: agent.name },
     });
 
     return {

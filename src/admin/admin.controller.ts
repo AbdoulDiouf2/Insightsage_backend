@@ -65,6 +65,12 @@ export class AdminController {
     return this.adminService.updateOrganization(id, dto);
   }
 
+  @Delete('organizations/:id')
+  @ApiOperation({ summary: 'Delete an organization and all its data' })
+  async deleteOrganization(@Param('id') id: string) {
+    return this.adminService.deleteOrganization(id);
+  }
+
   // --- Users Management ---
 
   @Get('users')

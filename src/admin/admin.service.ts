@@ -81,7 +81,7 @@ export class AdminService {
       await this.auditLog.log({
         organizationId: organization.id,
         userId: user.id,
-        event: 'organization_updated',
+        event: 'organization_created',
         payload: {
           action: 'client_onboarding',
           organizationName: organization.name,
@@ -118,10 +118,39 @@ export class AdminService {
   }
 
   async updateOrganization(id: string, dto: UpdateOrganizationDto) {
-    return this.prisma.organization.update({
+    const organization = await this.prisma.organization.update({
       where: { id },
       data: dto,
     });
+
+    await this.auditLog.log({
+      organizationId: id,
+      event: 'organization_updated',
+      payload: { changes: dto },
+    });
+
+    return organization;
+  }
+
+  async deleteOrganization(id: string) {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id },
+      select: { id: true, name: true },
+    });
+
+    const deleted = await this.prisma.organization.delete({
+      where: { id },
+    });
+
+    if (organization) {
+      await this.auditLog.log({
+        organizationId: id,
+        event: 'organization_deleted',
+        payload: { organizationName: organization.name },
+      });
+    }
+
+    return deleted;
   }
 
   // --- Users Management ---
@@ -145,16 +174,41 @@ export class AdminService {
   }
 
   async updateUser(id: string, dto: UpdateUserDto) {
-    return this.prisma.user.update({
+    const user = await this.prisma.user.update({
       where: { id },
       data: dto,
     });
+
+    await this.auditLog.log({
+      organizationId: user.organizationId,
+      userId: user.id,
+      event: 'user_updated',
+      payload: { changes: dto },
+    });
+
+    return user;
   }
 
   async deleteUser(id: string) {
-    return this.prisma.user.delete({
+    // Fetch before delete to capture organizationId for the audit log
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: { id: true, organizationId: true, email: true },
+    });
+
+    const deleted = await this.prisma.user.delete({
       where: { id },
     });
+
+    if (user) {
+      await this.auditLog.log({
+        organizationId: user.organizationId,
+        event: 'user_deleted',
+        payload: { deletedUserId: user.id, email: user.email },
+      });
+    }
+
+    return deleted;
   }
 
   // --- Audit Logs ---
@@ -209,11 +263,53 @@ export class AdminService {
     const agents = await this.prisma.agent.findMany();
     const activeAgents = agents.filter((a) => a.status === 'online').length;
     const errorAgents = agents.filter((a) => a.status === 'error').length;
+    const offlineAgents = agents.filter(
+      (a) => a.status !== 'online' && a.status !== 'error',
+    ).length;
 
     const agents30DaysAgo = await this.prisma.agent.count({
       where: { createdAt: { lt: thirtyDaysAgo } },
     });
     const agentTrend = agents.length - agents30DaysAgo;
+
+    // Recent activity: daily new users + new agents for last 7 days
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const dayStart = new Date(today);
+      dayStart.setDate(today.getDate() - (6 - i));
+      const dayEnd = new Date(dayStart);
+      dayEnd.setDate(dayStart.getDate() + 1);
+      return { dayStart, dayEnd };
+    });
+
+    const activityCounts = await Promise.all(
+      days.map(({ dayStart, dayEnd }) =>
+        Promise.all([
+          this.prisma.user.count({
+            where: { createdAt: { gte: dayStart, lt: dayEnd } },
+          }),
+          this.prisma.agent.count({
+            where: { createdAt: { gte: dayStart, lt: dayEnd } },
+          }),
+        ]),
+      ),
+    );
+
+    const recentActivity = activityCounts.map(([users, agentsCount], i) => ({
+      date: days[i].dayStart.toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+      }),
+      users,
+      agents: agentsCount,
+    }));
+
+    // Agents distribution by status
+    const agentsDistribution = [
+      { name: 'Online', value: activeAgents, color: '#22c55e' },
+      { name: 'Hors ligne', value: offlineAgents, color: '#94a3b8' },
+      { name: 'Erreur', value: errorAgents, color: '#ef4444' },
+    ];
 
     return {
       organizations: {
@@ -230,8 +326,10 @@ export class AdminService {
       },
       errorAgents: {
         value: errorAgents,
-        trend: '0', // Error trend is less meaningful as a simple diff
+        trend: '0',
       },
+      recentActivity,
+      agentsDistribution,
     };
   }
 }
