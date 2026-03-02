@@ -60,6 +60,12 @@ export class AdminController {
     return this.adminService.findAllOrganizations();
   }
 
+  @Get('organizations/:id')
+  @ApiOperation({ summary: 'Get organization details by ID' })
+  async findOrganizationById(@Param('id') id: string) {
+    return this.adminService.findOrganizationById(id);
+  }
+
   @Patch('organizations/:id')
   @ApiOperation({ summary: 'Update organization details' })
   async updateOrganization(
@@ -81,6 +87,12 @@ export class AdminController {
   @ApiOperation({ summary: 'List all users across all organizations' })
   async findAllUsers() {
     return this.adminService.findAllUsers();
+  }
+
+  @Get('users/:id')
+  @ApiOperation({ summary: 'Get details of a specific user (SuperAdmin)' })
+  async findUserById(@Param('id') id: string) {
+    return this.adminService.findUserById(id);
   }
 
   @Patch('users/:id')
@@ -112,6 +124,15 @@ export class AdminController {
   })
   async findAllSubscriptionPlans() {
     return this.adminService.findAllSubscriptionPlans();
+  }
+
+  @Get('subscription-plans/:id')
+  @ApiOperation({
+    summary: 'Récupérer un plan d\'abonnement par ID',
+    description: 'Réservé aux superadmins.',
+  })
+  async findSubscriptionPlanById(@Param('id') id: string) {
+    return this.adminService.findSubscriptionPlanById(id);
   }
 
   @Post('subscription-plans')

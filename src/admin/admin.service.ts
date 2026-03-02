@@ -113,9 +113,35 @@ export class AdminService {
         owner: {
           select: { email: true, firstName: true, lastName: true },
         },
+        subscriptionPlan: {
+          select: { label: true, name: true },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async findOrganizationById(id: string) {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: { users: true, dashboards: true },
+        },
+        owner: {
+          select: { email: true, firstName: true, lastName: true },
+        },
+        subscriptionPlan: {
+          select: { id: true, label: true, name: true },
+        },
+      },
+    });
+
+    if (!organization) {
+      throw new NotFoundException(`Organisation introuvable : ${id}`);
+    }
+
+    return organization;
   }
 
   async updateOrganization(id: string, dto: UpdateOrganizationDto) {
@@ -172,6 +198,30 @@ export class AdminService {
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async findUserById(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      include: {
+        organization: {
+          select: { id: true, name: true },
+        },
+        userRoles: {
+          include: {
+            role: {
+              select: { id: true, name: true, description: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`Utilisateur introuvable : ${id}`);
+    }
+
+    return user;
   }
 
   async updateUser(id: string, dto: AdminUpdateUserDto) {
@@ -271,6 +321,21 @@ export class AdminService {
     }
 
     return this.prisma.subscriptionPlan.update({ where: { id }, data: dto });
+  }
+
+  async findSubscriptionPlanById(id: string) {
+    const plan = await this.prisma.subscriptionPlan.findUnique({
+      where: { id },
+      include: {
+        _count: { select: { organizations: true } },
+      },
+    });
+
+    if (!plan) {
+      throw new NotFoundException(`Plan d'abonnement introuvable : ${id}`);
+    }
+
+    return plan;
   }
 
   async deactivateSubscriptionPlan(id: string) {

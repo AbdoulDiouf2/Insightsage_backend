@@ -200,12 +200,12 @@ async function main() {
   // 4. Seed Subscription Plans
   const SUBSCRIPTION_PLANS = [
     {
-      name: 'startup',
-      label: 'Startup',
-      description: 'Idéal pour les petites équipes qui démarrent.',
-      priceMonthly: 30,
-      maxUsers: 5,
-      maxKpis: 3,
+      name: 'essentiel',
+      label: 'Essentiel',
+      description: 'PME Sage 100. Cockpit DAF 6 KPIs. Essai parfait.',
+      priceMonthly: 55, // € (36k FCFA)
+      maxUsers: 3,
+      maxKpis: 6,
       maxWidgets: 10,
       maxAgentSyncPerDay: 4,
       allowedKpiPacks: ['daf_basic'],
@@ -214,46 +214,32 @@ async function main() {
       sortOrder: 1,
     },
     {
-      name: 'pme',
-      label: 'PME',
-      description: 'Pour les PME en croissance avec des besoins financiers avancés.',
-      priceMonthly: 80,
-      maxUsers: 15,
-      maxKpis: 10,
-      maxWidgets: 30,
-      maxAgentSyncPerDay: 12,
-      allowedKpiPacks: ['daf_basic', 'daf_premium', 'controller'],
-      hasNlq: false,
-      hasAdvancedReports: false,
-      sortOrder: 2,
-    },
-    {
       name: 'business',
       label: 'Business',
-      description: 'Pour les entreprises avec reporting avancé et NLQ.',
-      priceMonthly: 200,
-      maxUsers: 50,
-      maxKpis: 30,
+      description: 'DAF + équipe. NLQ illimité. Dashboards perso.',
+      priceMonthly: 150, // € (98k FCFA)
+      maxUsers: 10,
+      maxKpis: null, // illimité
       maxWidgets: null, // illimité
-      maxAgentSyncPerDay: null, // temps réel
-      allowedKpiPacks: ['daf_basic', 'daf_premium', 'controller', 'dg', 'manager'],
+      maxAgentSyncPerDay: 24,
+      allowedKpiPacks: ['daf_basic', 'daf_premium', 'controller'],
       hasNlq: true,
       hasAdvancedReports: true,
-      sortOrder: 3,
+      sortOrder: 2,
     },
     {
       name: 'enterprise',
       label: 'Enterprise',
-      description: 'Solution sur-mesure pour les grandes entreprises. Sur devis.',
-      priceMonthly: null, // sur devis
-      maxUsers: null,
-      maxKpis: null,
-      maxWidgets: null,
-      maxAgentSyncPerDay: null,
+      description: 'Multi-Sage + illimité. Support dédié.',
+      priceMonthly: 450, // € (295k FCFA)
+      maxUsers: null, // illimité
+      maxKpis: null, // illimité
+      maxWidgets: null, // illimité
+      maxAgentSyncPerDay: null, // temps réel
       allowedKpiPacks: ['daf_basic', 'daf_premium', 'controller', 'dg', 'manager', 'analyst'],
       hasNlq: true,
       hasAdvancedReports: true,
-      sortOrder: 4,
+      sortOrder: 3,
     },
   ];
 
