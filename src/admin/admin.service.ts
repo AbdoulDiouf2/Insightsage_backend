@@ -8,6 +8,7 @@ import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 
 import { AuditLogService } from '../logs/audit-log.service';
+import { CreateUserDto } from './dto/create-user.dto';
 
 @Injectable()
 export class AdminService {
@@ -260,6 +261,47 @@ export class AdminService {
     }
 
     return deleted;
+  }
+
+  async createUser(dto: CreateUserDto) {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (existingUser) {
+      throw new BadRequestException('A user with this email already exists.');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+
+    const user = await this.prisma.user.create({
+      data: {
+        email: dto.email,
+        passwordHash,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        organizationId: dto.organizationId,
+        userRoles: {
+          create: dto.roleIds.map((rId) => ({ roleId: rId })),
+        },
+      },
+      include: {
+        organization: { select: { name: true } },
+      },
+    });
+
+    await this.auditLog.log({
+      organizationId: dto.organizationId,
+      userId: user.id,
+      event: 'user_created',
+      payload: {
+        email: user.email,
+        method: 'direct_creation',
+        organizationName: user.organization.name,
+      },
+    });
+
+    return user;
   }
 
   // --- Audit Logs ---

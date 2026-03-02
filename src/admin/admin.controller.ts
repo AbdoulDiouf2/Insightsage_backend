@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { CreateClientDto } from './dto/create-client.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
 import { AdminUpdateUserDto } from './dto/update-user.dto';
 import { CreateSubscriptionPlanDto, UpdateSubscriptionPlanDto } from './dto/subscription-plan.dto';
@@ -99,6 +100,13 @@ export class AdminController {
   @ApiOperation({ summary: 'Update user details' })
   async updateUser(@Param('id') id: string, @Body() dto: AdminUpdateUserDto) {
     return this.adminService.updateUser(id, dto);
+  }
+
+  @Post('users')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Directly create a user in an organization (SuperAdmin)' })
+  async createUser(@Body() dto: CreateUserDto) {
+    return this.adminService.createUser(dto);
   }
 
   @Delete('users/:id')
