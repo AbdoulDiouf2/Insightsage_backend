@@ -58,6 +58,18 @@ Vérifie les rôles par nom. Utilisé avec `@Roles()`.
 | `controller` | Contrôleur financier | Lecture + écriture dashboards/widgets/NLQ |
 | `analyst` | Analyste (lecture seule) | Lecture dashboards/widgets/NLQ |
 
+## Endpoints Principaux
+
+| Méthode | Route | Description | Accès |
+|---------|-------|-------------|-------|
+| `POST` | `/api/auth/login` | Connexion classique | `@Public()` |
+| `POST` | `/api/auth/register` | Inscription via invitation | `@Public()` |
+| `POST` | `/api/auth/logout` | Déconnexion (révocation de token) | Authentifié |
+| `POST` | `/api/auth/refresh` | Rafraîchir un Access Token avec un Refresh Token | `@Public()` avec Refresh |
+| `POST` | `/api/auth/forgot-password` | Demander la réinitialisation de mot de passe | `@Public()` |
+| `POST` | `/api/auth/reset-password` | Réinitialiser le mot de passe | `@Public()` |
+| `POST` | `/api/auth/invite` | Inviter un nouvel utilisateur dans son organisation | `manage:users` |
+
 ## Utilisation dans un Controller
 
 ```typescript

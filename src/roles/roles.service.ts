@@ -112,6 +112,28 @@ export class RolesService {
     return updatedRole;
   }
 
+  async findOne(id: string, organizationId: string) {
+    const role = await this.prisma.role.findUnique({
+      where: { id },
+      include: {
+        permissions: {
+          include: {
+            permission: true,
+          },
+        },
+      },
+    });
+
+    if (!role) throw new NotFoundException('Role not found.');
+
+    // Tenant isolation: system roles are global, custom roles belong to an org
+    if (!role.isSystem && role.organizationId !== organizationId) {
+      throw new ForbiddenException('Access denied to this role.');
+    }
+
+    return role;
+  }
+
   async remove(id: string, organizationId: string) {
     const role = await this.prisma.role.findUnique({ where: { id } });
     if (!role) throw new NotFoundException('Role not found.');

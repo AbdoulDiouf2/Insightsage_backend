@@ -196,6 +196,73 @@ async function main() {
     }
   }
   console.log('✅ Roles & RolePermissions seeded.');
+
+  // 4. Seed Subscription Plans
+  const SUBSCRIPTION_PLANS = [
+    {
+      name: 'essentiel',
+      label: 'Essentiel',
+      description: 'PME Sage 100. Cockpit DAF 6 KPIs. Essai parfait.',
+      priceMonthly: 55, // € (36k FCFA)
+      maxUsers: 3,
+      maxKpis: 6,
+      maxWidgets: 10,
+      maxAgentSyncPerDay: 4,
+      allowedKpiPacks: ['daf_basic'],
+      hasNlq: false,
+      hasAdvancedReports: false,
+      sortOrder: 1,
+    },
+    {
+      name: 'business',
+      label: 'Business',
+      description: 'DAF + équipe. NLQ illimité. Dashboards perso.',
+      priceMonthly: 150, // € (98k FCFA)
+      maxUsers: 10,
+      maxKpis: null, // illimité
+      maxWidgets: null, // illimité
+      maxAgentSyncPerDay: 24,
+      allowedKpiPacks: ['daf_basic', 'daf_premium', 'controller'],
+      hasNlq: true,
+      hasAdvancedReports: true,
+      sortOrder: 2,
+    },
+    {
+      name: 'enterprise',
+      label: 'Enterprise',
+      description: 'Multi-Sage + illimité. Support dédié.',
+      priceMonthly: 450, // € (295k FCFA)
+      maxUsers: null, // illimité
+      maxKpis: null, // illimité
+      maxWidgets: null, // illimité
+      maxAgentSyncPerDay: null, // temps réel
+      allowedKpiPacks: ['daf_basic', 'daf_premium', 'controller', 'dg', 'manager', 'analyst'],
+      hasNlq: true,
+      hasAdvancedReports: true,
+      sortOrder: 3,
+    },
+  ];
+
+  for (const plan of SUBSCRIPTION_PLANS) {
+    await prisma.subscriptionPlan.upsert({
+      where: { name: plan.name },
+      update: {
+        label: plan.label,
+        description: plan.description,
+        priceMonthly: plan.priceMonthly,
+        maxUsers: plan.maxUsers,
+        maxKpis: plan.maxKpis,
+        maxWidgets: plan.maxWidgets,
+        maxAgentSyncPerDay: plan.maxAgentSyncPerDay,
+        allowedKpiPacks: plan.allowedKpiPacks,
+        hasNlq: plan.hasNlq,
+        hasAdvancedReports: plan.hasAdvancedReports,
+        sortOrder: plan.sortOrder,
+      },
+      create: plan,
+    });
+  }
+  console.log('✅ Subscription plans seeded.');
 }
 
 main()

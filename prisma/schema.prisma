@@ -16,14 +16,20 @@ model Organization {
   id         String   @id @default(uuid())
   name       String   @db.VarChar(255)
   sector     String?  @db.VarChar(100)
-  size       String // "startup" | "pme" | "business" | "enterprise"
-  plan       String   @default("pme") // plan abonnement
+  size       String   @default("pme") // taille entreprise: "startup" | "pme" | "business" | "enterprise"
+  country    String?  // pays de l'organisation (step 2 onboarding)
   sageType   String? // "X3" | "100"
+  sageMode   String? // "local" | "cloud" (step 3 onboarding)
   sageHost   String?
   sagePort   Int?
   sageConfig Json? // mapping Sage tables → métriques (AUCUN CREDENTIAL)
+  selectedProfiles String[] // profils métiers sélectionnés (step 4 onboarding)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  // Plan d'abonnement (FK vers SubscriptionPlan — null jusqu'à step 1 onboarding)
+  planId           String?
+  subscriptionPlan SubscriptionPlan? @relation(fields: [planId], references: [id])
 
   // Relations
   ownerId     String?      @unique
@@ -35,6 +41,7 @@ model Organization {
   agents      Agent[]
   invitations Invitation[]
   roles       Role[]
+  onboardingStatus OnboardingStatus?
 
   @@map("organizations")
 }
@@ -206,8 +213,8 @@ model AuditLog {
   createdAt DateTime @default(now())
 
   // MULTI-TENANT
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
   userId String?
   user   User?   @relation(fields: [userId], references: [id])
@@ -246,12 +253,63 @@ model Agent {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
+  // Token lifecycle (Section 2.4)
+  tokenExpiresAt DateTime? // expiration du token (30j depuis génération)
+  isRevoked      Boolean   @default(false) // révocation explicite par l'admin
+  revokedAt      DateTime? // timestamp de révocation
+
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
 
   @@index([organizationId])
   @@index([token])
   @@map("agents")
+}
+
+// Plans d'abonnement SaaS (gérés dynamiquement par le superadmin)
+model SubscriptionPlan {
+  id                 String   @id @default(uuid())
+  name               String   @unique // "startup" | "pme" | "business" | "enterprise"
+  label              String           // "Startup", "PME", "Business", "Enterprise"
+  description        String?
+  priceMonthly       Float?           // null = sur devis
+  isActive           Boolean  @default(true)
+
+  // Limites (null = illimité)
+  maxUsers           Int?
+  maxKpis            Int?
+  maxWidgets         Int?
+  maxAgentSyncPerDay Int?
+  allowedKpiPacks    String[]
+  hasNlq             Boolean  @default(false)
+  hasAdvancedReports Boolean  @default(false)
+
+  // Stripe (Phase 2 — stockés pour future intégration facturation)
+  stripeProductId    String?
+  stripePriceId      String?
+
+  sortOrder          Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  organizations      Organization[]
+
+  @@map("subscription_plans")
+}
+
+// Statut du wizard d'onboarding par organisation
+model OnboardingStatus {
+  id             String       @id @default(uuid())
+  organizationId String       @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  currentStep    Int          @default(1)
+  completedSteps Int[]        // ex: [1, 2, 3]
+  isComplete     Boolean      @default(false)
+  inviteLater    Boolean      @default(false) // option "inviter plus tard" step 5
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@map("onboarding_status")
 }
 
 // Seed data pour RBAC

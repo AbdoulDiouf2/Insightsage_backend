@@ -1,0 +1,168 @@
+site_name: Cockpit — Documentation
+site_description: Documentation ultra-complète de la plateforme Cockpit — InsightSage API & Admin Dashboard
+site_author: Nafaka Tech
+site_url: https://docs.cockpit.nafaka.tech
+
+repo_name: Nafaka-tech/Insightsage_backend
+repo_url: https://github.com/Nafaka-tech/Insightsage_backend
+edit_uri: ""
+
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+  logo: assets/Logo-cockpit.jpeg
+  favicon: assets/Logo-cockpit.jpeg
+  language: fr
+
+  palette:
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Passer en mode clair
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Passer en mode sombre
+
+  features:
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.path
+    - navigation.indexes
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - search.share
+    - content.code.copy
+    - content.code.select
+    - content.code.annotate
+    - content.tabs.link
+    - content.tooltips
+    - toc.follow
+
+  font:
+    text: Inter
+    code: JetBrains Mono
+
+  icon:
+    repo: fontawesome/brands/github
+    edit: material/pencil
+    view: material/eye
+    admonition:
+      note: octicons/tag-16
+      info: octicons/info-16
+      tip: octicons/squirrel-16
+      warning: octicons/alert-16
+      danger: octicons/zap-16
+      success: octicons/check-16
+
+extra_css:
+  - stylesheets/extra.css
+
+plugins:
+  - search:
+      lang: fr
+      separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - tables
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+      combine_header_slug: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/Nafaka-tech
+  generator: false
+  status:
+    new: Nouveau
+    deprecated: Déprécié
+
+nav:
+  - Accueil:
+    - index.md
+    - Démarrage rapide: getting-started.md
+  - Architecture:
+    - Vue d'ensemble: architecture/overview.md
+    - Flux de données: architecture/data-flow.md
+    - Stack technique: architecture/tech-stack.md
+  - Backend — InsightSage API:
+    - Installation & Config: backend/setup.md
+    - Référence API: backend/api-reference.md
+    - Base de données: backend/database.md
+    - Sécurité: backend/security.md
+    - Modules:
+      - Authentification: backend/modules/auth.md
+      - Organisations: backend/modules/organizations.md
+      - Utilisateurs: backend/modules/users.md
+      - Agents: backend/modules/agents.md
+      - Onboarding: backend/modules/onboarding.md
+      - Abonnements: backend/modules/subscriptions.md
+      - Rôles & Permissions: backend/modules/roles.md
+      - Logs d'audit: backend/modules/audit-logs.md
+  - Frontend — Admin Cockpit:
+    - Architecture: frontend/architecture.md
+    - Design System: frontend/design-system.md
+    - Gestion d'état: frontend/state-management.md
+    - Pages & Navigation: frontend/pages.md
+  - L'Agent (Pont Sécurisé):
+    - Vue d'ensemble: agent/overview.md
+    - Guide d'installation: agent/installation.md
+    - Dépannage: agent/troubleshooting.md
+  - Guides Fonctionnels:
+    - Gestion des Organisations: guides/organizations.md
+    - Gestion des Utilisateurs: guides/users.md
+    - Plans d'Abonnement: guides/subscriptions.md
+    - Audit & Conformité: guides/audit.md
+  - Développeur & DevOps:
+    - Standards de développement: developer/standards.md
+    - Suite de tests: developer/testing.md
+    - Déploiement: developer/deployment.md
+    - CI/CD: developer/ci-cd.md

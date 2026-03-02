@@ -120,12 +120,35 @@ export class AgentsController {
   @RequirePermissions({ action: 'manage', resource: 'agents' })
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Regenerate agent token (invalidates old token)',
+    summary: 'Regenerate agent token (invalidates old token, resets 30-day expiry)',
   })
+  @ApiParam({ name: 'id', description: 'Agent ID' })
   async regenerateToken(
     @Param('id') id: string,
     @OrganizationId() organizationId: string,
   ) {
     return this.agentsService.regenerateToken(id, organizationId);
+  }
+
+  @Post(':id/revoke')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions({ action: 'manage', resource: 'agents' })
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Revoke agent token (Section 2.4)',
+    description:
+      "Révoque immédiatement le token de l'agent. L'agent ne pourra plus se connecter jusqu'à ce qu'un nouveau token soit généré.",
+  })
+  @ApiParam({ name: 'id', description: 'Agent ID' })
+  @ApiResponse({ status: 200, description: 'Token révoqué avec succès' })
+  @ApiResponse({ status: 400, description: 'Token déjà révoqué' })
+  @ApiResponse({ status: 403, description: 'Accès refusé' })
+  @ApiResponse({ status: 404, description: 'Agent introuvable' })
+  async revokeToken(
+    @Param('id') id: string,
+    @OrganizationId() organizationId: string,
+  ) {
+    return this.agentsService.revokeToken(id, organizationId);
   }
 }

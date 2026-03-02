@@ -158,23 +158,17 @@ export class AuthService {
       resetPasswordExpires,
     });
 
-    // In a real application, send the email here
-    // e.g. await this.emailService.sendResetPasswordEmail(user.email, token);
-    console.log(`Reset token for ${user.email}: ${token}`);
+    // TODO: envoyer l'email ici via un service email (ex: Resend, SendGrid)
+    // await this.emailService.sendResetPasswordEmail(user.email, token);
+    // En attendant, le token est disponible dans les logs serveur uniquement (jamais dans la réponse HTTP)
+    console.log(`[DEV] Reset token for user ${user.id}: ${token}`);
 
-    const isProd = this.configService.get<string>('NODE_ENV') === 'production';
-    if (!isProd) {
-      return {
-        message: 'If that email is in our database, we will send a reset link.',
-        debug: { resetToken: token }, // Expose token directly for development testing
-      };
-    }
-
+    // L'audit log est toujours déclenché (y compris en dev) — Section 2.3
     await this.auditLog.log({
       organizationId: user.organizationId,
       userId: user.id,
       event: 'password_reset_requested',
-      payload: { email: user.email },
+      payload: { userId: user.id },
     });
 
     return {

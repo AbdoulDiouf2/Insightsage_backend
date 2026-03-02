@@ -172,6 +172,14 @@ Génère un nouveau token et invalide l'ancien. L'agent doit être reconfiguré.
 
 ---
 
+### 7. POST /api/agents/:id/revoke (Protected)
+
+**Permission requise** : `manage:agents`
+
+Révoque immédiatement le token de l'agent. L'agent ne pourra plus se connecter jusqu'à ce qu'un nouveau token soit généré.
+
+---
+
 ## Sécurité
 
 ### Token Format

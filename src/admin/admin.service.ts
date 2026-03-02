@@ -1,12 +1,14 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { AdminUpdateUserDto } from './dto/update-user.dto';
+import { CreateSubscriptionPlanDto, UpdateSubscriptionPlanDto } from './dto/subscription-plan.dto';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 
 import { AuditLogService } from '../logs/audit-log.service';
+import { CreateUserDto } from './dto/create-user.dto';
 
 @Injectable()
 export class AdminService {
@@ -81,7 +83,7 @@ export class AdminService {
       await this.auditLog.log({
         organizationId: organization.id,
         userId: user.id,
-        event: 'organization_updated',
+        event: 'organization_created',
         payload: {
           action: 'client_onboarding',
           organizationName: organization.name,
@@ -112,16 +114,71 @@ export class AdminService {
         owner: {
           select: { email: true, firstName: true, lastName: true },
         },
+        subscriptionPlan: {
+          select: { label: true, name: true },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
   }
 
+  async findOrganizationById(id: string) {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: { users: true, dashboards: true },
+        },
+        owner: {
+          select: { email: true, firstName: true, lastName: true },
+        },
+        subscriptionPlan: {
+          select: { id: true, label: true, name: true },
+        },
+      },
+    });
+
+    if (!organization) {
+      throw new NotFoundException(`Organisation introuvable : ${id}`);
+    }
+
+    return organization;
+  }
+
   async updateOrganization(id: string, dto: UpdateOrganizationDto) {
-    return this.prisma.organization.update({
+    const organization = await this.prisma.organization.update({
       where: { id },
       data: dto,
     });
+
+    await this.auditLog.log({
+      organizationId: id,
+      event: 'organization_updated',
+      payload: { changes: dto },
+    });
+
+    return organization;
+  }
+
+  async deleteOrganization(id: string) {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id },
+      select: { id: true, name: true },
+    });
+
+    const deleted = await this.prisma.organization.delete({
+      where: { id },
+    });
+
+    if (organization) {
+      await this.auditLog.log({
+        organizationId: id,
+        event: 'organization_deleted',
+        payload: { organizationName: organization.name },
+      });
+    }
+
+    return deleted;
   }
 
   // --- Users Management ---
@@ -144,17 +201,107 @@ export class AdminService {
     });
   }
 
-  async updateUser(id: string, dto: UpdateUserDto) {
-    return this.prisma.user.update({
+  async findUserById(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      include: {
+        organization: {
+          select: { id: true, name: true },
+        },
+        userRoles: {
+          include: {
+            role: {
+              select: { id: true, name: true, description: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`Utilisateur introuvable : ${id}`);
+    }
+
+    return user;
+  }
+
+  async updateUser(id: string, dto: AdminUpdateUserDto) {
+    const user = await this.prisma.user.update({
       where: { id },
       data: dto,
     });
+
+    await this.auditLog.log({
+      organizationId: user.organizationId,
+      userId: user.id,
+      event: 'user_updated',
+      payload: { changes: dto },
+    });
+
+    return user;
   }
 
   async deleteUser(id: string) {
-    return this.prisma.user.delete({
+    // Fetch before delete to capture organizationId for the audit log
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: { id: true, organizationId: true, email: true },
+    });
+
+    const deleted = await this.prisma.user.delete({
       where: { id },
     });
+
+    if (user) {
+      await this.auditLog.log({
+        organizationId: user.organizationId,
+        event: 'user_deleted',
+        payload: { deletedUserId: user.id, email: user.email },
+      });
+    }
+
+    return deleted;
+  }
+
+  async createUser(dto: CreateUserDto) {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (existingUser) {
+      throw new BadRequestException('A user with this email already exists.');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+
+    const user = await this.prisma.user.create({
+      data: {
+        email: dto.email,
+        passwordHash,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        organizationId: dto.organizationId,
+        userRoles: {
+          create: dto.roleIds.map((rId) => ({ roleId: rId })),
+        },
+      },
+      include: {
+        organization: { select: { name: true } },
+      },
+    });
+
+    await this.auditLog.log({
+      organizationId: dto.organizationId,
+      userId: user.id,
+      event: 'user_created',
+      payload: {
+        email: user.email,
+        method: 'direct_creation',
+        organizationName: user.organization.name,
+      },
+    });
+
+    return user;
   }
 
   // --- Audit Logs ---
@@ -187,6 +334,64 @@ export class AdminService {
     };
   }
 
+  // --- Subscription Plans Management ---
+
+  async findAllSubscriptionPlans() {
+    return this.prisma.subscriptionPlan.findMany({
+      orderBy: { sortOrder: 'asc' },
+      include: {
+        _count: { select: { organizations: true } },
+      },
+    });
+  }
+
+  async createSubscriptionPlan(dto: CreateSubscriptionPlanDto) {
+    const existing = await this.prisma.subscriptionPlan.findUnique({
+      where: { name: dto.name },
+    });
+    if (existing) {
+      throw new BadRequestException(`Un plan avec le nom "${dto.name}" existe déjà.`);
+    }
+
+    return this.prisma.subscriptionPlan.create({ data: dto });
+  }
+
+  async updateSubscriptionPlan(id: string, dto: UpdateSubscriptionPlanDto) {
+    const plan = await this.prisma.subscriptionPlan.findUnique({ where: { id } });
+    if (!plan) {
+      throw new NotFoundException(`Plan d'abonnement introuvable : ${id}`);
+    }
+
+    return this.prisma.subscriptionPlan.update({ where: { id }, data: dto });
+  }
+
+  async findSubscriptionPlanById(id: string) {
+    const plan = await this.prisma.subscriptionPlan.findUnique({
+      where: { id },
+      include: {
+        _count: { select: { organizations: true } },
+      },
+    });
+
+    if (!plan) {
+      throw new NotFoundException(`Plan d'abonnement introuvable : ${id}`);
+    }
+
+    return plan;
+  }
+
+  async deactivateSubscriptionPlan(id: string) {
+    const plan = await this.prisma.subscriptionPlan.findUnique({ where: { id } });
+    if (!plan) {
+      throw new NotFoundException(`Plan d'abonnement introuvable : ${id}`);
+    }
+
+    return this.prisma.subscriptionPlan.update({
+      where: { id },
+      data: { isActive: false },
+    });
+  }
+
   async getDashboardStats() {
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -209,11 +414,53 @@ export class AdminService {
     const agents = await this.prisma.agent.findMany();
     const activeAgents = agents.filter((a) => a.status === 'online').length;
     const errorAgents = agents.filter((a) => a.status === 'error').length;
+    const offlineAgents = agents.filter(
+      (a) => a.status !== 'online' && a.status !== 'error',
+    ).length;
 
     const agents30DaysAgo = await this.prisma.agent.count({
       where: { createdAt: { lt: thirtyDaysAgo } },
     });
     const agentTrend = agents.length - agents30DaysAgo;
+
+    // Recent activity: daily new users + new agents for last 7 days
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const dayStart = new Date(today);
+      dayStart.setDate(today.getDate() - (6 - i));
+      const dayEnd = new Date(dayStart);
+      dayEnd.setDate(dayStart.getDate() + 1);
+      return { dayStart, dayEnd };
+    });
+
+    const activityCounts = await Promise.all(
+      days.map(({ dayStart, dayEnd }) =>
+        Promise.all([
+          this.prisma.user.count({
+            where: { createdAt: { gte: dayStart, lt: dayEnd } },
+          }),
+          this.prisma.agent.count({
+            where: { createdAt: { gte: dayStart, lt: dayEnd } },
+          }),
+        ]),
+      ),
+    );
+
+    const recentActivity = activityCounts.map(([users, agentsCount], i) => ({
+      date: days[i].dayStart.toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+      }),
+      users,
+      agents: agentsCount,
+    }));
+
+    // Agents distribution by status
+    const agentsDistribution = [
+      { name: 'Online', value: activeAgents, color: '#22c55e' },
+      { name: 'Hors ligne', value: offlineAgents, color: '#94a3b8' },
+      { name: 'Erreur', value: errorAgents, color: '#ef4444' },
+    ];
 
     return {
       organizations: {
@@ -230,8 +477,10 @@ export class AdminService {
       },
       errorAgents: {
         value: errorAgents,
-        trend: '0', // Error trend is less meaningful as a simple diff
+        trend: '0',
       },
+      recentActivity,
+      agentsDistribution,
     };
   }
 }

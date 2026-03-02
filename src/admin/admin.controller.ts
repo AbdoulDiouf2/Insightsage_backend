@@ -5,14 +5,19 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Get,
+  Patch,
+  Delete,
+  Param,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { CreateClientDto } from './dto/create-client.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { AdminUpdateUserDto } from './dto/update-user.dto';
+import { CreateSubscriptionPlanDto, UpdateSubscriptionPlanDto } from './dto/subscription-plan.dto';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermissions } from '../auth/decorators';
-import { Get, Patch, Delete, Param } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -56,6 +61,12 @@ export class AdminController {
     return this.adminService.findAllOrganizations();
   }
 
+  @Get('organizations/:id')
+  @ApiOperation({ summary: 'Get organization details by ID' })
+  async findOrganizationById(@Param('id') id: string) {
+    return this.adminService.findOrganizationById(id);
+  }
+
   @Patch('organizations/:id')
   @ApiOperation({ summary: 'Update organization details' })
   async updateOrganization(
@@ -63,6 +74,12 @@ export class AdminController {
     @Body() dto: UpdateOrganizationDto,
   ) {
     return this.adminService.updateOrganization(id, dto);
+  }
+
+  @Delete('organizations/:id')
+  @ApiOperation({ summary: 'Delete an organization and all its data' })
+  async deleteOrganization(@Param('id') id: string) {
+    return this.adminService.deleteOrganization(id);
   }
 
   // --- Users Management ---
@@ -73,10 +90,23 @@ export class AdminController {
     return this.adminService.findAllUsers();
   }
 
+  @Get('users/:id')
+  @ApiOperation({ summary: 'Get details of a specific user (SuperAdmin)' })
+  async findUserById(@Param('id') id: string) {
+    return this.adminService.findUserById(id);
+  }
+
   @Patch('users/:id')
   @ApiOperation({ summary: 'Update user details' })
-  async updateUser(@Param('id') id: string, @Body() dto: UpdateUserDto) {
+  async updateUser(@Param('id') id: string, @Body() dto: AdminUpdateUserDto) {
     return this.adminService.updateUser(id, dto);
+  }
+
+  @Post('users')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Directly create a user in an organization (SuperAdmin)' })
+  async createUser(@Body() dto: CreateUserDto) {
+    return this.adminService.createUser(dto);
   }
 
   @Delete('users/:id')
@@ -91,5 +121,56 @@ export class AdminController {
   @ApiOperation({ summary: 'View system-wide audit logs' })
   async findAllAuditLogs() {
     return this.adminService.findAllAuditLogs();
+  }
+
+  // --- Subscription Plans Management ---
+
+  @Get('subscription-plans')
+  @ApiOperation({
+    summary: 'Lister tous les plans d\'abonnement (actifs et inactifs)',
+    description: 'Réservé aux superadmins. Retourne tous les plans avec le nombre d\'organisations associées.',
+  })
+  async findAllSubscriptionPlans() {
+    return this.adminService.findAllSubscriptionPlans();
+  }
+
+  @Get('subscription-plans/:id')
+  @ApiOperation({
+    summary: 'Récupérer un plan d\'abonnement par ID',
+    description: 'Réservé aux superadmins.',
+  })
+  async findSubscriptionPlanById(@Param('id') id: string) {
+    return this.adminService.findSubscriptionPlanById(id);
+  }
+
+  @Post('subscription-plans')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Créer un nouveau plan d\'abonnement',
+    description: 'Permet d\'ajouter un nouveau palier sans redéploiement.',
+  })
+  async createSubscriptionPlan(@Body() dto: CreateSubscriptionPlanDto) {
+    return this.adminService.createSubscriptionPlan(dto);
+  }
+
+  @Patch('subscription-plans/:id')
+  @ApiOperation({
+    summary: 'Modifier un plan d\'abonnement',
+    description: 'Modifier prix, limites, feature flags ou informations Stripe sans redéploiement.',
+  })
+  async updateSubscriptionPlan(
+    @Param('id') id: string,
+    @Body() dto: UpdateSubscriptionPlanDto,
+  ) {
+    return this.adminService.updateSubscriptionPlan(id, dto);
+  }
+
+  @Delete('subscription-plans/:id')
+  @ApiOperation({
+    summary: 'Désactiver un plan d\'abonnement',
+    description: 'Désactive le plan (isActive = false) sans supprimer les données.',
+  })
+  async deactivateSubscriptionPlan(@Param('id') id: string) {
+    return this.adminService.deactivateSubscriptionPlan(id);
   }
 }

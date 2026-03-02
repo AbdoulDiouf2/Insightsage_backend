@@ -55,6 +55,14 @@ export class RolesController {
     return this.rolesService.findAllByOrganization(organizationId);
   }
 
+  @Get(':id')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions({ action: 'read', resource: 'roles' })
+  @ApiOperation({ summary: 'Récupérer les détails d\'un rôle spécifique' })
+  findOne(@OrganizationId() organizationId: string, @Param('id') id: string) {
+    return this.rolesService.findOne(id, organizationId);
+  }
+
   @Patch(':id')
   @UseGuards(PermissionsGuard)
   @RequirePermissions({ action: 'manage', resource: 'roles' })
