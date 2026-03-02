@@ -13,7 +13,7 @@ export class AdminService {
   constructor(
     private prisma: PrismaService,
     private auditLog: AuditLogService,
-  ) { }
+  ) {}
 
   async createClientAccount(dto: CreateClientDto) {
     // 1. Verify if user already exists
@@ -82,7 +82,10 @@ export class AdminService {
         organizationId: organization.id,
         userId: user.id,
         event: 'organization_updated',
-        payload: { action: 'client_onboarding', organizationName: organization.name },
+        payload: {
+          action: 'client_onboarding',
+          organizationName: organization.name,
+        },
       });
 
       return {
@@ -157,17 +160,78 @@ export class AdminService {
   // --- Audit Logs ---
 
   async findAllAuditLogs() {
-    return this.prisma.auditLog.findMany({
-      include: {
-        user: {
-          select: { email: true },
+    const [logs, total] = await Promise.all([
+      this.prisma.auditLog.findMany({
+        include: {
+          user: {
+            select: { email: true, firstName: true, lastName: true },
+          },
+          organization: {
+            select: { name: true },
+          },
         },
-        organization: {
-          select: { name: true },
-        },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      }),
+      this.prisma.auditLog.count(),
+    ]);
+
+    return {
+      data: logs,
+      meta: {
+        total,
+        limit: 100,
+        offset: 0,
+        hasMore: total > 100,
       },
-      orderBy: { createdAt: 'desc' },
-      take: 100, // Limit to last 100 for now
+    };
+  }
+
+  async getDashboardStats() {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    // Organizations
+    const totalOrganizations = await this.prisma.organization.count();
+    const orgs30DaysAgo = await this.prisma.organization.count({
+      where: { createdAt: { lt: thirtyDaysAgo } },
     });
+    const orgTrend = totalOrganizations - orgs30DaysAgo;
+
+    // Users
+    const totalUsers = await this.prisma.user.count();
+    const users30DaysAgo = await this.prisma.user.count({
+      where: { createdAt: { lt: thirtyDaysAgo } },
+    });
+    const userTrend = totalUsers - users30DaysAgo;
+
+    // Agents
+    const agents = await this.prisma.agent.findMany();
+    const activeAgents = agents.filter((a) => a.status === 'online').length;
+    const errorAgents = agents.filter((a) => a.status === 'error').length;
+
+    const agents30DaysAgo = await this.prisma.agent.count({
+      where: { createdAt: { lt: thirtyDaysAgo } },
+    });
+    const agentTrend = agents.length - agents30DaysAgo;
+
+    return {
+      organizations: {
+        value: totalOrganizations,
+        trend: orgTrend >= 0 ? `+${orgTrend}` : `${orgTrend}`,
+      },
+      users: {
+        value: totalUsers,
+        trend: userTrend >= 0 ? `+${userTrend}` : `${userTrend}`,
+      },
+      activeAgents: {
+        value: activeAgents,
+        trend: agentTrend >= 0 ? `+${agentTrend}` : `${agentTrend}`,
+      },
+      errorAgents: {
+        value: errorAgents,
+        trend: '0', // Error trend is less meaningful as a simple diff
+      },
+    };
   }
 }

@@ -8,7 +8,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
-  app.setGlobalPrefix('api', { exclude: ['admin/(.*)', 'admin'] });
+  app.setGlobalPrefix('api');
 
   // Enable CORS for frontend integration
   const allowedOrigins = [
@@ -25,7 +25,11 @@ async function bootstrap() {
   app.enableCors({
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps or curl) or in allowed list
-      if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes(String(origin))) {
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        allowedOrigins.includes(String(origin))
+      ) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));
