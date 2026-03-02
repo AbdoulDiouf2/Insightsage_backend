@@ -64,3 +64,9 @@ Outre la création de clients, le module `Admin` expose d'autres endpoints de ge
 
 ### Audit Logs
 - `GET /api/admin/audit-logs` : Permet de consulter les logs d'audit du système de manière globale.
+
+### Gestion des Abonnements (Subscription Plans)
+- `GET /api/admin/subscription-plans` : Liste tous les plans d'abonnements.
+- `POST /api/admin/subscription-plans` : Crée un nouveau palier d'abonnement.
+- `PATCH /api/admin/subscription-plans/:id` : Modifie les limites ou le prix d'un plan sans redéploiement.
+- `DELETE /api/admin/subscription-plans/:id` : Désactive un ancien plan.

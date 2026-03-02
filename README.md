@@ -30,11 +30,11 @@ L'application est découpée en modules métier (Domain-Driven Design), chacun d
 *   **`health`** : Endpoints vitaux de monitoring et de disponibilité système.
 *   **`logs`** : Centralisation et restitution paginée des journaux d'audit (Audit Logs).
 *   **`nlq`** : Traitement des requêtes en langage naturel (Natural Language Querying).
-*   **`onboarding`** : Tunnel de configuration d'un compte (nouveau locataire, sources Sage, etc.).
+*   **`onboarding`** : Tunnel de configuration d'un compte Wizard à 5 étapes (Plans, Profils, Sage, KPIs, Invites) adossé à une machine à états en base de données.
 *   **`organizations`** : Paramètres et cycle de vie d'un espace client (Tenant).
 *   **`prisma`** : Configuration centralisée de l'accès à la base de données.
 *   **`roles`** : Création et gestion des rôles sur-mesure et matrice de permissions.
-*   **`subscriptions`** : Gestion des limites et des forfaits (Startup, PME, Enterprise).
+*   **`subscriptions`** : Gestion dynamique et persistante des abonnements en base de données (Startup, PME, Enterprise).
 *   **`users`** : Profil personnel et administration de son équipe (DAF).
 *   **`widgets`** : Bibliothèque de composants analytiques (Widget Store, KPI Packs).
 
