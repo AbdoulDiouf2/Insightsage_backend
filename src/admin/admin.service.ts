@@ -1,8 +1,9 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
 import { AdminUpdateUserDto } from './dto/update-user.dto';
+import { CreateSubscriptionPlanDto, UpdateSubscriptionPlanDto } from './dto/subscription-plan.dto';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 
@@ -239,6 +240,49 @@ export class AdminService {
         hasMore: total > 100,
       },
     };
+  }
+
+  // --- Subscription Plans Management ---
+
+  async findAllSubscriptionPlans() {
+    return this.prisma.subscriptionPlan.findMany({
+      orderBy: { sortOrder: 'asc' },
+      include: {
+        _count: { select: { organizations: true } },
+      },
+    });
+  }
+
+  async createSubscriptionPlan(dto: CreateSubscriptionPlanDto) {
+    const existing = await this.prisma.subscriptionPlan.findUnique({
+      where: { name: dto.name },
+    });
+    if (existing) {
+      throw new BadRequestException(`Un plan avec le nom "${dto.name}" existe déjà.`);
+    }
+
+    return this.prisma.subscriptionPlan.create({ data: dto });
+  }
+
+  async updateSubscriptionPlan(id: string, dto: UpdateSubscriptionPlanDto) {
+    const plan = await this.prisma.subscriptionPlan.findUnique({ where: { id } });
+    if (!plan) {
+      throw new NotFoundException(`Plan d'abonnement introuvable : ${id}`);
+    }
+
+    return this.prisma.subscriptionPlan.update({ where: { id }, data: dto });
+  }
+
+  async deactivateSubscriptionPlan(id: string) {
+    const plan = await this.prisma.subscriptionPlan.findUnique({ where: { id } });
+    if (!plan) {
+      throw new NotFoundException(`Plan d'abonnement introuvable : ${id}`);
+    }
+
+    return this.prisma.subscriptionPlan.update({
+      where: { id },
+      data: { isActive: false },
+    });
   }
 
   async getDashboardStats() {

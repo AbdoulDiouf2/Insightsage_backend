@@ -196,6 +196,87 @@ async function main() {
     }
   }
   console.log('✅ Roles & RolePermissions seeded.');
+
+  // 4. Seed Subscription Plans
+  const SUBSCRIPTION_PLANS = [
+    {
+      name: 'startup',
+      label: 'Startup',
+      description: 'Idéal pour les petites équipes qui démarrent.',
+      priceMonthly: 30,
+      maxUsers: 5,
+      maxKpis: 3,
+      maxWidgets: 10,
+      maxAgentSyncPerDay: 4,
+      allowedKpiPacks: ['daf_basic'],
+      hasNlq: false,
+      hasAdvancedReports: false,
+      sortOrder: 1,
+    },
+    {
+      name: 'pme',
+      label: 'PME',
+      description: 'Pour les PME en croissance avec des besoins financiers avancés.',
+      priceMonthly: 80,
+      maxUsers: 15,
+      maxKpis: 10,
+      maxWidgets: 30,
+      maxAgentSyncPerDay: 12,
+      allowedKpiPacks: ['daf_basic', 'daf_premium', 'controller'],
+      hasNlq: false,
+      hasAdvancedReports: false,
+      sortOrder: 2,
+    },
+    {
+      name: 'business',
+      label: 'Business',
+      description: 'Pour les entreprises avec reporting avancé et NLQ.',
+      priceMonthly: 200,
+      maxUsers: 50,
+      maxKpis: 30,
+      maxWidgets: null, // illimité
+      maxAgentSyncPerDay: null, // temps réel
+      allowedKpiPacks: ['daf_basic', 'daf_premium', 'controller', 'dg', 'manager'],
+      hasNlq: true,
+      hasAdvancedReports: true,
+      sortOrder: 3,
+    },
+    {
+      name: 'enterprise',
+      label: 'Enterprise',
+      description: 'Solution sur-mesure pour les grandes entreprises. Sur devis.',
+      priceMonthly: null, // sur devis
+      maxUsers: null,
+      maxKpis: null,
+      maxWidgets: null,
+      maxAgentSyncPerDay: null,
+      allowedKpiPacks: ['daf_basic', 'daf_premium', 'controller', 'dg', 'manager', 'analyst'],
+      hasNlq: true,
+      hasAdvancedReports: true,
+      sortOrder: 4,
+    },
+  ];
+
+  for (const plan of SUBSCRIPTION_PLANS) {
+    await prisma.subscriptionPlan.upsert({
+      where: { name: plan.name },
+      update: {
+        label: plan.label,
+        description: plan.description,
+        priceMonthly: plan.priceMonthly,
+        maxUsers: plan.maxUsers,
+        maxKpis: plan.maxKpis,
+        maxWidgets: plan.maxWidgets,
+        maxAgentSyncPerDay: plan.maxAgentSyncPerDay,
+        allowedKpiPacks: plan.allowedKpiPacks,
+        hasNlq: plan.hasNlq,
+        hasAdvancedReports: plan.hasAdvancedReports,
+        sortOrder: plan.sortOrder,
+      },
+      create: plan,
+    });
+  }
+  console.log('✅ Subscription plans seeded.');
 }
 
 main()

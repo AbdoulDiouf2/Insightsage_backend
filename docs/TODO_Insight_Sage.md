@@ -161,35 +161,36 @@ Le backend ne :
 
 ### 3.1. Modèle de données onboarding
 
-- [ ] Créer les entités pour :  
-  - [ ] Abonnements (Startup/PME, Business, Enterprise).
-  - [ ] Organisation (nom, secteur, taille, pays, etc.).
-  - [ ] Profils métiers liés à l’organisation (CFO, DG, etc.).
-  - [ ] Statut d’onboarding (étape, complété ou non).
+- [x] Créer les entités pour :
+  - [x] Abonnements (Startup/PME, Business, Enterprise) : modèle `SubscriptionPlan` en BDD avec CRUD superadmin (`/admin/subscription-plans`). Seed des 4 plans dans `prisma/seed.ts`. Plans gérables sans redéploiement (prix, limites, Stripe Phase 2).
+  - [x] Organisation : champs `country`, `sageMode`, `selectedProfiles`, `planId` (FK vers `SubscriptionPlan`) ajoutés au modèle `Organization`.
+  - [x] Profils métiers liés à l’organisation (CFO, DG, etc.) : liste statique dans `OnboardingService.getAvailableProfiles()` + `selectedProfiles String[]` sur `Organization`.
+  - [x] Statut d’onboarding (étape, complété ou non) : modèle `OnboardingStatus` (`currentStep`, `completedSteps[]`, `isComplete`, `inviteLater`) — relation 1-1 avec `Organization`.
 
 ### 3.2. Endpoints onboarding (wizard)
 
-- [ ] Étape 1 – Choix du plan d’abonnement :  
-  - [ ] `GET /subscriptions/plans` (liste des plans).  
-  - [ ] `POST /onboarding/step1` (choix plan pour l’organisation).
-- [ ] Étape 2 – Création organisation :  
-  - [ ] `POST /onboarding/step2` (nom, secteur, taille, email admin).
-- [ ] Étape 3 – Configuration data source Sage :  
-  - [ ] `POST /onboarding/step3` (type Sage : X3 / Ligne 100, mode hébergement local/cloud).
-  - [ ] `POST /onboarding/agent-link` (enregistrement token agent, id instance agent).
-  - [ ] Endpoint pour tester la connexion (en coordination avec Data Engineer) : `POST /datasource/test-connection`.
-- [ ] Étape 4 – Profils métiers & KPIs :  
-  - [ ] `GET /profiles` (profils disponibles).  
-  - [ ] `POST /onboarding/step4` (sélection profils métiers pour l’organisation).
-- [ ] Étape 5 – Invitations utilisateurs :  
-  - [ ] `POST /onboarding/step5` (liste d’emails + rôles assignés).  
-  - [ ] Option “inviter plus tard” (flag dans le statut onboarding).
+- [x] Étape 1 – Choix du plan d’abonnement :
+  - [x] `GET /subscriptions/plans` (liste des plans actifs depuis DB — `@Public()`).
+  - [x] `POST /onboarding/step1` (`{ plan }` → lie `org.planId` + avance wizard).
+- [x] Étape 2 – Création organisation :
+  - [x] `POST /onboarding/step2` (`{ name?, sector?, size?, country? }` — update partiel).
+- [x] Étape 3 – Configuration data source Sage :
+  - [x] `POST /onboarding/step3` (`{ sageType, sageMode, sageHost?, sagePort? }`).
+  - [x] `POST /onboarding/agent-link` (`{ agentToken }` — validation token + vérif appartenance org).
+  - [x] `POST /datasource/test-connection` (vérifie statut agent online — MVP).
+- [x] Étape 4 – Profils métiers & KPIs :
+  - [x] `GET /onboarding/profiles` (liste statique : DAF, DG, Controller, Manager, Analyste).
+  - [x] `POST /onboarding/step4` (`{ profiles: string[] }` → `org.selectedProfiles`).
+- [x] Étape 5 – Invitations utilisateurs :
+  - [x] `POST /onboarding/step5` (`{ invitations: [{ email, role }] }` via `auth.inviteUser()`).
+  - [x] Option “inviter plus tard” (`inviteLater: true` → `OnboardingStatus.inviteLater = true`).
 
 ### 3.3. Logique de sauvegarde et reprise
 
-- [ ] Stocker la progression par organisation (étape actuelle, data partielle).
-- [ ] Permettre de reprendre l’onboarding à l’étape en cours.
-- [ ] Gérer les erreurs avec messages explicites (ex: mauvais credentials SQL, port fermé, agent non joignable).
+- [x] Stocker la progression par organisation : `OnboardingStatus.completedSteps[]` + `currentStep`.
+- [x] Reprendre l’onboarding : `GET /onboarding/status` auto-crée le statut si inexistant + retourne état complet.
+- [x] Erreurs explicites : token révoqué/expiré, agent autre org, profils inconnus, plan inactif.
+- [x] `GET /organizations/me` + `PATCH /organizations/me` pour lecture/mise à jour org par le DAF.
 
 ***
 

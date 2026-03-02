@@ -30,7 +30,13 @@ export type AuditEventType =
   | 'organization_updated'
   | 'organization_deleted'
   | 'password_reset_requested'
-  | 'password_reset_completed';
+  | 'password_reset_completed'
+  | 'onboarding_step_completed'
+  | 'onboarding_completed'
+  | 'datasource_configured'
+  | 'agent_linked'
+  | 'users_invited_bulk'
+  | 'subscription_plan_selected';
 
 export interface AuditLogPayload {
   organizationId?: string | null;
