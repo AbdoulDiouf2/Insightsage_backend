@@ -141,11 +141,19 @@ Le backend ne :
 ### 2.3. Sécurité & isolation
 
 - [x] Vérifier l’isolation par organisation (toutes les requêtes doivent être filtrées par `organization_id`).
-- [ ] Ajouter des règles pour masquer les données sensibles (optionnel dans MVP mais à prévoir) : ex. PII masking.
+- [x] Ajouter des règles pour masquer les données sensibles : PII masking implémenté.
+  - [x] `users.service.ts` : `findByIdSafe` et `findAllByOrganization` excluent `passwordHash`, `hashedRefreshToken`, `resetPasswordToken`, `resetPasswordExpires` via Prisma `select`.
+  - [x] `audit-log.service.ts` : `sanitizePayload()` masque automatiquement emails (`j***@domaine.com`) et mots de passe (`[REDACTED]`) avant persistance.
+  - [x] `auth.service.ts` : suppression du `debug: { resetToken }` dans la réponse HTTP `forgotPassword` ; audit log toujours déclenché.
 
 ### 2.4 Agent Token Management
-- [ ] `POST /agents/generate-token` → génère `agent_token` par org
-- [ ] Token rotation (30j), revocable
+- [x] `POST /agents/generate-token` → génère `agent_token` par org (validité 30 jours, `tokenExpiresAt` retourné)
+- [x] Token rotation (30j), revocable :
+  - [x] Champs `tokenExpiresAt`, `isRevoked`, `revokedAt` ajoutés au modèle `Agent` (Prisma + DB push).
+  - [x] `registerAgent` et `processHeartbeat` valident que le token n’est ni révoqué ni expiré.
+  - [x] `regenerateToken` réinitialise `tokenExpiresAt` à +30j et efface la révocation.
+  - [x] `POST /agents/:id/revoke` : endpoint de révocation explicite ajouté.
+  - [x] Alerte `isExpiringSoon` dans le heartbeat si < 7 jours avant expiration.
 
 ***
 

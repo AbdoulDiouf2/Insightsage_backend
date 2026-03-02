@@ -9,7 +9,7 @@ import {
 import { AdminService } from './admin.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { AdminUpdateUserDto } from './dto/update-user.dto';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermissions } from '../auth/decorators';
 import { Get, Patch, Delete, Param } from '@nestjs/common';
@@ -81,7 +81,7 @@ export class AdminController {
 
   @Patch('users/:id')
   @ApiOperation({ summary: 'Update user details' })
-  async updateUser(@Param('id') id: string, @Body() dto: UpdateUserDto) {
+  async updateUser(@Param('id') id: string, @Body() dto: AdminUpdateUserDto) {
     return this.adminService.updateUser(id, dto);
   }
 
