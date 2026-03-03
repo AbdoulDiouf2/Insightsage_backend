@@ -203,7 +203,7 @@ async function main() {
       name: 'essentiel',
       label: 'Essentiel',
       description: 'PME Sage 100. Cockpit DAF 6 KPIs. Essai parfait.',
-      priceMonthly: 55, // € (36k FCFA)
+      priceMonthly: 36000, // FCFA (approx 55 €)
       maxUsers: 3,
       maxKpis: 6,
       maxWidgets: 10,
@@ -217,7 +217,7 @@ async function main() {
       name: 'business',
       label: 'Business',
       description: 'DAF + équipe. NLQ illimité. Dashboards perso.',
-      priceMonthly: 150, // € (98k FCFA)
+      priceMonthly: 100000, // FCFA (approx 150 €)
       maxUsers: 10,
       maxKpis: null, // illimité
       maxWidgets: null, // illimité
@@ -231,7 +231,7 @@ async function main() {
       name: 'enterprise',
       label: 'Enterprise',
       description: 'Multi-Sage + illimité. Support dédié.',
-      priceMonthly: 450, // € (295k FCFA)
+      priceMonthly: 300000, // FCFA (approx 450 €)
       maxUsers: null, // illimité
       maxKpis: null, // illimité
       maxWidgets: null, // illimité
@@ -270,7 +270,7 @@ async function main() {
       key: 'revenue_mom',
       name: 'CA Mois/Mois',
       description: "Chiffre d'affaires du mois en cours comparé au mois précédent",
-      unit: '€',
+      unit: 'FCFA',
       category: 'finance',
       defaultVizType: 'gauge',
     },
@@ -286,7 +286,7 @@ async function main() {
       key: 'ar_aging',
       name: 'Encours Clients',
       description: 'Montant total des créances clients en attente de règlement',
-      unit: '€',
+      unit: 'FCFA',
       category: 'treasury',
       defaultVizType: 'bar',
     },
@@ -302,7 +302,7 @@ async function main() {
       key: 'ebitda',
       name: 'EBITDA',
       description: 'Bénéfice avant intérêts, impôts, dépréciation et amortissement',
-      unit: '€',
+      unit: 'FCFA',
       category: 'finance',
       defaultVizType: 'card',
     },

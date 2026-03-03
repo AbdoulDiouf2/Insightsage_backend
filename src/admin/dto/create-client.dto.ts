@@ -30,4 +30,13 @@ export class CreateClientDto {
   @IsString()
   @IsNotEmpty()
   adminLastName: string;
+
+  @ApiProperty({
+    example: 'plan_uuid_here',
+    description: 'Optional: ID of the subscription plan to assign',
+    required: false,
+  })
+  @IsString()
+  @IsNotEmpty()
+  planId?: string;
 }

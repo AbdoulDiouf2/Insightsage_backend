@@ -26,7 +26,7 @@ import {
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Public()
   @Post('register')
@@ -106,14 +106,23 @@ export class AuthController {
   @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
   async inviteUser(
     @Body() dto: InviteUserDto,
-    @CurrentUser('organizationId') requesterOrgId: string,
+    @CurrentUser() requester: any,
   ) {
-    // Ensure user can only invite to their own organization
-    if (dto.organizationId !== requesterOrgId) {
+    const requesterOrgId = requester.organizationId;
+
+    // Check if requester is a SuperAdmin (manage:all)
+    const isSuperAdmin = requester.userRoles?.some((ur: any) =>
+      ur.role?.permissions?.some((rp: any) =>
+        rp.permission?.action === 'manage' && rp.permission?.resource === 'all'
+      )
+    );
+
+    // Ensure non-superadmins can only invite to their own organization
+    if (!isSuperAdmin && dto.organizationId !== requesterOrgId) {
       throw new BadRequestException(
         'You can only invite users to your own organization.',
       );
     }
-    return this.authService.inviteUser(dto);
+    return this.authService.inviteUser(dto, requester.id);
   }
 }

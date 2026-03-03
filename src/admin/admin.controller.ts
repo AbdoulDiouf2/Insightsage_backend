@@ -40,7 +40,7 @@ import {
 @RequirePermissions({ action: 'manage', resource: 'all' }) // Only InsightSage developers/superadmins
 @ApiBearerAuth()
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(private readonly adminService: AdminService) { }
 
   @Get('dashboard-stats')
   @ApiOperation({ summary: 'Get overall system statistics for dashboard' })
@@ -130,6 +130,12 @@ export class AdminController {
   @ApiOperation({ summary: 'View system-wide audit logs' })
   async findAllAuditLogs() {
     return this.adminService.findAllAuditLogs();
+  }
+
+  @Get('invitations')
+  @ApiOperation({ summary: 'List all invitations across the platform' })
+  async findAllInvitations() {
+    return this.adminService.findAllInvitations();
   }
 
   // --- Subscription Plans Management ---

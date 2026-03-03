@@ -24,7 +24,7 @@ export class AdminService {
   constructor(
     private prisma: PrismaService,
     private auditLog: AuditLogService,
-  ) {}
+  ) { }
 
   async createClientAccount(dto: CreateClientDto) {
     // 1. Verify if user already exists
@@ -43,6 +43,7 @@ export class AdminService {
         data: {
           name: dto.organizationName,
           size: 'pme', // Default or based on future DTO extensions
+          planId: dto.planId || null,
         },
       });
 
@@ -118,13 +119,22 @@ export class AdminService {
     return this.prisma.organization.findMany({
       include: {
         _count: {
-          select: { users: true, dashboards: true },
+          select: { users: true, dashboards: true, invitations: true },
         },
         owner: {
           select: { email: true, firstName: true, lastName: true },
         },
         subscriptionPlan: {
-          select: { label: true, name: true },
+          select: {
+            label: true,
+            name: true,
+            maxUsers: true,
+            maxKpis: true,
+            maxWidgets: true,
+            hasNlq: true,
+            hasAdvancedReports: true,
+            priceMonthly: true,
+          },
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -136,13 +146,41 @@ export class AdminService {
       where: { id },
       include: {
         _count: {
-          select: { users: true, dashboards: true },
+          select: { users: true, dashboards: true, invitations: true },
         },
         owner: {
           select: { email: true, firstName: true, lastName: true },
         },
         subscriptionPlan: {
-          select: { id: true, label: true, name: true },
+          select: {
+            id: true,
+            label: true,
+            name: true,
+            maxUsers: true,
+            maxKpis: true,
+            maxWidgets: true,
+            hasNlq: true,
+            hasAdvancedReports: true,
+            priceMonthly: true,
+          },
+        },
+        invitations: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            expiresAt: true,
+            isAccepted: true,
+            createdAt: true,
+            role: {
+              select: { name: true },
+            },
+            invitedBy: {
+              select: { firstName: true, lastName: true, email: true },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
         },
       },
     });
@@ -610,6 +648,23 @@ export class AdminService {
     return this.prisma.kpiPack.update({
       where: { id },
       data: { isActive: !pack.isActive },
+    });
+  }
+
+  async findAllInvitations() {
+    return this.prisma.invitation.findMany({
+      include: {
+        organization: {
+          select: { id: true, name: true },
+        },
+        role: {
+          select: { id: true, name: true },
+        },
+        invitedBy: {
+          select: { id: true, email: true, firstName: true, lastName: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
     });
   }
 }

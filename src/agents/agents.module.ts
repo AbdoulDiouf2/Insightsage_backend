@@ -6,11 +6,12 @@ import { AuditLogModule } from '../logs/audit-log.module';
 import { AgentsGateway } from './agents.gateway';
 import { SqlSecurityService } from './sql-security.service';
 import { UsersModule } from '../users/users.module';
+import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 
 @Module({
-  imports: [PrismaModule, AuditLogModule, UsersModule],
+  imports: [PrismaModule, AuditLogModule, UsersModule, SubscriptionsModule],
   controllers: [AgentsController],
   providers: [AgentsService, AgentsGateway, SqlSecurityService],
   exports: [AgentsService, AgentsGateway, SqlSecurityService],
 })
-export class AgentsModule {}
+export class AgentsModule { }

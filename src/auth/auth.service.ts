@@ -14,6 +14,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { InviteUserDto } from './dto/invite-user.dto';
 import { AuditLogService } from '../logs/audit-log.service';
+import { LicenseGuardianService } from '../subscriptions/license-guardian.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
@@ -25,6 +26,7 @@ export class AuthService {
     private configService: ConfigService,
     private prisma: PrismaService,
     private auditLog: AuditLogService,
+    private licenseGuardian: LicenseGuardianService,
   ) { }
 
   async register(dto: RegisterDto) {
@@ -205,7 +207,10 @@ export class AuthService {
     return { message: 'Password reset successfully' };
   }
 
-  async inviteUser(dto: InviteUserDto) {
+  async inviteUser(dto: InviteUserDto, invitedById?: string) {
+    // Vérification de la limite de licence par le Gardien
+    await this.licenseGuardian.assertLimit(dto.organizationId, 'maxUsers');
+
     const existingUser = await this.usersService.findByEmail(dto.email);
     if (existingUser) {
       throw new BadRequestException('User already exists in the system');
@@ -228,10 +233,13 @@ export class AuthService {
     await this.prisma.invitation.create({
       data: {
         email: dto.email,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
         roleId: role.id,
         token,
         expiresAt,
         organizationId: dto.organizationId,
+        invitedById,
       },
     });
 
@@ -241,7 +249,7 @@ export class AuthService {
     await this.auditLog.log({
       organizationId: dto.organizationId,
       event: 'user_invited',
-      payload: { email: dto.email, role: dto.role },
+      payload: { email: dto.email, role: dto.role, invitedBy: invitedById },
     });
 
     return { message: 'Invitation sent successfully' };

@@ -13,6 +13,7 @@ import { GenerateTokenDto } from './dto/generate-token.dto';
 import { randomBytes } from 'crypto';
 import { JobStatus } from '@prisma/client';
 import { SqlSecurityService } from './sql-security.service';
+import { LicenseGuardianService } from '../subscriptions/license-guardian.service';
 
 // Durée de vie d'un token : 30 jours (Section 2.4)
 const TOKEN_TTL_DAYS = 30;
@@ -32,13 +33,14 @@ export class AgentsService implements OnModuleInit {
     private prisma: PrismaService,
     private auditLog: AuditLogService,
     private sqlSecurity: SqlSecurityService,
-  ) {}
+    private licenseGuardian: LicenseGuardianService,
+  ) { }
 
   onModuleInit() {
     // Lancer les tâches de nettoyage toutes les minutes
     setInterval(() => {
-      this.markStaleAgentsOffline().catch(() => {});
-      this.cleanupStaleJobs().catch(() => {});
+      this.markStaleAgentsOffline().catch(() => { });
+      this.cleanupStaleJobs().catch(() => { });
     }, 60000);
   }
 
@@ -84,7 +86,7 @@ export class AgentsService implements OnModuleInit {
           event: 'agent_token_expired',
           payload: { agentId: agent.id },
         })
-        .catch(() => {});
+        .catch(() => { });
       throw new ForbiddenException(
         'Ce token agent a expiré (validité 30 jours). Régénérez un token via le portail admin.',
       );
@@ -553,10 +555,13 @@ export class AgentsService implements OnModuleInit {
       );
     }
 
-    // 2. Rate limiting check
+    // 2. Vérification de la limite de licence (Synchronisation quotidienne)
+    await this.licenseGuardian.assertLimit(organizationId, 'maxAgentSyncPerDay');
+
+    // 3. Rate limiting check
     this.checkRateLimit(organizationId);
 
-    // 3. Trouver l'agent online pour cette organisation
+    // 4. Trouver l'agent online pour cette organisation
     const agent = await this.prisma.agent.findFirst({
       where: { organizationId, status: 'online', isRevoked: false },
     });
@@ -567,10 +572,10 @@ export class AgentsService implements OnModuleInit {
       );
     }
 
-    // 4. Créer le job
+    // 5. Créer le job
     const job = await this.createJob(organizationId, agent.id, sql);
 
-    // 5. Envoyer via WebSocket
+    // 6. Envoyer via WebSocket
     const sent = await gateway.emitExecuteSql(organizationId, job.id, sql);
 
     if (!sent) {
@@ -607,7 +612,7 @@ export class AgentsService implements OnModuleInit {
           event: 'agent_job_timeout',
           payload: { count: result.count },
         })
-        .catch(() => {});
+        .catch(() => { });
     }
 
     return { timedOutJobs: result.count };

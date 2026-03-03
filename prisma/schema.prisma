@@ -75,6 +75,7 @@ model User {
   dashboards Dashboard[]
   widgets    Widget[]
   auditLogs  AuditLog[]
+  invitationsCreated Invitation[] @relation("InvitationsCreated")
 
   @@index([organizationId])
   @@map("users")
@@ -83,6 +84,8 @@ model User {
 model Invitation {
   id             String       @id @default(uuid())
   email          String       @unique
+  firstName      String?
+  lastName       String?
   token          String       @unique
   roleId         String
   role           Role         @relation("InvitationRole", fields: [roleId], references: [id])
@@ -91,6 +94,9 @@ model Invitation {
   createdAt      DateTime     @default(now())
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  invitedById    String?
+  invitedBy      User?        @relation("InvitationsCreated", fields: [invitedById], references: [id], onDelete: SetNull)
 
   @@index([organizationId])
   @@map("invitations")
