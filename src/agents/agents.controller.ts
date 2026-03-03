@@ -157,6 +157,32 @@ export class AgentsController {
     return this.agentsService.revokeToken(id, organizationId);
   }
 
+  @Post(':id/test-connection')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions({ action: 'read', resource: 'agents' })
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Test real-time connection using SELECT 1',
+  })
+  @ApiParam({ name: 'id', description: 'Agent ID' })
+  async testConnection(
+    @Param('id') id: string,
+    @OrganizationId() organizationId: string,
+  ) {
+    const agent = await this.agentsService.getAgentById(id);
+    if (agent.organizationId !== organizationId) {
+      throw new ForbiddenException('Access denied to this agent');
+    }
+    
+    // Trigger real-time SELECT 1
+    return this.agentsService.executeRealTimeQuery(
+      organizationId,
+      'SELECT 1',
+      this.agentsGateway,
+    );
+  }
+
   // ============================================================
   // REAL-TIME & JOB ENDPOINTS
   // ============================================================
