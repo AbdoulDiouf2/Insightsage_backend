@@ -97,10 +97,37 @@ export class AgentsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const organizationId = client.data.organizationId;
     if (!organizationId) return { status: 'error', message: 'Unauthorized' };
 
-    this.logger.log(`Received result for job ${data.jobId} from org ${organizationId}`);
-    
-    await this.agentsService.updateJobResult(data.jobId, organizationId, data.result, data.error);
-    
+    this.logger.log(
+      `Received result for job ${data.jobId} from org ${organizationId}`,
+    );
+
+    await this.agentsService.updateJobResult(
+      data.jobId,
+      organizationId,
+      data.result,
+      data.error,
+    );
+
+    return { status: 'received' };
+  }
+
+  /**
+   * Reçoit les logs de l'agent pour centralisation
+   */
+  @SubscribeMessage('agent_log')
+  async handleAgentLog(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { level: string; message: string; timestamp?: string },
+  ) {
+    const organizationId = client.data.organizationId;
+    if (!organizationId) return { status: 'error', message: 'Unauthorized' };
+
+    // Formatage simple pour les logs backend
+    this.logger.log(
+      `[AGENT-LOG][${organizationId}] ${data.level.toUpperCase()}: ${data.message}`,
+    );
+
+    // TODO: On pourrait aussi persister certains logs critiques en DB ou via Winston/Loki
     return { status: 'received' };
   }
 

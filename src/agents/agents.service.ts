@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../logs/audit-log.service';
@@ -17,16 +18,29 @@ import { SqlSecurityService } from './sql-security.service';
 const TOKEN_TTL_DAYS = 30;
 // Seuil d'alerte : 7 jours avant expiration
 const TOKEN_EXPIRY_WARNING_DAYS = 7;
+// Timeout pour un job temps réel : 30 secondes
+const JOB_TIMEOUT_MS = 30000;
+// Limite de requêtes par minute par organisation
+const MAX_REQUESTS_PER_MINUTE = 10;
 
 @Injectable()
-export class AgentsService {
+export class AgentsService implements OnModuleInit {
   private connectedAgents = new Set<string>(); // Map organizationId -> presence via WebSocket
+  private rateLimits = new Map<string, { count: number; lastReset: number }>();
 
   constructor(
     private prisma: PrismaService,
     private auditLog: AuditLogService,
     private sqlSecurity: SqlSecurityService,
   ) {}
+
+  onModuleInit() {
+    // Lancer les tâches de nettoyage toutes les minutes
+    setInterval(() => {
+      this.markStaleAgentsOffline().catch(() => {});
+      this.cleanupStaleJobs().catch(() => {});
+    }, 60000);
+  }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -92,6 +106,24 @@ export class AgentsService {
       isRevoked: agent.isRevoked,
       revokedAt: agent.revokedAt,
     };
+  }
+
+  private checkRateLimit(organizationId: string): void {
+    const now = Date.now();
+    const limit = this.rateLimits.get(organizationId);
+
+    if (!limit || now - limit.lastReset > 60000) {
+      this.rateLimits.set(organizationId, { count: 1, lastReset: now });
+      return;
+    }
+
+    if (limit.count >= MAX_REQUESTS_PER_MINUTE) {
+      throw new BadRequestException(
+        `Limite de requêtes atteinte (${MAX_REQUESTS_PER_MINUTE}/min). Veuillez patienter.`,
+      );
+    }
+
+    limit.count++;
   }
 
   // ─── Endpoints SaaS Admin ─────────────────────────────────────────────────
@@ -516,10 +548,15 @@ export class AgentsService {
     // 1. Validation de sécurité (Defense in Depth)
     const validation = this.sqlSecurity.validate(sql);
     if (!validation.isValid) {
-      throw new BadRequestException(`Requête SQL invalide: ${validation.error}`);
+      throw new BadRequestException(
+        `Requête SQL invalide: ${validation.error}`,
+      );
     }
 
-    // 2. Trouver l'agent online pour cette organisation
+    // 2. Rate limiting check
+    this.checkRateLimit(organizationId);
+
+    // 3. Trouver l'agent online pour cette organisation
     const agent = await this.prisma.agent.findFirst({
       where: { organizationId, status: 'online', isRevoked: false },
     });
@@ -530,10 +567,10 @@ export class AgentsService {
       );
     }
 
-    // 3. Créer le job
+    // 4. Créer le job
     const job = await this.createJob(organizationId, agent.id, sql);
 
-    // 4. Envoyer via WebSocket
+    // 5. Envoyer via WebSocket
     const sent = await gateway.emitExecuteSql(organizationId, job.id, sql);
 
     if (!sent) {
@@ -543,6 +580,37 @@ export class AgentsService {
     }
 
     return job;
+  }
+
+  /**
+   * Nettoie les jobs "stale" qui n'ont pas reçu de réponse (Timeout)
+   */
+  async cleanupStaleJobs() {
+    const timeoutDate = new Date(Date.now() - JOB_TIMEOUT_MS);
+
+    const result = await this.prisma.agentJob.updateMany({
+      where: {
+        status: JobStatus.PENDING,
+        createdAt: { lt: timeoutDate },
+      },
+      data: {
+        status: JobStatus.FAILED,
+        errorMessage: 'Job timeout: Aucune réponse de l\'agent après 30 secondes.',
+        completedAt: new Date(),
+      },
+    });
+
+    if (result.count > 0) {
+      this.auditLog
+        .log({
+          organizationId: 'system',
+          event: 'agent_job_timeout',
+          payload: { count: result.count },
+        })
+        .catch(() => {});
+    }
+
+    return { timedOutJobs: result.count };
   }
 
   // ─── Presence Management (called by Gateway) ─────────────────────────────

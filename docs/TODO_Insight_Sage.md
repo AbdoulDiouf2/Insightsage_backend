@@ -366,6 +366,14 @@ Le backend ne :
   3. Auto-mapping tables → KPI pack DAF
   4. Sauvegarde datasource_config
 
+### 6.2 Améliorations (Hardening & Observabilité Agent)
+
+- [x] **1. Timeout système** : Auto-marquage des jobs en `FAILED` si pas de réponse après X secondes (NestJS logic).
+- [x] **2. Retry policy** : Mécanisme de récupération des jobs interrompus lors d'une déconnexion/reconnexion.
+- [x] **3. Rate limiting par agent** : Protection de l'ERP Sage contre les surcharges de requêtes (10 req/min).
+- [x] **4. Isolation par tenant renforcée** : Scoping immuable du token à l'org lors du handshake WebSocket.
+- [x] **5. Logging centralisé** : Stream des logs agents vers le backend pour une visibilité totale dans le cockpit admin.
+
 ***
 
 ## 7. Audit log, monitoring & observabilité (Phase 4)

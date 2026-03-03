@@ -35,6 +35,7 @@ export type AuditEventType =
   | 'onboarding_completed'
   | 'datasource_configured'
   | 'agent_linked'
+  | 'agent_job_timeout'
   | 'users_invited_bulk'
   | 'subscription_plan_selected';
 
