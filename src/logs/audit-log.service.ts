@@ -2,23 +2,33 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 export type AuditEventType =
+  // ── Auth ───────────────────────────────────────────────────────────────────
   | 'user_login'
   | 'user_logout'
   | 'user_created'
   | 'user_updated'
   | 'user_deleted'
   | 'user_invited'
+  | 'token_refreshed'
+  | 'password_reset_requested'
+  | 'password_reset_completed'
+  // ── Profile ────────────────────────────────────────────────────────────────
+  | 'profile_updated'
+  // ── Roles ──────────────────────────────────────────────────────────────────
   | 'role_created'
   | 'role_updated'
   | 'role_deleted'
+  // ── Dashboards & Widgets ───────────────────────────────────────────────────
   | 'dashboard_created'
   | 'dashboard_updated'
   | 'dashboard_deleted'
   | 'widget_added'
   | 'widget_updated'
   | 'widget_removed'
+  // ── NLQ ────────────────────────────────────────────────────────────────────
   | 'nlq_executed'
   | 'nlq_saved_to_dashboard'
+  // ── Agents ─────────────────────────────────────────────────────────────────
   | 'agent_registered'
   | 'agent_token_generated'
   | 'agent_token_regenerated'
@@ -26,18 +36,41 @@ export type AuditEventType =
   | 'agent_token_expired'
   | 'agent_heartbeat'
   | 'agent_error'
+  | 'agent_connection_tested'
+  | 'agent_query_executed'
+  | 'agent_job_timeout'
+  // ── Organizations ──────────────────────────────────────────────────────────
   | 'organization_created'
   | 'organization_updated'
   | 'organization_deleted'
-  | 'password_reset_requested'
-  | 'password_reset_completed'
+  // ── Onboarding ─────────────────────────────────────────────────────────────
   | 'onboarding_step_completed'
   | 'onboarding_completed'
   | 'datasource_configured'
   | 'agent_linked'
-  | 'agent_job_timeout'
+  // ── Subscription Plans ─────────────────────────────────────────────────────
+  | 'subscription_plan_selected'
+  | 'subscription_plan_created'
+  | 'subscription_plan_updated'
+  | 'subscription_plan_deactivated'
+  // ── KPI Definitions ────────────────────────────────────────────────────────
+  | 'kpi_definition_created'
+  | 'kpi_definition_updated'
+  | 'kpi_definition_toggled'
+  // ── Widget Templates ───────────────────────────────────────────────────────
+  | 'widget_template_created'
+  | 'widget_template_updated'
+  | 'widget_template_toggled'
+  // ── KPI Packs ──────────────────────────────────────────────────────────────
+  | 'kpi_pack_created'
+  | 'kpi_pack_updated'
+  | 'kpi_pack_toggled'
+  // ── Invitations ────────────────────────────────────────────────────────────
   | 'users_invited_bulk'
-  | 'subscription_plan_selected';
+  // ── Audit / Consultation données sensibles ─────────────────────────────────
+  | 'audit_logs_viewed'
+  | 'admin_users_listed'
+  | 'admin_organizations_listed';
 
 export interface AuditLogPayload {
   organizationId?: string | null;

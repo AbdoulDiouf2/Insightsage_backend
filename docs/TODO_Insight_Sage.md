@@ -380,21 +380,26 @@ Le backend ne :
 
 ### 7.1. Audit log fonctionnel
 
-- [ ] Définir les types d’events à logger :  
-  - [ ] Connexions / déconnexions.  
-  - [ ] Création/modification/suppression de dashboards ou widgets.  
-  - [ ] Changement de rôles utilisateurs.  
-  - [ ] Actions NLQ (requêtes, ajout au dashboard).
-- [ ] Créer la table `audit_logs` :  
-  - [ ] user_id, organization_id, type d’action, payload, timestamp, IP, user-agent.
-- [ ] Implémenter un service central de logging qui reçoit tous les événements importants.
-- [ ] Endpoints pour lecture des logs (réservés aux admins) :  
-  - [ ] `GET /logs/audit?filters=...`.
+- [x] Définir les types d’events à logger :  
+  - [x] Connexions / déconnexions.  
+  - [x] Création/modification/suppression de dashboards ou widgets.  
+  - [x] Changement de rôles utilisateurs.  
+  - [x] Actions NLQ (requêtes, ajout au dashboard).
+- [x] Créer la table `audit_logs` :  
+  - [x] user_id, organization_id, type d’action, payload, timestamp, IP, user-agent.
+- [x] Implémenter un service central de logging qui reçoit tous les événements importants.
+- [x] Ajouter un intercepteur HTTP global (`AuditInterceptor`) couvrant **tous** les endpoints :
+  - [x] 46 routes mappées sur Auth, Users, Roles, Dashboards, Widgets, Agents, Onboarding, Admin.
+  - [x] Logging automatique : `userId`, `organizationId`, `ipAddress`, `userAgent`, `method`, `path`, `duration_ms`, `status`, `entityId`.
+  - [x] Erreurs HTTP aussi loggées (`statusCode`, `errorMessage`, `status: 'error'`).
+  - [x] 17 nouveaux `AuditEventType` ajoutés (token_refreshed, profile_updated, kpi_definition_*, widget_template_*, kpi_pack_*, subscription_plan_*, audit_logs_viewed, admin_users_listed, admin_organizations_listed, agent_connection_tested, agent_query_executed).
+- [x] Endpoints pour lecture des logs (réservés aux admins) :
+  - [x] `GET /logs/audit?filters=...`.
 
 ### 7.2. Monitoring technique
 
-- [ ] Exposer endpoint de health check :  
-  - [ ] `GET /health` (DB, dépendances, etc.).
+- [x] Exposer endpoint de health check :  
+  - [x] `GET /health` (DB, dépendances, etc.).
 - [ ] Intégrer des métriques pour observabilité (si tu peux : Prometheus, etc.).
 - [ ] Logger les erreurs applicatives avec stacktrace (et masquage de données sensibles).
 
@@ -417,13 +422,18 @@ Le backend ne :
 
 ### 9.1. Documentation technique
 
-- [ ] Documenter l’architecture globale (diagrammes + texte).
-- [ ] Générer / écrire la spec OpenAPI (Swagger) des endpoints.
-- [ ] Rédiger un guide développeur :  
-  - [ ] Structure du projet.  
-  - [ ] Comment lancer en dev / test / prod.  
-  - [ ] Process de déploiement (CI/CD si mis en place).
-- [ ] Documenter les modèles de données principaux (users, orgs, dashboards, widgets, NLQ, logs).
+- [x] Documenter l’architecture globale (diagrammes + texte) :
+  - [x] `docs/architecture/overview.md`, `docs/architecture/data-flow.md`, `docs/architecture/tech-stack.md`, `docs/architecture.md`, `docs/Choix_techniques.md`.
+- [x] Générer / écrire la spec OpenAPI (Swagger) des endpoints :
+  - [x] `SwaggerModule` configuré dans `main.ts` (`GET /api`).
+  - [x] Tous les controllers annotés (`@ApiTags`, `@ApiOperation`, `@ApiBearerAuth`, `@ApiResponse`, `@ApiParam`, `@ApiQuery`).
+  - [x] `docs/backend/api-reference.md` — référence API complète.
+- [x] Rédiger un guide développeur :
+  - [x] Structure du projet : `docs/getting-started.md`, `docs/backend/setup.md`.
+  - [x] Comment lancer en dev / test / prod : `docs/backend/setup.md`, `docs/developer/deployment.md`.
+  - [x] Process de déploiement (CI/CD) : `docs/developer/ci-cd.md`, `docs/developer/standards.md`.
+- [x] Documenter les modèles de données principaux :
+  - [x] `docs/backend/database.md` + `docs/backend/modules/` (auth, users, agents, onboarding, roles, organizations, subscriptions, audit-logs, kpi-store).
 
 ### 9.2. Roadmap technique
 
