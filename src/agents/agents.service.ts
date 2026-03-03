@@ -631,4 +631,55 @@ export class AgentsService implements OnModuleInit {
   isAgentConnected(organizationId: string): boolean {
     return this.connectedAgents.has(organizationId);
   }
+
+  /**
+   * Crée une entrée de log pour un agent
+   */
+  async createLog(
+    organizationId: string,
+    agentId: string,
+    data: { level: string; message: string; timestamp: Date },
+  ) {
+    return this.prisma.agentLog.create({
+      data: {
+        organizationId,
+        agentId,
+        level: data.level,
+        message: data.message,
+        timestamp: data.timestamp,
+      },
+    });
+  }
+
+  /**
+   * Récupère les logs d'un agent avec pagination
+   */
+  async getAgentLogs(
+    organizationId: string,
+    agentId: string,
+    page = 1,
+    limit = 50,
+  ) {
+    const [logs, total] = await Promise.all([
+      this.prisma.agentLog.findMany({
+        where: { organizationId, agentId },
+        orderBy: { timestamp: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.agentLog.count({
+        where: { organizationId, agentId },
+      }),
+    ]);
+
+    return {
+      logs,
+      pagination: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit),
+      },
+    };
+  }
 }

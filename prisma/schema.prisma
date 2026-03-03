@@ -43,6 +43,7 @@ model Organization {
   invitations Invitation[]
   roles       Role[]
   onboardingStatus OnboardingStatus?
+  agentLogs        AgentLog[]
 
   @@map("organizations")
 }
@@ -269,6 +270,7 @@ model Agent {
   organization   Organization @relation(fields: [organizationId], references: [id])
 
   jobs           AgentJob[]
+  agentLogs      AgentLog[]
 
   @@index([organizationId])
   @@index([token])
@@ -390,6 +392,27 @@ model KpiPack {
   createdAt   DateTime @default(now())
 
   @@map("kpi_packs")
+}
+
+model AgentLog {
+  id             String       @id @default(uuid())
+  level          String       // "info" | "warning" | "error" | "debug"
+  message        String       @db.Text
+  timestamp      DateTime     @default(now()) // Heure de l'événement côté agent (envoyé via socket)
+  createdAt      DateTime     @default(now()) // Heure d'insertion en BDD
+
+  // MULTI-TENANT
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  agentId        String
+  agent          Agent        @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([agentId])
+  @@index([level])
+  @@index([timestamp])
+  @@map("agent_logs")
 }
 
 // Seed data pour RBAC

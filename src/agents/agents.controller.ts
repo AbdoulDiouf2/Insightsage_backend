@@ -205,6 +205,25 @@ export class AgentsController {
     );
   }
 
+  @Get(':id/logs')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions({ action: 'read', resource: 'agents' })
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get logs for a specific agent',
+    description: 'Returns a paginated list of logs sent by the agent',
+  })
+  @ApiParam({ name: 'id', description: 'Agent ID' })
+  async getAgentLogs(
+    @Param('id') id: string,
+    @OrganizationId() organizationId: string,
+  ) {
+    // Audit log for security visibility
+    // await this.auditLog.log({ ... }) // Optionnel
+
+    return this.agentsService.getAgentLogs(organizationId, id);
+  }
+
   @Get('jobs/:jobId')
   @UseGuards(PermissionsGuard)
   @RequirePermissions({ action: 'read', resource: 'dashboards' })

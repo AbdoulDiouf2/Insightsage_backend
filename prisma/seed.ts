@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as dotenv from 'dotenv';
+import * as bcrypt from 'bcrypt';
 dotenv.config();
 
 const connectionString = process.env.DATABASE_URL;
@@ -408,6 +409,66 @@ async function main() {
     });
   }
   console.log('✅ KPI Packs seeded.');
+
+  // 8. Seed Default Organization & Admin User
+  console.log('👤 Seeding default admin user...');
+  
+  const businessPlan = await prisma.subscriptionPlan.findFirst({ where: { name: 'business' } });
+  
+  let demoOrg = await prisma.organization.findFirst({
+    where: { name: 'Nafaka Tech' },
+  });
+
+  if (!demoOrg) {
+    demoOrg = await prisma.organization.create({
+      data: {
+        name: 'Nafaka Tech',
+        size: 'pme',
+        planId: businessPlan?.id,
+      },
+    });
+  }
+
+  const passwordHash = await bcrypt.hash('InsightSage2026!', 10);
+  
+  const adminUser = await prisma.user.upsert({
+    where: { email: 'admin@insightsage.com' },
+    update: { 
+      passwordHash,
+      organizationId: demoOrg.id 
+    },
+    create: {
+      email: 'admin@insightsage.com',
+      firstName: 'Super',
+      lastName: 'Admin',
+      passwordHash,
+      organizationId: demoOrg.id,
+      emailVerified: true,
+    },
+  });
+
+  // Assign SuperAdmin role
+  const superAdminRole = await prisma.role.findUnique({ where: { name: 'superadmin' } });
+  if (superAdminRole) {
+    await prisma.userRole.upsert({
+      where: {
+        userId_roleId: { userId: adminUser.id, roleId: superAdminRole.id },
+      },
+      update: {},
+      create: {
+        userId: adminUser.id,
+        roleId: superAdminRole.id,
+      },
+    });
+  }
+
+  // Set as Owner
+  await prisma.organization.update({
+    where: { id: demoOrg.id },
+    data: { ownerId: adminUser.id },
+  });
+
+  console.log('🚀 Default Admin seeded: admin@insightsage.com / admin123');
 }
 
 main()

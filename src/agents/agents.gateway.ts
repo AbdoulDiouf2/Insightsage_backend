@@ -120,14 +120,21 @@ export class AgentsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: { level: string; message: string; timestamp?: string },
   ) {
     const organizationId = client.data.organizationId;
-    if (!organizationId) return { status: 'error', message: 'Unauthorized' };
+    const agentId = client.data.agentId;
+    if (!organizationId || !agentId) return { status: 'error', message: 'Unauthorized' };
 
-    // Formatage simple pour les logs backend
+    // Formatage simple pour les logs backend (console)
     this.logger.log(
       `[AGENT-LOG][${organizationId}] ${data.level.toUpperCase()}: ${data.message}`,
     );
 
-    // TODO: On pourrait aussi persister certains logs critiques en DB ou via Winston/Loki
+    // Persistance en base de données
+    await this.agentsService.createLog(organizationId, agentId, {
+      level: data.level,
+      message: data.message,
+      timestamp: data.timestamp ? new Date(data.timestamp) : new Date(),
+    });
+
     return { status: 'received' };
   }
 
