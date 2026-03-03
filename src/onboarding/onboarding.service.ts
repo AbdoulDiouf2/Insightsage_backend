@@ -323,14 +323,37 @@ export class OnboardingService {
       ? Math.floor((Date.now() - agent.lastSeen.getTime()) / 1000)
       : null;
 
-    return {
-      status: 'OK',
-      agentOnline: true,
-      agentId: agent.id,
-      agentName: agent.name,
-      lastSeen: agent.lastSeen,
-      secondsSinceHeartbeat,
-      message: 'Connexion agent etablie. Votre instance Sage est accessible.',
-    };
+    // --- NOUVEAUTÉ : TEST DE CONNEXION RÉEL VIA WEBSOCKET (TEMPS RÉEL) ---
+    try {
+      // On tente d'envoyer une requête "PING" (SELECT 1)
+      const job = await this.agentsService.executeRealTimeQuery(
+        organizationId,
+        'SELECT 1 as ping',
+        (this.agentsService as any).agentsGateway, // On accède à la gateway via le service
+      );
+
+      return {
+        status: 'OK',
+        agentOnline: true,
+        realTimeReady: true,
+        agentId: agent.id,
+        agentName: agent.name,
+        lastSeen: agent.lastSeen,
+        secondsSinceHeartbeat,
+        jobId: job.id,
+        message: 'Connexion temps réel établie. L\'agent répond instantanément.',
+      };
+    } catch (e) {
+      return {
+        status: 'WARNING',
+        agentOnline: true,
+        realTimeReady: false,
+        agentId: agent.id,
+        agentName: agent.name,
+        lastSeen: agent.lastSeen,
+        secondsSinceHeartbeat,
+        message: 'L\'agent est online (heartbeat) mais le tunnel temps réel n\'est pas encore actif. ' + e.message,
+      };
+    }
   }
 }

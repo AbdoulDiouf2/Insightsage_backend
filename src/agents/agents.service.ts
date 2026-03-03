@@ -10,6 +10,8 @@ import { RegisterAgentDto } from './dto/register-agent.dto';
 import { HeartbeatDto } from './dto/heartbeat.dto';
 import { GenerateTokenDto } from './dto/generate-token.dto';
 import { randomBytes } from 'crypto';
+import { JobStatus } from '@prisma/client';
+import { SqlSecurityService } from './sql-security.service';
 
 // Durée de vie d'un token : 30 jours (Section 2.4)
 const TOKEN_TTL_DAYS = 30;
@@ -18,9 +20,12 @@ const TOKEN_EXPIRY_WARNING_DAYS = 7;
 
 @Injectable()
 export class AgentsService {
+  private connectedAgents = new Set<string>(); // Map organizationId -> presence via WebSocket
+
   constructor(
     private prisma: PrismaService,
     private auditLog: AuditLogService,
+    private sqlSecurity: SqlSecurityService,
   ) {}
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -376,6 +381,7 @@ export class AgentsService {
         errorCount: agent.errorCount,
         lastError: agent.lastError,
         isStale,
+        isSocketConnected: this.connectedAgents.has(organizationId),
         ...this.buildTokenInfo(agent),
       };
     });
@@ -407,6 +413,7 @@ export class AgentsService {
       organization: agent.organization,
       createdAt: agent.createdAt,
       updatedAt: agent.updatedAt,
+      isSocketConnected: this.connectedAgents.has(agent.organizationId),
       // Aperçu masqué du token — le token complet n'est jamais ré-exposé
       tokenPreview: agent.token.slice(0, 15) + '...',
       ...this.buildTokenInfo(agent),
@@ -428,5 +435,127 @@ export class AgentsService {
     });
 
     return { markedOffline: result.count };
+  }
+
+  // ─── WebSocket & Real-Time Support ──────────────────────────────────────────
+
+  /**
+   * Valide un token agent pour le handshake WebSocket
+   */
+  async validateAgentToken(token: string) {
+    const agent = await this.prisma.agent.findUnique({
+      where: { token },
+      include: { organization: true },
+    });
+
+    if (!agent) {
+      throw new ForbiddenException('Token agent invalide');
+    }
+
+    if (agent.isRevoked) {
+      throw new ForbiddenException('Token révoqué');
+    }
+
+    if (agent.tokenExpiresAt && agent.tokenExpiresAt < new Date()) {
+      throw new ForbiddenException('Token expiré');
+    }
+
+    return agent;
+  }
+
+  /**
+   * Crée un job d'exécution SQL pour un agent
+   */
+  async createJob(organizationId: string, agentId: string, sql: string) {
+    return this.prisma.agentJob.create({
+      data: {
+        organizationId,
+        agentId,
+        sql,
+        status: JobStatus.PENDING,
+      },
+    });
+  }
+
+  /**
+   * Met à jour le résultat d'un job
+   */
+  async updateJobResult(
+    jobId: string,
+    organizationId: string,
+    result?: any,
+    error?: string,
+  ) {
+    const job = await this.prisma.agentJob.findUnique({
+      where: { id: jobId },
+    });
+
+    if (!job || job.organizationId !== organizationId) {
+      throw new NotFoundException('Job introuvable ou accès refusé');
+    }
+
+    return this.prisma.agentJob.update({
+      where: { id: jobId },
+      data: {
+        status: error ? JobStatus.FAILED : JobStatus.COMPLETED,
+        result: result || null,
+        errorMessage: error || null,
+        completedAt: new Date(),
+      },
+    });
+  }
+
+  /**
+   * Méthode principale pour exécuter une requête en temps réel (NLQ)
+   */
+  async executeRealTimeQuery(
+    organizationId: string,
+    sql: string,
+    gateway: any, // On passe la gateway pour éviter les cycles d'injection si nécessaire
+  ) {
+    // 1. Validation de sécurité (Defense in Depth)
+    const validation = this.sqlSecurity.validate(sql);
+    if (!validation.isValid) {
+      throw new BadRequestException(`Requête SQL invalide: ${validation.error}`);
+    }
+
+    // 2. Trouver l'agent online pour cette organisation
+    const agent = await this.prisma.agent.findFirst({
+      where: { organizationId, status: 'online', isRevoked: false },
+    });
+
+    if (!agent) {
+      throw new NotFoundException(
+        "Aucun agent n'est actuellement connecté pour cette organisation.",
+      );
+    }
+
+    // 3. Créer le job
+    const job = await this.createJob(organizationId, agent.id, sql);
+
+    // 4. Envoyer via WebSocket
+    const sent = await gateway.emitExecuteSql(organizationId, job.id, sql);
+
+    if (!sent) {
+      // Si l'agent n'est pas connecté via WebSocket, on marque le job en erreur
+      await this.updateJobResult(job.id, organizationId, null, "L'agent est online par heartbeat mais pas par WebSocket.");
+      throw new BadRequestException("L'agent n'est pas prêt pour une exécution en temps réel.");
+    }
+
+    return job;
+  }
+
+  // ─── Presence Management (called by Gateway) ─────────────────────────────
+
+  setAgentConnected(organizationId: string) {
+    this.connectedAgents.add(organizationId);
+  }
+
+  setAgentDisconnected(organizationId: string) {
+    this.connectedAgents.delete(organizationId);
+  }
+
+  isAgentConnected(organizationId: string): boolean {
+    return this.connectedAgents.has(organizationId);
   }
 }

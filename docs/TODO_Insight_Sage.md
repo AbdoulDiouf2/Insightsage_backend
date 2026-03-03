@@ -178,6 +178,11 @@ Le backend ne :
   - [x] `POST /onboarding/step3` (`{ sageType, sageMode, sageHost?, sagePort? }`).
   - [x] `POST /onboarding/agent-link` (`{ agentToken }` — validation token + vérif appartenance org).
   - [x] `POST /datasource/test-connection` (vérifie statut agent online — MVP).
+- [x] Integrate and verify (Backend & Agent main files updated)
+- [x] Update agent/requirements.txt
+- [x] Update `OnboardingService` with real-time Ping
+- [x] Update Admin UI (Page & Detail) with Real-Time status
+- [ ] Final verification in Swagger [ ]
 - [x] Étape 4 – Profils métiers & KPIs :
   - [x] `GET /onboarding/profiles` (liste statique : DAF, DG, Controller, Manager, Analyste).
   - [x] `POST /onboarding/step4` (`{ profiles: string[] }` → `org.selectedProfiles`).
@@ -322,38 +327,40 @@ Le backend ne :
 *(Le SaaS ne lance jamais l’Agent à distance.)*
 
 #### 6.1.1 Modèle de données Agent
-- [ ] Table `datasource_agents` : `organization_id`, `agent_token` (UUID), `sage_type` (X3/100), `version`, `status` (online/offline), `last_seen`, `error_count`
+- [x] Table `datasource_agents` : `organization_id`, `agent_token` (UUID), `sage_type` (X3/100), `version`, `status` (online/offline), `last_seen`, `error_count`
   **→ Aucun champ sensible ERP stocké en base.**
-- [ ] Table `sage_config` : `tables_whitelist` (mapping Sage tables → métriques). (Suppression de toute notion de `credentials_encrypted`).
+- [x] Table `sage_config` : `tables_whitelist` (mapping Sage tables → métriques). (Suppression de toute notion de `credentials_encrypted`).
 
 #### 6.1.2 Endpoints Agent (PRIORITÉ Phase 2/3)
 **POST /agents/register**
-- Input: `{ agent_token, sage_type, sage_version }`
-- Output: `{ organization_id, config }`
-- Action: Associe agent à org, génère whitelist tables
+- [x] Input: `{ agent_token, sage_type, sage_version }`
+- [x] Output: `{ organization_id, config }`
+- [x] Action: Associe agent à org, génère whitelist tables
 
-**POST /nlq/query → SAGE DIRECT**
-- Flow: Backend → génère SQL safe → POST vers agent → exécute Sage → résultat seul
-- Input: `{ organization_id, sql_query, params }`
-- Output: `{ result: [numbers], metadata: {rows: N, exec_time: 200ms} }`
+**POST /nlq/query → SAGE DIRECT (Temps Réel via WebSockets)**
+- [x] Setup NestJS WebSocket Gateway (Socket.io)
+- [x] Implement Agent Authentication for WebSockets
+- [x] Implement `execute_sql` event in Backend Gateway
+- [x] Implement `sql_result` event in Backend Gateway
+- [x] Modify Python Agent to connect via `socketio`
 
 **POST /datasource/test-agent**
-- Input: `{ agent_token }`
-- Output: `{ status: "OK", sage_connected: true, sample_table_rows: 100 }`
+- [x] Input: `{ agent_token }`
+- [x] Output: `{ status: "OK", sage_connected: true, sample_table_rows: 100 }`
 
 **GET /admin/agent-status/:organization_id**
-- Output: `{ last_seen, sync_lag, error_count, sage_health }`
+- [x] Output: `{ last_seen, sync_lag, error_count, sage_health }`
 
 #### 6.1.3 Sécurité Agent (CRITIQUE)
-- [ ] **Whitelist tables** : seules `factures`, `clients`, `comptes` autorisées
-- [ ] **SQL Sandbox** : `SELECT only`, pas `DROP/UPDATE/INSERT`
+- [x] **Whitelist tables** : seules `factures`, `clients`, `comptes` autorisées (implémenté côté Agent)
+- [x] **SQL Sandbox** : `SELECT only`, pas `DROP/UPDATE/INSERT` (Double validation Backend + Agent)
 - [ ] **Resultat anonymisé** : max 1000 rows, aggregate si > seuil
 - [ ] **Rate limit** : 10 req/min par agent
 
 #### 6.1.4 Intégration Onboarding (Étape 3)
 **POST /onboarding/step3-agent**
-- Input: `{ sage_type, agent_token }`
-- Action: 
+- [x] Input: `{ sage_type, agent_token }`
+- [x] Action: 
   1. Valide token agent
   2. Test connexion Sage via agent
   3. Auto-mapping tables → KPI pack DAF

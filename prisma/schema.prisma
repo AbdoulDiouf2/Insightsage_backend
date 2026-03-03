@@ -39,6 +39,7 @@ model Organization {
   widgets     Widget[]
   auditLogs   AuditLog[]
   agents      Agent[]
+  agentJobs   AgentJob[]
   invitations Invitation[]
   roles       Role[]
   onboardingStatus OnboardingStatus?
@@ -261,9 +262,40 @@ model Agent {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
 
+  jobs           AgentJob[]
+
   @@index([organizationId])
   @@index([token])
   @@map("agents")
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model AgentJob {
+  id             String    @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  agentId        String
+  agent          Agent     @relation(fields: [agentId], references: [id])
+
+  sql            String    @db.Text
+  status         JobStatus @default(PENDING)
+  result         Json?     // Contient les données JSON renvoyées par l'agent
+  errorMessage   String?
+  
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([organizationId])
+  @@index([agentId])
+  @@index([status])
+  @@map("agent_jobs")
 }
 
 // Plans d'abonnement SaaS (gérés dynamiquement par le superadmin)

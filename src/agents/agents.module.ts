@@ -2,14 +2,15 @@ import { Module } from '@nestjs/common';
 import { AgentsController } from './agents.controller';
 import { AgentsService } from './agents.service';
 import { PrismaModule } from '../prisma/prisma.module';
-import { LogsModule } from '../logs/logs.module';
-import { AuthModule } from '../auth/auth.module';
+import { AuditLogModule } from '../logs/audit-log.module';
+import { AgentsGateway } from './agents.gateway';
+import { SqlSecurityService } from './sql-security.service';
 import { UsersModule } from '../users/users.module';
 
 @Module({
-  imports: [PrismaModule, LogsModule, AuthModule, UsersModule],
+  imports: [PrismaModule, AuditLogModule, UsersModule],
   controllers: [AgentsController],
-  providers: [AgentsService],
-  exports: [AgentsService],
+  providers: [AgentsService, AgentsGateway, SqlSecurityService],
+  exports: [AgentsService, AgentsGateway, SqlSecurityService],
 })
 export class AgentsModule {}

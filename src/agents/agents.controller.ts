@@ -9,8 +9,10 @@ import {
   HttpStatus,
   Ip,
   ForbiddenException,
+  NotFoundException,
 } from '@nestjs/common';
 import { AgentsService } from './agents.service';
+import { AgentsGateway } from './agents.gateway';
 import { RegisterAgentDto } from './dto/register-agent.dto';
 import { HeartbeatDto } from './dto/heartbeat.dto';
 import { GenerateTokenDto } from './dto/generate-token.dto';
@@ -27,7 +29,10 @@ import {
 @ApiTags('Agents')
 @Controller('agents')
 export class AgentsController {
-  constructor(private readonly agentsService: AgentsService) {}
+  constructor(
+    private readonly agentsService: AgentsService,
+    private readonly agentsGateway: AgentsGateway,
+  ) {}
 
   // ============================================================
   // PUBLIC ENDPOINTS (Called by Agent On-Premise)
@@ -150,5 +155,49 @@ export class AgentsController {
     @OrganizationId() organizationId: string,
   ) {
     return this.agentsService.revokeToken(id, organizationId);
+  }
+
+  // ============================================================
+  // REAL-TIME & JOB ENDPOINTS
+  // ============================================================
+
+  @Post('query')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions({ action: 'manage', resource: 'dashboards' }) // Execution permission
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Execute a real-time SQL query via the agent (NLQ Bridge)',
+  })
+  async executeQuery(
+    @OrganizationId() organizationId: string,
+    @Body() dto: { sql: string },
+  ) {
+    return this.agentsService.executeRealTimeQuery(
+      organizationId, 
+      dto.sql, 
+      this.agentsGateway
+    );
+  }
+
+  @Get('jobs/:jobId')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions({ action: 'read', resource: 'dashboards' })
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get the status and result of a specific agent job',
+  })
+  async getJobStatus(
+    @Param('jobId') jobId: string,
+    @OrganizationId() organizationId: string,
+  ) {
+    const job = await (this.agentsService as any).prisma.agentJob.findUnique({
+      where: { id: jobId },
+    });
+
+    if (!job || job.organizationId !== organizationId) {
+      throw new NotFoundException('Job introuvable');
+    }
+
+    return job;
   }
 }
