@@ -263,6 +263,151 @@ async function main() {
     });
   }
   console.log('✅ Subscription plans seeded.');
+
+  // 5. Seed KPI Definitions (5 KPIs essentiels DAF)
+  const KPI_DEFINITIONS = [
+    {
+      key: 'revenue_mom',
+      name: 'CA Mois/Mois',
+      description: "Chiffre d'affaires du mois en cours comparé au mois précédent",
+      unit: '€',
+      category: 'finance',
+      defaultVizType: 'gauge',
+    },
+    {
+      key: 'dmp',
+      name: 'Délai Moyen de Paiement',
+      description: 'Nombre moyen de jours entre la facturation et le paiement client',
+      unit: 'jours',
+      category: 'treasury',
+      defaultVizType: 'card',
+    },
+    {
+      key: 'ar_aging',
+      name: 'Encours Clients',
+      description: 'Montant total des créances clients en attente de règlement',
+      unit: '€',
+      category: 'treasury',
+      defaultVizType: 'bar',
+    },
+    {
+      key: 'gross_margin',
+      name: 'Marge Brute',
+      description: 'Marge brute en pourcentage du chiffre d\'affaires',
+      unit: '%',
+      category: 'finance',
+      defaultVizType: 'gauge',
+    },
+    {
+      key: 'ebitda',
+      name: 'EBITDA',
+      description: 'Bénéfice avant intérêts, impôts, dépréciation et amortissement',
+      unit: '€',
+      category: 'finance',
+      defaultVizType: 'card',
+    },
+  ];
+
+  for (const kpi of KPI_DEFINITIONS) {
+    await prisma.kpiDefinition.upsert({
+      where: { key: kpi.key },
+      update: {
+        name: kpi.name,
+        description: kpi.description,
+        unit: kpi.unit,
+        category: kpi.category,
+        defaultVizType: kpi.defaultVizType,
+      },
+      create: kpi,
+    });
+  }
+  console.log('✅ KPI Definitions seeded.');
+
+  // 6. Seed Widget Templates (5 types de visualisation)
+  const WIDGET_TEMPLATES = [
+    {
+      name: 'Carte KPI',
+      vizType: 'card',
+      description: 'Affichage simple d\'une valeur clé avec tendance',
+      defaultConfig: { period: 'month', showTrend: true },
+    },
+    {
+      name: 'Graphique Barres',
+      vizType: 'bar',
+      description: 'Graphique en barres pour comparer des périodes ou catégories',
+      defaultConfig: { period: 'month', aggregation: 'sum' },
+    },
+    {
+      name: 'Courbe Temporelle',
+      vizType: 'line',
+      description: 'Évolution d\'une métrique sur une période glissante',
+      defaultConfig: { period: 'year', granularity: 'month' },
+    },
+    {
+      name: 'Jauge',
+      vizType: 'gauge',
+      description: 'Indicateur circulaire pour visualiser un ratio ou objectif',
+      defaultConfig: { target: 100, unit: '%' },
+    },
+    {
+      name: 'Tableau',
+      vizType: 'table',
+      description: 'Tableau de données détaillées avec pagination',
+      defaultConfig: { limit: 20, sortable: true },
+    },
+  ];
+
+  for (const tpl of WIDGET_TEMPLATES) {
+    await prisma.widgetTemplate.upsert({
+      where: { vizType: tpl.vizType },
+      update: {
+        name: tpl.name,
+        description: tpl.description,
+        defaultConfig: tpl.defaultConfig,
+      },
+      create: tpl,
+    });
+  }
+  console.log('✅ Widget Templates seeded.');
+
+  // 7. Seed KPI Packs (3 packs par profil métier)
+  const KPI_PACKS = [
+    {
+      name: 'pack_daf',
+      label: 'Pack DAF',
+      profile: 'daf',
+      kpiKeys: ['revenue_mom', 'dmp', 'ar_aging', 'gross_margin', 'ebitda'],
+      description: 'Les 5 KPIs essentiels pour le Directeur Administratif et Financier',
+    },
+    {
+      name: 'pack_dg',
+      label: 'Pack DG',
+      profile: 'dg',
+      kpiKeys: ['revenue_mom', 'gross_margin', 'ebitda'],
+      description: "Vue synthétique pour le Directeur Général : CA, marge et résultat",
+    },
+    {
+      name: 'pack_controller',
+      label: 'Pack Controller',
+      profile: 'controller',
+      kpiKeys: ['dmp', 'ar_aging', 'gross_margin'],
+      description: 'KPIs de pilotage pour le Contrôleur de Gestion : trésorerie et marges',
+    },
+  ];
+
+  for (const pack of KPI_PACKS) {
+    await prisma.kpiPack.upsert({
+      where: { name: pack.name },
+      update: {
+        label: pack.label,
+        profile: pack.profile,
+        kpiKeys: pack.kpiKeys,
+        description: pack.description,
+      },
+      create: pack,
+    });
+  }
+  console.log('✅ KPI Packs seeded.');
 }
 
 main()

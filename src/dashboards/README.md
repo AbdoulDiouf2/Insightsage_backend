@@ -1,12 +1,13 @@
 # Dashboards Module - InsightSage
 
-Ce module gère les tableaux de bord (cockpits) pour les utilisateurs d'InsightSage.
+Ce module gère les tableaux de bord (cockpits) personnalisés pour les utilisateurs d'InsightSage.
 
-## Aperçu
-Le module est en cours de développement. Il permettra aux utilisateurs de:
-- Créer et configurer des tableaux de bord.
-- Assigner des widgets aux tableaux de bord.
-- Voir un cockpit personnalisé basé sur leur rôle (ex: CFO/DAF).
+## Fonctionnalités
+Le module est pleinement opérationnel et permet aux utilisateurs de :
+- **Gestion de Dashboards** : Créer, modifier (nom, layout, par défaut) et supprimer des tableaux de bord.
+- **Cockpit CFO/DAF** : Accéder à un cockpit par défaut ou personnalisé basé sur l'organisation.
+- **Isolation Multi-tenant** : Garantie que les dashboards ne sont accessibles qu'aux membres de l'organisation propriétaire.
+- **Contrôle d'Accès (RBAC)** : Vérification des permissions (`read:dashboards`, `write:dashboards`) via `PermissionsGuard`.
 
-## Architecture (Future)
-Le `DashboardsController` sera géré autour de l'entité `Dashboard` et sera conçu pour isoler les données par `organizationId` et vérifier les permissions de l'utilisateur (`read:dashboards`, `write:dashboards`, etc.).
+## Architecture
+Le `DashboardsController` gère l'entité `Dashboard` en assurant une isolation stricte par `organizationId`. Le layout est stocké au format JSON (`{x, y, w, h}`) permettant une personnalisation flexible de l'affichage des widgets.

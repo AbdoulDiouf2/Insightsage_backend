@@ -1,9 +1,18 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
 import { AdminUpdateUserDto } from './dto/update-user.dto';
 import { CreateSubscriptionPlanDto, UpdateSubscriptionPlanDto } from './dto/subscription-plan.dto';
+import {
+  CreateKpiDefinitionDto,
+  UpdateKpiDefinitionDto,
+  CreateWidgetTemplateDto,
+  UpdateWidgetTemplateDto,
+  CreateKpiPackDto,
+  UpdateKpiPackDto,
+} from './dto/kpi-store.dto';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 
@@ -482,5 +491,125 @@ export class AdminService {
       recentActivity,
       agentsDistribution,
     };
+  }
+
+  // ─── KPI Definitions Management ───────────────────────────────────────────
+
+  async findAllKpiDefinitions() {
+    return this.prisma.kpiDefinition.findMany({
+      orderBy: [{ category: 'asc' }, { key: 'asc' }],
+    });
+  }
+
+  async createKpiDefinition(dto: CreateKpiDefinitionDto) {
+    const existing = await this.prisma.kpiDefinition.findUnique({
+      where: { key: dto.key },
+    });
+    if (existing) {
+      throw new BadRequestException(`Une KPI Definition avec la clé "${dto.key}" existe déjà.`);
+    }
+    return this.prisma.kpiDefinition.create({ data: dto });
+  }
+
+  async updateKpiDefinition(id: string, dto: UpdateKpiDefinitionDto) {
+    const kpi = await this.prisma.kpiDefinition.findUnique({ where: { id } });
+    if (!kpi) throw new NotFoundException(`KPI Definition introuvable : ${id}`);
+    return this.prisma.kpiDefinition.update({ where: { id }, data: dto });
+  }
+
+  async toggleKpiDefinition(id: string) {
+    const kpi = await this.prisma.kpiDefinition.findUnique({ where: { id } });
+    if (!kpi) throw new NotFoundException(`KPI Definition introuvable : ${id}`);
+    return this.prisma.kpiDefinition.update({
+      where: { id },
+      data: { isActive: !kpi.isActive },
+    });
+  }
+
+  // ─── Widget Templates Management ──────────────────────────────────────────
+
+  async findAllWidgetTemplates() {
+    return this.prisma.widgetTemplate.findMany({
+      orderBy: { vizType: 'asc' },
+    });
+  }
+
+  async findWidgetTemplateById(id: string) {
+    const template = await this.prisma.widgetTemplate.findUnique({ where: { id } });
+    if (!template) throw new NotFoundException(`Widget Template introuvable : ${id}`);
+    return template;
+  }
+
+  async createWidgetTemplate(dto: CreateWidgetTemplateDto) {
+    const existing = await this.prisma.widgetTemplate.findUnique({
+      where: { vizType: dto.vizType },
+    });
+    if (existing) {
+      throw new BadRequestException(`Un Widget Template avec vizType "${dto.vizType}" existe déjà.`);
+    }
+    return this.prisma.widgetTemplate.create({
+      data: {
+        ...dto,
+        defaultConfig: dto.defaultConfig as Prisma.InputJsonValue,
+      },
+    });
+  }
+
+  async updateWidgetTemplate(id: string, dto: UpdateWidgetTemplateDto) {
+    const template = await this.prisma.widgetTemplate.findUnique({ where: { id } });
+    if (!template) throw new NotFoundException(`Widget Template introuvable : ${id}`);
+    return this.prisma.widgetTemplate.update({
+      where: { id },
+      data: {
+        ...(dto.name !== undefined && { name: dto.name }),
+        ...(dto.description !== undefined && { description: dto.description }),
+        ...(dto.defaultConfig !== undefined && {
+          defaultConfig: dto.defaultConfig as Prisma.InputJsonValue,
+        }),
+        ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+      },
+    });
+  }
+
+  async toggleWidgetTemplate(id: string) {
+    const template = await this.prisma.widgetTemplate.findUnique({ where: { id } });
+    if (!template) throw new NotFoundException(`Widget Template introuvable : ${id}`);
+    return this.prisma.widgetTemplate.update({
+      where: { id },
+      data: { isActive: !template.isActive },
+    });
+  }
+
+  // ─── KPI Packs Management ─────────────────────────────────────────────────
+
+  async findAllKpiPacks() {
+    return this.prisma.kpiPack.findMany({
+      orderBy: [{ profile: 'asc' }, { name: 'asc' }],
+    });
+  }
+
+  async createKpiPack(dto: CreateKpiPackDto) {
+    const existing = await this.prisma.kpiPack.findUnique({
+      where: { name: dto.name },
+    });
+    if (existing) {
+      throw new BadRequestException(`Un KPI Pack avec le nom "${dto.name}" existe déjà.`);
+    }
+    return this.prisma.kpiPack.create({ data: dto });
+  }
+
+  async updateKpiPack(id: string, dto: UpdateKpiPackDto) {
+    const pack = await this.prisma.kpiPack.findUnique({ where: { id } });
+    if (!pack) throw new NotFoundException(`KPI Pack introuvable : ${id}`);
+    return this.prisma.kpiPack.update({ where: { id }, data: dto });
+  }
+
+  async toggleKpiPack(id: string) {
+    const pack = await this.prisma.kpiPack.findUnique({ where: { id } });
+    if (!pack) throw new NotFoundException(`KPI Pack introuvable : ${id}`);
+    return this.prisma.kpiPack.update({
+      where: { id },
+      data: { isActive: !pack.isActive },
+    });
   }
 }

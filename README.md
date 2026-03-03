@@ -137,7 +137,8 @@ npm run test:e2e      # Tests end-to-end
 ## Sécurité
 
 - **Multi-tenancy** : chaque requête Prisma filtre par `organizationId`
-- **RBAC** : 5 rôles système (`superadmin`, `owner`, `daf`, `controller`, `analyst`) + permissions granulaires `action:resource`
+- **RBAC** : 5 rôles système (`superadmin`, `owner`, `daf`, `controller`, `analyst`) + permissions granulaires `action:resource` (ex: `read:dashboards`, `write:widgets`)
+- **Dashboards & Widgets** : système complet de Cockpits CFO avec Widget Store, KPI Packs DAF, et personnalisation de layout JSON
 - **PII** : emails et mots de passe masqués dans tous les audit logs (`j***@acme.com`, `[REDACTED]`)
 - **Secrets** : `.env*` protégé par `.gitignore`, jamais commité
 

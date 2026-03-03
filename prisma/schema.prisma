@@ -312,6 +312,48 @@ model OnboardingStatus {
   @@map("onboarding_status")
 }
 
+// Définitions des KPIs disponibles (seedées par profil)
+model KpiDefinition {
+  id             String   @id @default(uuid())
+  key            String   @unique // "revenue_mom" | "dmp" | "ar_aging" | "gross_margin" | "ebitda"
+  name           String   // "CA Mois/Mois", "Délai Moyen Paiement"
+  description    String?
+  unit           String?  // "€", "%", "jours"
+  category       String   // "finance" | "commercial" | "treasury"
+  defaultVizType String   // "gauge" | "bar" | "card"
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  @@map("kpi_definitions")
+}
+
+// Templates de visualisation disponibles
+model WidgetTemplate {
+  id            String   @id @default(uuid())
+  name          String   // "KPI Card", "Graphique Barres"
+  vizType       String   @unique // "card" | "bar" | "line" | "gauge" | "table"
+  description   String?
+  defaultConfig Json     // { "period": "month", "aggregation": "sum" }
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  @@map("widget_templates")
+}
+
+// Packs de KPIs par profil métier
+model KpiPack {
+  id          String   @id @default(uuid())
+  name        String   @unique // "pack_daf" | "pack_dg" | "pack_controller"
+  label       String   // "Pack DAF", "Pack DG"
+  profile     String   // "daf" | "dg" | "controller" | "manager" | "analyst"
+  kpiKeys     String[] // ["revenue_mom", "dmp", "ar_aging", "gross_margin", "ebitda"]
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@map("kpi_packs")
+}
+
 // Seed data pour RBAC
 model SeedData {
   id   String @id @default(uuid())

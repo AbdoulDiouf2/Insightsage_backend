@@ -799,3 +799,113 @@ Authorization: Bearer <access_token>
   "error": "Forbidden"
 }
 ```
+
+---
+
+## Module KPI Store (Admin) — `/admin/kpi-definitions`, `/admin/widget-templates`, `/admin/kpi-packs`
+
+!!! warning "Superadmin uniquement"
+    Tous les endpoints requièrent la permission `manage:all` (rôle `superadmin`).
+
+### GET `/admin/kpi-definitions`
+
+> Lister toutes les KPI Definitions (actives et inactives).
+
+**Réponse 200 :**
+```json
+[
+  {
+    "id": "uuid",
+    "key": "revenue_mom",
+    "name": "CA Mois/Mois",
+    "unit": "%",
+    "category": "finance",
+    "defaultVizType": "gauge",
+    "isActive": true,
+    "createdAt": "2024-01-01T00:00:00Z"
+  }
+]
+```
+
+### POST `/admin/kpi-definitions`
+
+**Body :**
+```json
+{
+  "key": "new_kpi",
+  "name": "Nouveau KPI",
+  "description": "Description optionnelle",
+  "unit": "€",
+  "category": "finance",
+  "defaultVizType": "card"
+}
+```
+
+### PATCH `/admin/kpi-definitions/:id`
+
+Mise à jour partielle — tous les champs sont optionnels sauf `isActive` (boolean).
+
+### DELETE `/admin/kpi-definitions/:id`
+
+Toggle `isActive` (soft delete/reactivate). Retourne la définition mise à jour.
+
+---
+
+### GET `/admin/widget-templates`
+
+> Lister tous les Widget Templates.
+
+**Réponse 200 :**
+```json
+[
+  {
+    "id": "uuid",
+    "name": "Carte KPI",
+    "vizType": "card",
+    "defaultConfig": { "period": "month" },
+    "isActive": true,
+    "createdAt": "2024-01-01T00:00:00Z"
+  }
+]
+```
+
+### POST `/admin/widget-templates`
+
+```json
+{
+  "name": "Graphique Barres",
+  "vizType": "bar",
+  "description": "Graphique en barres pour séries temporelles",
+  "defaultConfig": { "period": "month", "aggregation": "sum" }
+}
+```
+
+**Contrainte :** `vizType` est unique (card | bar | line | gauge | table).
+
+### PATCH `/admin/widget-templates/:id` · DELETE `/admin/widget-templates/:id`
+
+Même pattern que KPI Definitions.
+
+---
+
+### GET `/admin/kpi-packs`
+
+> Lister tous les KPI Packs (actifs et inactifs), triés par profil.
+
+### POST `/admin/kpi-packs`
+
+```json
+{
+  "name": "pack_custom",
+  "label": "Pack Custom",
+  "profile": "manager",
+  "kpiKeys": ["revenue_mom", "gross_margin"],
+  "description": "Pack personnalisé pour managers"
+}
+```
+
+**Profils valides :** `daf | dg | controller | manager | analyst`
+
+### PATCH `/admin/kpi-packs/:id` · DELETE `/admin/kpi-packs/:id`
+
+Même pattern — DELETE toggle `isActive`.

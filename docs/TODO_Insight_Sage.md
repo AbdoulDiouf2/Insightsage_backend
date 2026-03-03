@@ -198,33 +198,75 @@ Le backend ne :
 
 ### 4.1. Modélisation des widgets & dashboards
 
-- [ ] Définir les entités :  
-  - [ ] `kpi_definitions` (nom, description, métrique, dimension, etc.).
-  - [ ] `widget_templates` (type de vue : KPI card, graph, table, etc.).
-  - [ ] `widgets` (instance de widget sur un dashboard, paramètres, filtres).
-  - [ ] `dashboards` (cockpit, nom, owner, layout).
-  - [ ] `kpi_packs` (packs par profil métier : pack DAF, etc.).
+- [x] Définir les entités :
+  - [x] `kpi_definitions` — modèle Prisma seedé avec 5 KPIs DAF (revenue_mom, dmp, ar_aging, gross_margin, ebitda).
+  - [x] `widget_templates` — modèle Prisma seedé avec 5 types (card, bar, line, gauge, table).
+  - [x] `widgets` — modèle existant (type, config Json, exposure, vizType, position Json, isActive).
+  - [x] `dashboards` — modèle existant (name, layout Json, isDefault, userId, organizationId).
+  - [x] `kpi_packs` — modèle Prisma seedé avec 3 packs (pack_daf, pack_dg, pack_controller).
 
 ### 4.2. Endpoints pour cockpit CFO/DAF
 
-- [ ] `GET /dashboards/me` (récupérer le cockpit de l’utilisateur courant).
-- [ ] `GET /dashboards/:id` (détail).  
-- [ ] `POST /dashboards` (création d’un nouveau dashboard).  
-- [ ] `PATCH /dashboards/:id` (renommer, changer layout).  
-- [ ] `DELETE /dashboards/:id`.  
-- [ ] `GET /kpi-packs?profile=DAF` (pack de KPIs préconfigurés pour DAF).
+- [x] `GET /dashboards/me` — cockpit par défaut (isDefault=true) ou premier dashboard.
+- [x] `GET /dashboards` — tous les dashboards de l’organisation.
+- [x] `GET /dashboards/:id` — détail dashboard + widgets.
+- [x] `POST /dashboards` — créer un dashboard (reset isDefault si applicable).
+- [x] `PATCH /dashboards/:id` — renommer, changer layout, définir par défaut.
+- [x] `DELETE /dashboards/:id` — supprimer (ownership vérifié).
+- [x] `GET /kpi-packs?profile=DAF` — packs KPI enrichis avec détails KPI definitions.
 
 ### 4.3. Widget Store
 
-- [ ] `GET /widget-store` (liste de tous les widgets disponibles par profil/organisation).
-- [ ] `POST /dashboards/:id/widgets` (ajouter un widget au dashboard).
-- [ ] `PATCH /dashboards/:id/widgets/:widgetId` (modifier position, taille, filtres).
-- [ ] `DELETE /dashboards/:id/widgets/:widgetId`.
+- [x] `GET /widget-store` — catalogue (KPI packs filtrés par plan, KPI defs, widget templates).
+- [x] `POST /dashboards/:id/widgets` — ajouter widget (vérifie maxWidgets du plan).
+- [x] `PATCH /dashboards/:id/widgets/:widgetId` — modifier config, position, vizType, isActive.
+- [x] `DELETE /dashboards/:id/widgets/:widgetId` — supprimer widget.
 
 ### 4.4. Layout et personnalisation
 
-- [ ] Gérer le layout (position, taille) via un modèle (grid, colonnes, etc.).
-- [ ] Permettre activation/désactivation de KPIs dans le cockpit (enregistrer l’état par utilisateur + profil).
+- [x] Layout géré via champ `position: Json` (`{x,y,w,h}`) sur chaque Widget + `layout: Json` sur Dashboard.
+- [x] Activation/désactivation KPIs : champ `isActive` sur Widget, modifiable via `PATCH /dashboards/:id/widgets/:widgetId`.
+
+### 4.5. Admin Cockpit — Gestion KPI Store
+
+#### Backend : 12 endpoints admin (`/admin/kpi-*`)
+
+- [x] DTOs créés dans `src/admin/dto/kpi-store.dto.ts` : `CreateKpiDefinitionDto`, `UpdateKpiDefinitionDto`, `CreateWidgetTemplateDto`, `UpdateWidgetTemplateDto`, `CreateKpiPackDto`, `UpdateKpiPackDto`.
+- [x] Endpoints `KpiDefinition` (superadmin, `manage:all`) :
+  - [x] `GET /admin/kpi-definitions` — lister toutes (actives + inactives).
+  - [x] `POST /admin/kpi-definitions` — créer (clé unique validée).
+  - [x] `PATCH /admin/kpi-definitions/:id` — modifier partiellement.
+  - [x] `DELETE /admin/kpi-definitions/:id` — toggle `isActive` (soft delete/reactivate).
+- [x] Endpoints `WidgetTemplate` (même pattern, champ `defaultConfig: Json` casté `as Prisma.InputJsonValue`) :
+  - [x] `GET /admin/widget-templates`
+  - [x] `POST /admin/widget-templates`
+  - [x] `PATCH /admin/widget-templates/:id`
+  - [x] `DELETE /admin/widget-templates/:id`
+- [x] Endpoints `KpiPack` :
+  - [x] `GET /admin/kpi-packs`
+  - [x] `POST /admin/kpi-packs`
+  - [x] `PATCH /admin/kpi-packs/:id`
+  - [x] `DELETE /admin/kpi-packs/:id`
+
+#### Frontend Admin Cockpit : page `/kpi-store`
+
+- [x] Interfaces TypeScript ajoutées dans `src/types/index.ts` : `KpiDefinition`, `WidgetTemplate`, `KpiPack`.
+- [x] Fonctions API ajoutées dans `src/api/index.ts` : `kpiDefinitionsApi`, `widgetTemplatesApi`, `kpiPacksApi` (getAll, create, update, toggle).
+- [x] Hooks React Query ajoutés dans `src/hooks/use-api.ts` : `useKpiDefinitions`, `useWidgetTemplates`, `useKpiPacks`.
+- [x] Page tabbée `/kpi-store` créée dans `src/features/kpi-store/` (10 fichiers) :
+  - [x] `KpiStorePage.tsx` — page principale avec 3 onglets.
+  - [x] `KpiDefinitionsTab.tsx` + `CreateKpiDefinitionModal.tsx` + `EditKpiDefinitionModal.tsx`.
+  - [x] `WidgetTemplatesTab.tsx` + `CreateWidgetTemplateModal.tsx` + `EditWidgetTemplateModal.tsx`.
+  - [x] `KpiPacksTab.tsx` + `CreateKpiPackModal.tsx` + `EditKpiPackModal.tsx` (checkboxes multi-select pour `kpiKeys`).
+- [x] Route `/kpi-store` ajoutée dans `src/App.tsx`.
+- [x] Nav item "KPI Store" ajouté dans `src/components/layout/Sidebar.tsx` (icon `BarChart3`).
+- [x] Clés i18n ajoutées dans `src/i18n/fr.ts` et `src/i18n/en.ts` (`nav.kpiStore`, section `kpiStore.*`).
+
+#### Documentation MkDocs
+
+- [x] `docs/backend/modules/kpi-store.md` — documentation complète du module (modèles, endpoints, soft delete, intégration cockpit).
+- [x] `docs/backend/api-reference.md` — section "KPI Store (Admin)" ajoutée avec les 12 endpoints.
+- [x] `mkdocs.yml` — nav item `KPI Store: backend/modules/kpi-store.md` ajouté sous Modules.
 
 ***
 
