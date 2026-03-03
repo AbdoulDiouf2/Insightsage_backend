@@ -14,6 +14,7 @@ import { randomBytes } from 'crypto';
 import { JobStatus } from '@prisma/client';
 import { SqlSecurityService } from './sql-security.service';
 import { LicenseGuardianService } from '../subscriptions/license-guardian.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 // Durée de vie d'un token : 30 jours (Section 2.4)
 const TOKEN_TTL_DAYS = 30;
@@ -34,6 +35,7 @@ export class AgentsService implements OnModuleInit {
     private auditLog: AuditLogService,
     private sqlSecurity: SqlSecurityService,
     private licenseGuardian: LicenseGuardianService,
+    private eventEmitter: EventEmitter2,
   ) { }
 
   onModuleInit() {
@@ -640,7 +642,7 @@ export class AgentsService implements OnModuleInit {
     agentId: string,
     data: { level: string; message: string; timestamp: Date },
   ) {
-    return this.prisma.agentLog.create({
+    const log = await this.prisma.agentLog.create({
       data: {
         organizationId,
         agentId,
@@ -649,6 +651,10 @@ export class AgentsService implements OnModuleInit {
         timestamp: data.timestamp,
       },
     });
+
+    this.eventEmitter.emit('agent.log.created', { organizationId, log });
+
+    return log;
   }
 
   /**

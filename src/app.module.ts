@@ -20,9 +20,11 @@ import { AuditLogModule } from './logs/audit-log.module';
 // import { AdminPanelModule } from './admin-panel/admin-panel.module'; // Désactivé (AdminJS)
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { TenantGuard } from './auth/guards/tenant.guard';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 @Module({
   imports: [
+    EventEmitterModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath:
