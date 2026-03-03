@@ -438,3 +438,61 @@ Le backend ne :
   - [ ] Interface entre API et semantic layer / DWH.  
   - [ ] Tests de performance sur requêtes clés NLQ et dashboards.
 - [ ] Partager les specs d’API avec le développeur front (contrat clair, exemples de payloads).
+***
+
+## 11. Roadmap de Déploiement Professionnel (Windows Server)
+
+### Phase 1 — Préparation au développement (Maintenant)
+- [ ] **Structurer les projets proprement** :
+  - [ ] Organiser en `backend/`, `frontend-client/`, `frontend-admin/`.
+  - [ ] Assurer la présence de `.env.development` et `.env.production`.
+- [ ] **Configurer les variables d'environnement de production** :
+  - [ ] Frontends : `VITE_API_URL=https://api.mondomaine.com` (même si fictif pour l'instant).
+  - [ ] Backend : `PORT`, `DATABASE_URL`, `JWT_SECRET`, `NODE_ENV=production`.
+- [ ] **Tester en local en mode "production"** :
+  - [ ] Backend : `npm run build` + `node dist/main.js`.
+  - [ ] Frontends : `npm run build` + `npm run preview`.
+
+### Phase 2 — Préparation Serveur (Accès Client)
+- [ ] **Installation sur Windows Server** :
+  - [ ] Node.js (LTS).
+  - [ ] IIS (Internet Information Services).
+  - [ ] Module URL Rewrite.
+  - [ ] Application Request Routing (ARR).
+- [ ] **Gestionnaire de processus** :
+  - [ ] Installer `pm2` pour la persistance du backend.
+- [ ] **Configuration Firewall** :
+  - [ ] Autoriser les ports 80 (HTTP) et 443 (HTTPS).
+
+### Phase 3 — Configuration DNS (Avant mise en ligne)
+- [ ] Pointer les sous-domaines vers l'IP du serveur :
+  - [ ] `api.mondomaine.com`
+  - [ ] `app.mondomaine.com`
+  - [ ] `admin.mondomaine.com`
+
+### Phase 4 — Déploiement Réel (Mise en production)
+- [ ] **Déployer le Backend** :
+  - [ ] `npm install` + `npm run build`.
+  - [ ] `pm2 start dist/main.js`.
+  - [ ] Vérifier l'accès local (`http://localhost:3000`).
+- [ ] **Déployer les Frontends** :
+  - [ ] Copier le dossier `dist` (client) vers `C:\inetpub\wwwroot\app`.
+  - [ ] Copier le dossier `dist` (admin) vers `C:\inetpub\wwwroot\admin`.
+
+### Phase 5 — Configuration IIS (Reverse Proxy)
+- [ ] **Configuration des Bindings** :
+  - [ ] Binding 1 : `app.mondomaine.com` → dossier `/app`.
+  - [ ] Binding 2 : `admin.mondomaine.com` → dossier `/admin`.
+  - [ ] Binding 3 : `api.mondomaine.com` → Reverse proxy vers `http://localhost:3000`.
+
+### Phase 6 — Sécurisation & HTTPS
+- [ ] **Installer les certificats SSL** (Let's Encrypt ou certificat entreprise).
+- [ ] **Activer SSL** pour les 3 sous-domaines.
+- [ ] **Désactiver l'accès direct** au port 3000 depuis l'extérieur.
+
+### Phase 7 — Tests Finaux & Clôture
+- [ ] **Validation fonctionnelle** : Login, appels API, Admin, gestion d'erreurs, rafraîchissement de page.
+- [ ] **Post-Déploiement** :
+  - [ ] Configurer les sauvegardes automatiques de la base de données.
+  - [ ] Configurer la rotation des logs.
+  - [ ] Vérifier le redémarrage automatique des services.

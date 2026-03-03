@@ -154,6 +154,7 @@ export class DashboardsController {
   // ─── Widgets dans un dashboard ────────────────────────────────────────────
 
   @Post(':id/widgets')
+  @ApiTags('Widget Management')
   @RequirePermissions({ action: 'write', resource: 'dashboards' })
   @UseGuards(PermissionsGuard)
   @ApiOperation({
@@ -172,6 +173,7 @@ export class DashboardsController {
   }
 
   @Patch(':id/widgets/:widgetId')
+  @ApiTags('Widget Management')
   @RequirePermissions({ action: 'write', resource: 'dashboards' })
   @UseGuards(PermissionsGuard)
   @ApiOperation({
@@ -197,6 +199,7 @@ export class DashboardsController {
   }
 
   @Delete(':id/widgets/:widgetId')
+  @ApiTags('Widget Management')
   @HttpCode(HttpStatus.OK)
   @RequirePermissions({ action: 'write', resource: 'dashboards' })
   @UseGuards(PermissionsGuard)
