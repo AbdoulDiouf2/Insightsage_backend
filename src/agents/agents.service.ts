@@ -130,6 +130,37 @@ export class AgentsService implements OnModuleInit {
     limit.count++;
   }
 
+  /**
+   * Transformateur de résultat (Normalisation)
+   * Nettoie les données brutes de l'agent pour un format standard utilisable par le front
+   */
+  private transformResult(result: any): any {
+    if (!result) return null;
+
+    // Cas 1: L'agent renvoie un tableau d'objets (format SQL classique)
+    if (Array.isArray(result)) {
+      // Si vide
+      if (result.length === 0) return { value: 0, data: [] };
+
+      // Si c'est une seule ligne avec une seule colonne (ex: SELECT COUNT(*)...)
+      if (result.length === 1) {
+        const firstRow = result[0];
+        const keys = Object.keys(firstRow);
+        if (keys.length === 1) {
+          const rawValue = firstRow[keys[0]];
+          // Tentative de conversion numérique
+          const numericValue = Number(rawValue);
+          if (!isNaN(numericValue)) return { value: numericValue, raw: result };
+        }
+      }
+
+      // Sinon on renvoie le tableau tel quel mais identifié
+      return { data: result, count: result.length };
+    }
+
+    return result;
+  }
+
   // ─── Endpoints SaaS Admin ─────────────────────────────────────────────────
 
   /**
@@ -530,11 +561,14 @@ export class AgentsService implements OnModuleInit {
       throw new NotFoundException('Job introuvable ou accès refusé');
     }
 
+    // Normalisation du résultat avant stockage
+    const transformedResult = error ? null : this.transformResult(result);
+
     return this.prisma.agentJob.update({
       where: { id: jobId },
       data: {
         status: error ? JobStatus.FAILED : JobStatus.COMPLETED,
-        result: result || null,
+        result: transformedResult || null,
         errorMessage: error || null,
         completedAt: new Date(),
       },
@@ -549,8 +583,26 @@ export class AgentsService implements OnModuleInit {
     sql: string,
     gateway: any, // On passe la gateway pour éviter les cycles d'injection si nécessaire
   ) {
+    // 0. Injection dynamique de la configuration (Scoping par Dossier/Société)
+    const org = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { sageConfig: true },
+    });
+
+    let finalSql = sql;
+    if (org?.sageConfig && typeof org.sageConfig === 'object') {
+      const config = org.sageConfig as Record<string, any>;
+      // Remplace les placeholders type {{database_name}} par leur valeur réelle
+      for (const [key, value] of Object.entries(config)) {
+        const placeholder = `{{${key}}}`;
+        if (finalSql.includes(placeholder)) {
+          finalSql = finalSql.split(placeholder).join(String(value));
+        }
+      }
+    }
+
     // 1. Validation de sécurité (Defense in Depth)
-    const validation = this.sqlSecurity.validate(sql);
+    const validation = this.sqlSecurity.validate(finalSql);
     if (!validation.isValid) {
       throw new BadRequestException(
         `Requête SQL invalide: ${validation.error}`,
@@ -562,6 +614,22 @@ export class AgentsService implements OnModuleInit {
 
     // 3. Rate limiting check
     this.checkRateLimit(organizationId);
+
+    // 3.5 Stratégie de Caching : Vérifier si une requête identique a été faite récemment (< 5 min)
+    const CACHE_TTL_MS = 5 * 60 * 1000;
+    const cachedJob = await this.prisma.agentJob.findFirst({
+      where: {
+        organizationId,
+        sql: finalSql,
+        status: JobStatus.COMPLETED,
+        completedAt: { gte: new Date(Date.now() - CACHE_TTL_MS) },
+      },
+      orderBy: { completedAt: 'desc' },
+    });
+
+    if (cachedJob) {
+      return cachedJob; // On renvoie le job déjà complété avec son résultat
+    }
 
     // 4. Trouver l'agent online pour cette organisation
     const agent = await this.prisma.agent.findFirst({
@@ -575,10 +643,10 @@ export class AgentsService implements OnModuleInit {
     }
 
     // 5. Créer le job
-    const job = await this.createJob(organizationId, agent.id, sql);
+    const job = await this.createJob(organizationId, agent.id, finalSql);
 
     // 6. Envoyer via WebSocket
-    const sent = await gateway.emitExecuteSql(organizationId, job.id, sql);
+    const sent = await gateway.emitExecuteSql(organizationId, job.id, finalSql);
 
     if (!sent) {
       // Si l'agent n'est pas connecté via WebSocket, on marque le job en erreur

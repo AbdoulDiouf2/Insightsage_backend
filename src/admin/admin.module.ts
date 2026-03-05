@@ -4,10 +4,11 @@ import { AdminService } from './admin.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { UsersModule } from '../users/users.module';
 import { CockpitGateway } from './cockpit.gateway';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [PrismaModule, UsersModule],
+  imports: [PrismaModule, UsersModule, AuthModule],
   controllers: [AdminController],
   providers: [AdminService, CockpitGateway],
 })
-export class AdminModule {}
+export class AdminModule { }

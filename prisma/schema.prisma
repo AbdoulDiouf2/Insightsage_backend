@@ -44,6 +44,7 @@ model Organization {
   roles       Role[]
   onboardingStatus OnboardingStatus?
   agentLogs        AgentLog[]
+  nlqSessions      NlqSession[]
 
   @@map("organizations")
 }
@@ -77,6 +78,7 @@ model User {
   widgets    Widget[]
   auditLogs  AuditLog[]
   invitationsCreated Invitation[] @relation("InvitationsCreated")
+  nlqSessions        NlqSession[]
 
   @@index([organizationId])
   @@map("users")
@@ -233,17 +235,65 @@ model AuditLog {
   @@map("audit_logs")
 }
 
-model NlqTemplate {
-  id        String   @id @default(uuid())
-  intent    String // "ca_period", "dmp_clients", "ar_aging"
-  keywords  String[] // ["ca", "chiffre affaires", "revenu"]
-  sqlQuery  String // template SQL avec $1, $2 params
-  vizType   String // "bar", "line", "gauge"
-  role      String // "daf" | "controller"
-  createdAt DateTime @default(now())
+model NlqIntent {
+  id          String   @id @default(uuid())
+  key         String   @unique // ex: "revenue_period"
+  label       String   // "Chiffre d'affaires sur une période"
+  description String?
+  category    String   // "finance" | "commercial" | "treasury"
+  keywords    String[] // ["ca", "chiffre affaires", "revenu", "vente"]
+  
+  templates   NlqTemplate[]
+  sessions    NlqSession[]
 
-  @@unique([intent, role])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("nlq_intents")
+}
+
+model NlqTemplate {
+  id             String    @id @default(uuid())
+  intentKey      String
+  intent         NlqIntent @relation(fields: [intentKey], references: [key], onDelete: Cascade)
+  
+  sageType       String    // "X3" | "100" (Le SQL change selon l'ERP)
+  sqlQuery       String    @db.Text // Template avec placeholders {{database_name}}, $1, etc.
+  defaultVizType String    @default("bar") // "bar" | "line" | "gauge" | "card"
+  
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([intentKey, sageType])
   @@map("nlq_templates")
+}
+
+model NlqSession {
+  id             String   @id @default(uuid())
+  queryText      String   @db.Text // Texte brut de l'utilisateur
+  sqlGenerated   String?  @db.Text
+  
+  intentKey      String?
+  intent         NlqIntent? @relation(fields: [intentKey], references: [key])
+  
+  status         String   @default("pending") // "pending" | "success" | "error" | "no_intent"
+  errorMessage   String?
+  latencyMs      Int?
+  
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  
+  jobId          String?  // Relation vers AgentJob pour récupérer le résultat
+  
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([userId])
+  @@map("nlq_sessions")
 }
 
 model Agent {

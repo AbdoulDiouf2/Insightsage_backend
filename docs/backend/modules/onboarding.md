@@ -173,6 +173,7 @@ if (!agent) throw new ServiceUnavailableException('Agent hors ligne');
 | `POST` | `/onboarding/step2` | Profil organisation |
 | `POST` | `/onboarding/step3` | Config Sage ERP |
 | `POST` | `/onboarding/agent-link` | Liaison agent |
+| `POST` | `/datasource/discover` | Scan Agent pour lister les dossiers Sage |
 | `GET` | `/onboarding/profiles` | Profils disponibles |
 | `POST` | `/onboarding/step4` | Profils métier |
 | `POST` | `/onboarding/step5` | Invitations |

@@ -44,6 +44,7 @@ import { RolesGuard } from './guards/roles.guard';
     TenantGuard,
     PermissionsGuard,
     RolesGuard,
+    JwtModule,
   ],
 })
 export class AuthModule { }

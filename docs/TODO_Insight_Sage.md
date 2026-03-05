@@ -177,6 +177,7 @@ Le backend ne :
 - [x] Étape 3 – Configuration data source Sage :
   - [x] `POST /onboarding/step3` (`{ sageType, sageMode, sageHost?, sagePort? }`).
   - [x] `POST /onboarding/agent-link` (`{ agentToken }` — validation token + vérif appartenance org).
+- [x] `POST /datasource/discover` (Agent scan : récupère liste des dossiers/sociétés Sage dispo pour validation mapping).
   - [x] `POST /datasource/test-connection` (vérifie statut agent online — MVP).
 - [x] Integrate and verify (Backend & Agent main files updated)
 - [x] Update agent/requirements.txt
@@ -279,29 +280,32 @@ Le backend ne :
 
 ### 5.1. Modèle de données NLQ
 
-- [ ] Créer entités :  
-  - [ ] `nlq_intents` (intent type, ex: “CA des 3 derniers mois”).
-  - [ ] `nlq_templates` (templates SQL paramétrés associés à des exposures du semantic layer).
-  - [ ] `nlq_sessions` ou `nlq_queries` (user_id, intent, texte envoyé, SQL généré, résultat résumé, latence).
+- [x] Créer entités :  
+  - [x] `nlq_intents` (intent type, ex: “CA des 3 derniers mois”).
+  - [x] `nlq_templates` (templates SQL paramétrés associés à des exposures du semantic layer).
+  - [x] `nlq_sessions` ou `nlq_queries` (user_id, intent, texte envoyé, SQL généré, résultat résumé, latence).
 
 ### 5.2. Endpoints NLQ
 
-- [ ] `POST /nlq/query` : Entrée texte → SQL safe → Agent Sage → résultat seul
-  - [ ] Le SQL est exclusivement généré à partir de **templates validés** (aucune génération libre n’est autorisée).
-  - [ ] Vérification stricte via regex (`^SELECT`).
-  - [ ] Interdiction stricte : `UPDATE`, `DELETE`, `INSERT`, `DROP`.
-  - [ ] Limitation automatique des lignes ajoutée au code SQL (ex: `TOP 1000`).
-  - [ ] Whitelist stricte des tables autorisées dans le template.
-- [ ] `POST /nlq/add-to-dashboard` :  
-  - [ ] Crée un widget basé sur le résultat NLQ dans un dashboard donné.
+- [x] `POST /nlq/query` : Entrée texte → SQL safe → Agent Sage → résultat seul
+  - [x] Le SQL est exclusivement généré à partir de **templates validés** (aucune génération libre n’est autorisée).
+  - [x] Vérification stricte via regex (`^SELECT`).
+  - [x] Interdiction stricte : `UPDATE`, `DELETE`, `INSERT`, `DROP`.
+  - [x] Limitation automatique des lignes ajoutée au code SQL (ex: `TOP 1000`).
+  - [x] Whitelist stricte des tables autorisées dans le template.
+- [x] `POST /nlq/add-to-dashboard` :  
+  - [x] Crée un widget basé sur le résultat NLQ dans un dashboard donné.
 
 ### 5.3. Logique NLQ (MVP)
 
-- [ ] Intégrer avec le moteur NLQ côté Data Engineer (template-based, exposures).
-- [ ] Implémenter mapping léger NLP (dates, entités, synonymes) si côté back.
-- [ ] Ajouter une étape de validation de sécurité :  
-  - [ ] Vérifier que le SQL généré respecte les exposures autorisées.
-- [ ] Enregistrer les logs NLQ : intent, SQL, latence, succès/erreur.
+- [x] Intégrer avec le moteur NLQ côté Data Engineer (template-based, exposures).
+- [x] Implémenter mapping léger NLP (dates, entités, synonymes) si côté back.
+- [x] **Mapping Dynamique KPI ↔ SQL** : Système de sélection du template SQL basé sur la version de Sage (`Sage 100` vs `Sage X3`).
+- [x] Ajouter une étape de validation de sécurité :  
+  - [x] Vérifier que le SQL généré respecte les exposures autorisées.
+- [x] Enregistrer les logs NLQ : intent, SQL, latence, succès/erreur.
+- [ ] **NLP Context** : Gérer les suivis (ex: "et pour le mois dernier ?")
+- [x] Gérer le retour de l'agent et le stocker en DB (lié via `jobId`).
 
 ***
 
@@ -354,6 +358,7 @@ Le backend ne :
 #### 6.1.3 Sécurité Agent (CRITIQUE)
 - [x] **Whitelist tables** : seules `factures`, `clients`, `comptes` autorisées (implémenté côté Agent)
 - [x] **SQL Sandbox** : `SELECT only`, pas `DROP/UPDATE/INSERT` (Double validation Backend + Agent)
+- [x] **Scoping par Société/Dossier** : Injection dynamique du nom de la base de données (depuis `sageConfig`) dans le SQL via placeholder.
 - [ ] **Resultat anonymisé** : max 1000 rows, aggregate si > seuil
 - [ ] **Rate limit** : 10 req/min par agent
 
@@ -373,6 +378,8 @@ Le backend ne :
 - [x] **3. Rate limiting par agent** : Protection de l'ERP Sage contre les surcharges de requêtes (10 req/min).
 - [x] **4. Isolation par tenant renforcée** : Scoping immuable du token à l'org lors du handshake WebSocket.
 - [x] **5. Logging centralisé** : Stream des logs agents vers le backend pour une visibilité totale dans le cockpit admin.
+- [x] **6. Normalisation des résultats (Result Transformer)** : Couche backend pour transformer le JSON brut de l'agent en format standardisé pour le Front.
+- [x] **7. Stratégie de Caching Intelligent** : Cache des résultats de KPIs fréquents pour économiser les ressources de l'ERP du client.
 
 ***
 

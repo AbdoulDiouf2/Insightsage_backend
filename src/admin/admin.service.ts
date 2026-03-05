@@ -509,6 +509,46 @@ export class AdminService {
       { name: 'Erreur', value: errorAgents, color: '#ef4444' },
     ];
 
+    // --- NEW: Store Inventory ---
+    const [kpiCount, packCount, widgetCount, intentCount, nlqTemplateCount] = await Promise.all([
+      this.prisma.kpiDefinition.count(),
+      this.prisma.kpiPack.count(),
+      this.prisma.widgetTemplate.count(),
+      this.prisma.nlqIntent.count(),
+      this.prisma.nlqTemplate.count(),
+    ]);
+
+    // --- NEW: Distributions ---
+    const plans = await this.prisma.subscriptionPlan.findMany({
+      include: { _count: { select: { organizations: true } } }
+    });
+    const plansDistribution = plans.map(p => ({
+      name: p.label,
+      value: p._count.organizations,
+    })).filter(p => p.value > 0);
+
+    const organizations = await this.prisma.organization.findMany({
+      select: { sector: true }
+    });
+    const sectorMap = new Map<string, number>();
+    organizations.forEach(org => {
+      const s = org.sector || 'Non défini';
+      sectorMap.set(s, (sectorMap.get(s) || 0) + 1);
+    });
+    const sectorDistribution = Array.from(sectorMap.entries()).map(([name, value]) => ({
+      name,
+      value
+    }));
+
+    // --- NEW: Recent Audit Logs ---
+    const recentAuditLogs = await this.prisma.auditLog.findMany({
+      take: 10,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: { select: { firstName: true, lastName: true, email: true } }
+      }
+    });
+
     return {
       organizations: {
         value: totalOrganizations,
@@ -528,6 +568,16 @@ export class AdminService {
       },
       recentActivity,
       agentsDistribution,
+      inventory: {
+        kpis: kpiCount,
+        packs: packCount,
+        widgets: widgetCount,
+        intents: intentCount,
+        nlqTemplates: nlqTemplateCount,
+      },
+      plansDistribution,
+      sectorDistribution,
+      recentAuditLogs,
     };
   }
 
@@ -537,6 +587,12 @@ export class AdminService {
     return this.prisma.kpiDefinition.findMany({
       orderBy: [{ category: 'asc' }, { key: 'asc' }],
     });
+  }
+
+  async findKpiDefinitionById(id: string) {
+    const kpi = await this.prisma.kpiDefinition.findUnique({ where: { id } });
+    if (!kpi) throw new NotFoundException(`KPI Definition introuvable : ${id}`);
+    return kpi;
   }
 
   async createKpiDefinition(dto: CreateKpiDefinitionDto) {
@@ -626,6 +682,12 @@ export class AdminService {
     });
   }
 
+  async findKpiPackById(id: string) {
+    const pack = await this.prisma.kpiPack.findUnique({ where: { id } });
+    if (!pack) throw new NotFoundException(`KPI Pack introuvable : ${id}`);
+    return pack;
+  }
+
   async createKpiPack(dto: CreateKpiPackDto) {
     const existing = await this.prisma.kpiPack.findUnique({
       where: { name: dto.name },
@@ -666,5 +728,46 @@ export class AdminService {
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  // ─── NLQ Management ───────────────────────────────────────────────────────
+
+  async findAllNlqIntents() {
+    return (this.prisma as any).nlqIntent.findMany({
+      orderBy: [{ category: 'asc' }, { label: 'asc' }],
+    });
+  }
+
+  async findNlqIntentById(id: string) {
+    const intent = await (this.prisma as any).nlqIntent.findUnique({
+      where: { id },
+      include: {
+        templates: true,
+      },
+    });
+    if (!intent) throw new NotFoundException(`NLQ Intent introuvable : ${id}`);
+    return intent;
+  }
+
+  async findAllNlqTemplates() {
+    return (this.prisma as any).nlqTemplate.findMany({
+      orderBy: { intent: { label: 'asc' } },
+      include: {
+        intent: {
+          select: { label: true },
+        },
+      },
+    });
+  }
+
+  async findNlqTemplateById(id: string) {
+    const template = await (this.prisma as any).nlqTemplate.findUnique({
+      where: { id },
+      include: {
+        intent: true,
+      },
+    });
+    if (!template) throw new NotFoundException(`NLQ Template introuvable : ${id}`);
+    return template;
   }
 }

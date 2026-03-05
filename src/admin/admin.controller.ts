@@ -200,6 +200,13 @@ export class AdminController {
     return this.adminService.findAllKpiDefinitions();
   }
 
+  @Get('kpi-definitions/:id')
+  @ApiOperation({ summary: 'Récupérer une KPI Definition par ID' })
+  @ApiParam({ name: 'id', description: 'ID de la KPI Definition' })
+  async findKpiDefinitionById(@Param('id') id: string) {
+    return this.adminService.findKpiDefinitionById(id);
+  }
+
   @Post('kpi-definitions')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
@@ -291,6 +298,13 @@ export class AdminController {
     return this.adminService.findAllKpiPacks();
   }
 
+  @Get('kpi-packs/:id')
+  @ApiOperation({ summary: 'Récupérer un KPI Pack par ID' })
+  @ApiParam({ name: 'id', description: 'ID du KPI Pack' })
+  async findKpiPackById(@Param('id') id: string) {
+    return this.adminService.findKpiPackById(id);
+  }
+
   @Post('kpi-packs')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
@@ -320,5 +334,39 @@ export class AdminController {
   @ApiParam({ name: 'id', description: 'ID du KPI Pack' })
   async toggleKpiPack(@Param('id') id: string) {
     return this.adminService.toggleKpiPack(id);
+  }
+
+  // ─── NLQ Management ───────────────────────────────────────────────────────
+
+  @Get('nlq-intents')
+  @ApiOperation({
+    summary: 'Lister toutes les intentions NLQ',
+    description: 'Retourne toutes les intentions NLQ définies dans le système.',
+  })
+  async findAllNlqIntents() {
+    return this.adminService.findAllNlqIntents();
+  }
+
+  @Get('nlq-intents/:id')
+  @ApiOperation({ summary: 'Récupérer un NLQ Intent par ID' })
+  @ApiParam({ name: 'id', description: 'ID de l\'intent (UUID)' })
+  async findNlqIntentById(@Param('id') id: string) {
+    return this.adminService.findNlqIntentById(id);
+  }
+
+  @Get('nlq-templates')
+  @ApiOperation({
+    summary: 'Lister tous les templates SQL NLQ',
+    description: 'Retourne tous les templates SQL associés aux intentions NLQ.',
+  })
+  async findAllNlqTemplates() {
+    return this.adminService.findAllNlqTemplates();
+  }
+
+  @Get('nlq-templates/:id')
+  @ApiOperation({ summary: 'Récupérer un NLQ SQL Template par ID' })
+  @ApiParam({ name: 'id', description: 'ID du template (UUID)' })
+  async findNlqTemplateById(@Param('id') id: string) {
+    return this.adminService.findNlqTemplateById(id);
   }
 }

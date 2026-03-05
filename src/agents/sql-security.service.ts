@@ -10,7 +10,6 @@ export class SqlSecurityService {
     'INSERT', 'UPDATE', 'DELETE', 'DROP', 'ALTER', 'CREATE',
     'TRUNCATE', 'EXEC', 'EXECUTE', 'GRANT', 'REVOKE',
     'MERGE', 'CALL', 'BULK', 'OPENROWSET', 'OPENDATASOURCE',
-    '--', '/*',
   ];
 
   /**

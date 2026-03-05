@@ -3,6 +3,9 @@ import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as dotenv from 'dotenv';
 import * as bcrypt from 'bcrypt';
+import * as fs from 'fs';
+import * as path from 'path';
+
 dotenv.config();
 
 const connectionString = process.env.DATABASE_URL;
@@ -209,7 +212,7 @@ async function main() {
       maxKpis: 6,
       maxWidgets: 10,
       maxAgentSyncPerDay: 4,
-      allowedKpiPacks: ['daf_basic'],
+      allowedKpiPacks: ['pack_finance', 'pack_rentabilite'],
       hasNlq: false,
       hasAdvancedReports: false,
       sortOrder: 1,
@@ -223,7 +226,7 @@ async function main() {
       maxKpis: null, // illimité
       maxWidgets: null, // illimité
       maxAgentSyncPerDay: 24,
-      allowedKpiPacks: ['daf_basic', 'daf_premium', 'controller'],
+      allowedKpiPacks: ['pack_finance', 'pack_rentabilite', 'pack_tresorerie', 'pack_client', 'pack_achats'],
       hasNlq: true,
       hasAdvancedReports: true,
       sortOrder: 2,
@@ -237,7 +240,7 @@ async function main() {
       maxKpis: null, // illimité
       maxWidgets: null, // illimité
       maxAgentSyncPerDay: null, // temps réel
-      allowedKpiPacks: ['daf_basic', 'daf_premium', 'controller', 'dg', 'manager', 'analyst'],
+      allowedKpiPacks: ['all'],
       hasNlq: true,
       hasAdvancedReports: true,
       sortOrder: 3,
@@ -265,51 +268,22 @@ async function main() {
   }
   console.log('✅ Subscription plans seeded.');
 
-  // 5. Seed KPI Definitions (5 KPIs essentiels DAF)
-  const KPI_DEFINITIONS = [
-    {
-      key: 'revenue_mom',
-      name: 'CA Mois/Mois',
-      description: "Chiffre d'affaires du mois en cours comparé au mois précédent",
-      unit: 'FCFA',
-      category: 'finance',
-      defaultVizType: 'gauge',
-    },
-    {
-      key: 'dmp',
-      name: 'Délai Moyen de Paiement',
-      description: 'Nombre moyen de jours entre la facturation et le paiement client',
-      unit: 'jours',
-      category: 'treasury',
-      defaultVizType: 'card',
-    },
-    {
-      key: 'ar_aging',
-      name: 'Encours Clients',
-      description: 'Montant total des créances clients en attente de règlement',
-      unit: 'FCFA',
-      category: 'treasury',
-      defaultVizType: 'bar',
-    },
-    {
-      key: 'gross_margin',
-      name: 'Marge Brute',
-      description: 'Marge brute en pourcentage du chiffre d\'affaires',
-      unit: '%',
-      category: 'finance',
-      defaultVizType: 'gauge',
-    },
-    {
-      key: 'ebitda',
-      name: 'EBITDA',
-      description: 'Bénéfice avant intérêts, impôts, dépréciation et amortissement',
-      unit: 'FCFA',
-      category: 'finance',
-      defaultVizType: 'card',
-    },
-  ];
+  // 5. Load KPIs from JSON
+  const kpiPath = path.join(__dirname, 'kpi.json');
+  if (!fs.existsSync(kpiPath)) {
+    throw new Error(`File not found: ${kpiPath}`);
+  }
+  const kpis = JSON.parse(fs.readFileSync(kpiPath, 'utf8'));
 
-  for (const kpi of KPI_DEFINITIONS) {
+  // 6. Seed KPI Definitions & NLQ (Intents/Templates)
+  console.log(`📊 Seeding ${kpis.length} KPIs and NLQ data...`);
+
+  const categories = new Set<string>();
+
+  for (const kpi of kpis) {
+    categories.add(kpi.category);
+
+    // KpiDefinition
     await prisma.kpiDefinition.upsert({
       where: { key: kpi.key },
       update: {
@@ -319,12 +293,63 @@ async function main() {
         category: kpi.category,
         defaultVizType: kpi.defaultVizType,
       },
-      create: kpi,
+      create: {
+        key: kpi.key,
+        name: kpi.name,
+        description: kpi.description,
+        unit: kpi.unit,
+        category: kpi.category,
+        defaultVizType: kpi.defaultVizType,
+      },
     });
-  }
-  console.log('✅ KPI Definitions seeded.');
 
-  // 6. Seed Widget Templates (5 types de visualisation)
+    // NLQ Intent
+    await prisma.nlqIntent.upsert({
+      where: { key: kpi.key },
+      update: {
+        label: kpi.name,
+        keywords: kpi.keywords,
+        category: kpi.category,
+      },
+      create: {
+        key: kpi.key,
+        label: kpi.name,
+        keywords: kpi.keywords,
+        category: kpi.category,
+      },
+    });
+
+    // NLQ Template (Sage 100)
+    if (kpi.sqlSage100) {
+      await prisma.nlqTemplate.upsert({
+        where: { intentKey_sageType: { intentKey: kpi.key, sageType: '100' } },
+        update: { sqlQuery: kpi.sqlSage100, defaultVizType: kpi.defaultVizType },
+        create: {
+          intentKey: kpi.key,
+          sageType: '100',
+          sqlQuery: kpi.sqlSage100,
+          defaultVizType: kpi.defaultVizType,
+        },
+      });
+    }
+
+    // NLQ Template (Sage X3)
+    if (kpi.sqlSageX3) {
+      await prisma.nlqTemplate.upsert({
+        where: { intentKey_sageType: { intentKey: kpi.key, sageType: 'X3' } },
+        update: { sqlQuery: kpi.sqlSageX3, defaultVizType: kpi.defaultVizType },
+        create: {
+          intentKey: kpi.key,
+          sageType: 'X3',
+          sqlQuery: kpi.sqlSageX3,
+          defaultVizType: kpi.defaultVizType,
+        },
+      });
+    }
+  }
+  console.log('✅ KPI Definitions & NLQ seeded.');
+
+  // 7. Seed Widget Templates (Widget Store base)
   const WIDGET_TEMPLATES = [
     {
       name: 'Carte KPI',
@@ -371,53 +396,34 @@ async function main() {
   }
   console.log('✅ Widget Templates seeded.');
 
-  // 7. Seed KPI Packs (3 packs par profil métier)
-  const KPI_PACKS = [
-    {
-      name: 'pack_daf',
-      label: 'Pack DAF',
-      profile: 'daf',
-      kpiKeys: ['revenue_mom', 'dmp', 'ar_aging', 'gross_margin', 'ebitda'],
-      description: 'Les 5 KPIs essentiels pour le Directeur Administratif et Financier',
-    },
-    {
-      name: 'pack_dg',
-      label: 'Pack DG',
-      profile: 'dg',
-      kpiKeys: ['revenue_mom', 'gross_margin', 'ebitda'],
-      description: "Vue synthétique pour le Directeur Général : CA, marge et résultat",
-    },
-    {
-      name: 'pack_controller',
-      label: 'Pack Controller',
-      profile: 'controller',
-      kpiKeys: ['dmp', 'ar_aging', 'gross_margin'],
-      description: 'KPIs de pilotage pour le Contrôleur de Gestion : trésorerie et marges',
-    },
-  ];
+  // 8. Seed Dynamic KPI Packs
+  console.log('📦 Seeding KPI Packs by category...');
+  for (const cat of Array.from(categories)) {
+    const kpiKeys = kpis.filter((k: any) => k.category === cat).map((k: any) => k.key);
+    const packName = `pack_${cat}`;
 
-  for (const pack of KPI_PACKS) {
     await prisma.kpiPack.upsert({
-      where: { name: pack.name },
+      where: { name: packName },
       update: {
-        label: pack.label,
-        profile: pack.profile,
-        kpiKeys: pack.kpiKeys,
-        description: pack.description,
+        label: `Pack ${cat.charAt(0).toUpperCase() + cat.slice(1).replace('_', ' ')}`,
+        profile: 'daf', // Default to DAF for all packs for now
+        kpiKeys: kpiKeys,
+        description: `Ensemble des indicateurs pour la catégorie ${cat}`,
       },
-      create: pack,
+      create: {
+        name: packName,
+        label: `Pack ${cat.charAt(0).toUpperCase() + cat.slice(1).replace('_', ' ')}`,
+        profile: 'daf',
+        kpiKeys: kpiKeys,
+        description: `Ensemble des indicateurs pour la catégorie ${cat}`,
+      },
     });
   }
   console.log('✅ KPI Packs seeded.');
 
-  // 8. Seed Default Organization & Admin User
-  console.log('👤 Seeding default admin user...');
-  
+  // 9. Default Organization & Admin
   const businessPlan = await prisma.subscriptionPlan.findFirst({ where: { name: 'business' } });
-  
-  let demoOrg = await prisma.organization.findFirst({
-    where: { name: 'Nafaka Tech' },
-  });
+  let demoOrg = await prisma.organization.findFirst({ where: { name: 'Nafaka Tech' } });
 
   if (!demoOrg) {
     demoOrg = await prisma.organization.create({
@@ -430,13 +436,9 @@ async function main() {
   }
 
   const passwordHash = await bcrypt.hash('InsightSage2026!', 10);
-  
   const adminUser = await prisma.user.upsert({
     where: { email: 'admin@insightsage.com' },
-    update: { 
-      passwordHash,
-      organizationId: demoOrg.id 
-    },
+    update: { passwordHash, organizationId: demoOrg.id },
     create: {
       email: 'admin@insightsage.com',
       firstName: 'Super',
@@ -447,29 +449,23 @@ async function main() {
     },
   });
 
-  // Assign SuperAdmin role
   const superAdminRole = await prisma.role.findUnique({ where: { name: 'superadmin' } });
   if (superAdminRole) {
     await prisma.userRole.upsert({
-      where: {
-        userId_roleId: { userId: adminUser.id, roleId: superAdminRole.id },
-      },
+      where: { userId_roleId: { userId: adminUser.id, roleId: superAdminRole.id } },
       update: {},
-      create: {
-        userId: adminUser.id,
-        roleId: superAdminRole.id,
-      },
+      create: { userId: adminUser.id, roleId: superAdminRole.id },
     });
   }
 
-  // Set as Owner
   await prisma.organization.update({
     where: { id: demoOrg.id },
     data: { ownerId: adminUser.id },
   });
 
-  console.log('🚀 Default Admin seeded: admin@insightsage.com / admin123');
+  console.log('🚀 Seed completed successfully!');
 }
+
 
 main()
   .catch((e) => {

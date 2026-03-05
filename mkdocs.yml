@@ -148,6 +148,7 @@ nav:
       - Rôles & Permissions: backend/modules/roles.md
       - Logs d'audit: backend/modules/audit-logs.md
       - KPI Store: backend/modules/kpi-store.md
+      - NLQ (Langage naturel): backend/modules/nlq.md
   - Frontend — Admin Cockpit:
     - Architecture: frontend/architecture.md
     - Design System: frontend/design-system.md
