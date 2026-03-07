@@ -730,6 +730,71 @@ export class AdminService {
     });
   }
 
+  // ─── Dashboards Management (SuperAdmin) ───────────────────────────────────
+
+  async findAllDashboards() {
+    return this.prisma.dashboard.findMany({
+      include: {
+        organization: {
+          select: { id: true, name: true },
+        },
+        user: {
+          select: { id: true, email: true, firstName: true, lastName: true },
+        },
+        _count: {
+          select: { widgets: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async findDashboardById(id: string) {
+    const dashboard = await this.prisma.dashboard.findUnique({
+      where: { id },
+      include: {
+        organization: {
+          select: { id: true, name: true },
+        },
+        user: {
+          select: { id: true, email: true, firstName: true, lastName: true },
+        },
+        widgets: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    if (!dashboard) {
+      throw new NotFoundException(`Dashboard introuvable : ${id}`);
+    }
+
+    return dashboard;
+  }
+
+  async deleteDashboard(id: string) {
+    const dashboard = await this.prisma.dashboard.findUnique({
+      where: { id },
+      select: { id: true, name: true, organizationId: true },
+    });
+
+    if (!dashboard) {
+      throw new NotFoundException(`Dashboard introuvable : ${id}`);
+    }
+
+    const deleted = await this.prisma.dashboard.delete({
+      where: { id },
+    });
+
+    await this.auditLog.log({
+      organizationId: dashboard.organizationId,
+      event: 'dashboard_deleted',
+      payload: { dashboardId: id, name: dashboard.name, method: 'admin_action' },
+    });
+
+    return deleted;
+  }
+
   // ─── NLQ Management ───────────────────────────────────────────────────────
 
   async findAllNlqIntents() {

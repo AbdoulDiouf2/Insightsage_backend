@@ -369,4 +369,26 @@ export class AdminController {
   async findNlqTemplateById(@Param('id') id: string) {
     return this.adminService.findNlqTemplateById(id);
   }
+
+  // ─── Dashboards Management ────────────────────────────────────────────────
+
+  @Get('dashboards')
+  @ApiOperation({ summary: 'Lister tous les dashboards (SuperAdmin)' })
+  async findAllDashboards() {
+    return this.adminService.findAllDashboards();
+  }
+
+  @Get('dashboards/:id')
+  @ApiOperation({ summary: 'Détail d\'un dashboard par ID (SuperAdmin)' })
+  @ApiParam({ name: 'id', description: 'ID du dashboard' })
+  async findDashboardById(@Param('id') id: string) {
+    return this.adminService.findDashboardById(id);
+  }
+
+  @Delete('dashboards/:id')
+  @ApiOperation({ summary: 'Supprimer un dashboard (SuperAdmin)' })
+  @ApiParam({ name: 'id', description: 'ID du dashboard' })
+  async deleteDashboard(@Param('id') id: string) {
+    return this.adminService.deleteDashboard(id);
+  }
 }

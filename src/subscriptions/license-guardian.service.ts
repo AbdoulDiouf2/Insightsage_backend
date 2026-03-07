@@ -50,21 +50,25 @@ export class LicenseGuardianService {
                 });
                 break;
             case 'maxAgentSyncPerDay':
-                const start = new Date();
-                start.setHours(0, 0, 0, 0);
-                const end = new Date();
-                end.setHours(23, 59, 59, 999);
+                // Temporairement désactivé : Le client veut supprimer cette limite (Sujet: Removal of Sync Limit)
+                return;
+            /*
+            const start = new Date();
+            start.setHours(0, 0, 0, 0);
+            const end = new Date();
+            end.setHours(23, 59, 59, 999);
 
-                currentUsage = await this.prisma.agentJob.count({
-                    where: {
-                        organizationId,
-                        createdAt: {
-                            gte: start,
-                            lte: end,
-                        },
+            currentUsage = await this.prisma.agentJob.count({
+                where: {
+                    organizationId,
+                    createdAt: {
+                        gte: start,
+                        lte: end,
                     },
-                });
-                break;
+                },
+            });
+            break;
+            */
             default:
                 return; // Limite non gérée numériquement ici
         }

@@ -211,7 +211,7 @@ async function main() {
       maxUsers: 3,
       maxKpis: 6,
       maxWidgets: 10,
-      maxAgentSyncPerDay: 4,
+      maxAgentSyncPerDay: null, // Unlimited (requested removal)
       allowedKpiPacks: ['pack_finance', 'pack_rentabilite'],
       hasNlq: false,
       hasAdvancedReports: false,
@@ -225,7 +225,7 @@ async function main() {
       maxUsers: 10,
       maxKpis: null, // illimité
       maxWidgets: null, // illimité
-      maxAgentSyncPerDay: 24,
+      maxAgentSyncPerDay: null, // Unlimited (requested removal)
       allowedKpiPacks: ['pack_finance', 'pack_rentabilite', 'pack_tresorerie', 'pack_client', 'pack_achats'],
       hasNlq: true,
       hasAdvancedReports: true,
@@ -239,7 +239,7 @@ async function main() {
       maxUsers: null, // illimité
       maxKpis: null, // illimité
       maxWidgets: null, // illimité
-      maxAgentSyncPerDay: null, // temps réel
+      maxAgentSyncPerDay: null, // Unlimited
       allowedKpiPacks: ['all'],
       hasNlq: true,
       hasAdvancedReports: true,

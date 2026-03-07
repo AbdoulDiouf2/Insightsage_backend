@@ -609,8 +609,8 @@ export class AgentsService implements OnModuleInit {
       );
     }
 
-    // 2. Vérification de la limite de licence (Synchronisation quotidienne)
-    await this.licenseGuardian.assertLimit(organizationId, 'maxAgentSyncPerDay');
+    // 2. Vérification de la limite de licence (Synchronisation quotidienne) - DESACTIVÉ
+    // await this.licenseGuardian.assertLimit(organizationId, 'maxAgentSyncPerDay');
 
     // 3. Rate limiting check
     this.checkRateLimit(organizationId);
