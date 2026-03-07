@@ -65,6 +65,13 @@ const DEFAULT_PERMISSIONS = [
     resource: 'organization',
     description: 'Manage organization settings and billing',
   },
+  // Targets / Objectifs
+  { action: 'read', resource: 'targets', description: 'View KPI targets and objectives' },
+  {
+    action: 'manage',
+    resource: 'targets',
+    description: 'Create, edit and delete KPI targets',
+  },
   // Global Admin
   {
     action: 'manage',
@@ -95,6 +102,8 @@ const DEFAULT_ROLES = [
       { action: 'write', resource: 'widgets' },
       { action: 'write', resource: 'nlq' },
       { action: 'read', resource: 'logs' },
+      { action: 'read', resource: 'targets' },
+      { action: 'manage', resource: 'targets' },
     ],
   },
   {
@@ -112,6 +121,8 @@ const DEFAULT_ROLES = [
       { action: 'write', resource: 'widgets' },
       { action: 'write', resource: 'nlq' },
       { action: 'read', resource: 'logs' },
+      { action: 'read', resource: 'targets' },
+      { action: 'manage', resource: 'targets' },
     ],
   },
   {
@@ -125,6 +136,8 @@ const DEFAULT_ROLES = [
       { action: 'write', resource: 'dashboards' },
       { action: 'write', resource: 'widgets' },
       { action: 'write', resource: 'nlq' },
+      { action: 'read', resource: 'targets' },
+      { action: 'manage', resource: 'targets' },
     ],
   },
   {
@@ -135,6 +148,7 @@ const DEFAULT_ROLES = [
       { action: 'read', resource: 'dashboards' },
       { action: 'read', resource: 'widgets' },
       { action: 'read', resource: 'nlq' },
+      { action: 'read', resource: 'targets' },
     ],
   },
 ];
@@ -292,6 +306,7 @@ async function main() {
         unit: kpi.unit,
         category: kpi.category,
         defaultVizType: kpi.defaultVizType,
+        direction: kpi.direction ?? 'HIGHER_IS_BETTER',
       },
       create: {
         key: kpi.key,
@@ -300,6 +315,7 @@ async function main() {
         unit: kpi.unit,
         category: kpi.category,
         defaultVizType: kpi.defaultVizType,
+        direction: kpi.direction ?? 'HIGHER_IS_BETTER',
       },
     });
 

@@ -45,6 +45,7 @@ model Organization {
   onboardingStatus OnboardingStatus?
   agentLogs        AgentLog[]
   nlqSessions      NlqSession[]
+  targets          Target[]
 
   @@map("organizations")
 }
@@ -411,8 +412,11 @@ model KpiDefinition {
   unit           String?  // "€", "%", "jours"
   category       String   // "finance" | "commercial" | "treasury"
   defaultVizType String   // "gauge" | "bar" | "card"
+  direction      String   @default("HIGHER_IS_BETTER") // "HIGHER_IS_BETTER" | "LOWER_IS_BETTER"
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
+
+  targets        Target[]
 
   @@map("kpi_definitions")
 }
@@ -470,4 +474,70 @@ model SeedData {
   id   String @id @default(uuid())
   type String // "role_permission" | "nlq_template" | "widget_default"
   data Json
+}
+
+// ─── Objectifs / Targets ─────────────────────────────────────────────────────
+
+enum PeriodType {
+  MENSUEL    // 12 périodes/an (jan=1 … déc=12)
+  BIMESTRE   // 6 périodes/an  (jan-fév=1 … nov-déc=6)
+  TRIMESTRE  // 4 périodes/an  (Q1=1 … Q4=4)
+  SEMESTRE   // 2 périodes/an  (S1=1, S2=2)
+  ANNEE      // 1 période/an   (index=1)
+}
+
+enum TargetValueType {
+  ABSOLUTE      // Valeur brute dans l'unité native du KPI (ex: 150 000 FCFA, 30 jours)
+  PERCENTAGE    // Cible en % absolu (ex: 45 % de marge brute)
+  DELTA_PERCENT // Variation relative vs référence (ex: +5 % de croissance)
+}
+
+enum DeltaReference {
+  PREVIOUS_PERIOD       // vs période N-1 (Q2 2025 → Q1 2025)
+  SAME_PERIOD_LAST_YEAR // vs même période N-1 YoY (Q2 2025 → Q2 2024)
+}
+
+enum TargetScenario {
+  BUDGET    // Budget initial voté
+  REVISED   // Budget révisé formellement (mi-année)
+  FORECAST  // Prévision glissante (mise à jour en temps réel)
+  STRETCH   // Objectif ambitieux "best case"
+}
+
+model Target {
+  id             String          @id @default(uuid())
+
+  // KPI ciblé
+  kpiKey         String
+  kpiDefinition  KpiDefinition   @relation(fields: [kpiKey], references: [key], onDelete: Cascade)
+
+  // Valeur de l'objectif
+  value          Float
+  valueType      TargetValueType @default(ABSOLUTE)
+  deltaReference DeltaReference? // Renseigné uniquement si valueType = DELTA_PERCENT
+
+  // Période couverte
+  periodType     PeriodType
+  periodIndex    Int             // 1-12 (MENSUEL) / 1-6 (BIMESTRE) / 1-4 (TRIMESTRE) / 1-2 (SEMESTRE) / 1 (ANNEE)
+  year           Int             // ex: 2025
+
+  // Scénario budgétaire
+  scenario       TargetScenario  @default(BUDGET)
+
+  // Note libre
+  label          String?         // ex: "Objectif CA Q1 2025 — hypothèse optimiste"
+
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  // MULTI-TENANT
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // 1 seul objectif par org + kpi + période + scénario
+  @@unique([organizationId, kpiKey, periodType, periodIndex, year, scenario])
+  @@index([organizationId])
+  @@index([kpiKey])
+  @@index([year])
+  @@map("targets")
 }

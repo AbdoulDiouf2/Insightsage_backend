@@ -294,6 +294,49 @@ Le backend ne :
 
 ***
 
+## 4.6. Objectifs KPI (Targets)
+
+### Modèle de données
+
+- [x] Enums Prisma : `PeriodType` (MENSUEL / BIMESTRE / TRIMESTRE / SEMESTRE / ANNEE), `TargetValueType` (ABSOLUTE / PERCENTAGE / DELTA_PERCENT), `DeltaReference` (PREVIOUS_PERIOD / SAME_PERIOD_LAST_YEAR), `TargetScenario` (BUDGET / REVISED / FORECAST / STRETCH)
+- [x] Modèle `Target` : `kpiKey`, `value`, `valueType`, `deltaReference?`, `periodType`, `periodIndex`, `year`, `scenario`, `label?`
+- [x] Contrainte d'unicité : `organizationId + kpiKey + periodType + periodIndex + year + scenario`
+- [x] Champ `direction` ajouté sur `KpiDefinition` (`HIGHER_IS_BETTER` | `LOWER_IS_BETTER`) pour l'affichage dashboard réel vs objectif
+- [x] Back-relations ajoutées : `Organization.targets[]` et `KpiDefinition.targets[]`
+
+### RBAC
+
+- [x] Permissions `read:targets` et `manage:targets` ajoutées dans `DEFAULT_PERMISSIONS` (seed)
+- [x] Rôles mis à jour dans le seed :
+  - `owner` / `daf` : `read:targets` + `manage:targets`
+  - `controller` : `read:targets` + `manage:targets`
+  - `analyst` : `read:targets` (lecture seule)
+
+### Module `src/targets/`
+
+- [x] `src/targets/targets.module.ts`
+- [x] `src/targets/targets.service.ts` — CRUD + validation periodIndex + upsert sur unicité + audit log
+- [x] `src/targets/targets.controller.ts` — 4 endpoints RBAC + Swagger complet
+- [x] `src/targets/dto/create-target.dto.ts`
+- [x] `src/targets/dto/update-target.dto.ts`
+- [x] `TargetsModule` enregistré dans `AppModule`
+
+### Endpoints
+
+- [x] `GET /targets` — liste avec filtres `kpiKey`, `year`, `periodType`, `scenario` (inclut `kpiDefinition` enrichi)
+- [x] `GET /targets/:id` — détail
+- [x] `POST /targets` — créer ou remplacer (upsert sur contrainte d'unicité)
+- [x] `PATCH /targets/:id` — modifier `value`, `valueType`, `deltaReference`, `year`, `label`
+- [x] `DELETE /targets/:id` — supprimer
+
+### Commandes à exécuter après ce commit
+
+- [ ] `npx prisma generate` — régénérer le client Prisma (nouveaux enums + modèle Target + champ direction)
+- [ ] `npx prisma db push` — appliquer les changements de schéma sur la DB
+- [ ] `npx ts-node prisma/seed.ts` — réinjecter permissions et rôles mis à jour
+
+***
+
 ## 5. Interface NLQ & intégration avec API (Phase 3/4)
 
 ### 5.1. Modèle de données NLQ

@@ -68,6 +68,10 @@ export type AuditEventType =
   | 'kpi_pack_toggled'
   // ── Invitations ────────────────────────────────────────────────────────────
   | 'users_invited_bulk'
+  // ── Targets / Objectifs KPI ────────────────────────────────────────────────
+  | 'target_created'
+  | 'target_updated'
+  | 'target_deleted'
   // ── Audit / Consultation données sensibles ─────────────────────────────────
   | 'audit_logs_viewed'
   | 'admin_users_listed'

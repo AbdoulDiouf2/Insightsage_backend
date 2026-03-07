@@ -18,6 +18,7 @@ import { HealthModule } from './health/health.module';
 import { AgentsModule } from './agents/agents.module';
 import { AuditLogModule } from './logs/audit-log.module';
 import { MailerModule } from './mailer/mailer.module';
+import { TargetsModule } from './targets/targets.module';
 // import { AdminPanelModule } from './admin-panel/admin-panel.module'; // Désactivé (AdminJS)
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { TenantGuard } from './auth/guards/tenant.guard';
@@ -51,6 +52,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
     AgentsModule,
     AuditLogModule,
     MailerModule,
+    TargetsModule,
     // AdminPanelModule, // Désactivé (AdminJS)
   ],
   providers: [
