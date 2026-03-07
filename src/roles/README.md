@@ -1,10 +1,10 @@
-# Module Roles (InsightSage)
+# Module Roles (Cockpit)
 
 Ce module gère le CRUD (Create, Read, Update, Delete) des rôles sur-mesure pour chaque organisation cliente (Tenant). Il s'intègre profondément au sein de notre **architecture RBAC Dynamique**.
 
 ## Rôles Systèmes vs Rôles Personnalisés
 
-InsightSage est livré avec un set de "Rôles Systèmes" de base (ex: `superadmin`, `owner`, `daf`, `controller`, `analyst`).
+Cockpit est livré avec un set de "Rôles Systèmes" de base (ex: `superadmin`, `owner`, `daf`, `controller`, `analyst`).
 - Les rôles systèmes ont `isSystem: true` et `organizationId: null`. Ils ne peuvent **jamais** être modifiés ni supprimés par les clients.
 - Les clients peuvent créer de nouveaux rôles à travers ce module, qui auront `isSystem: false` et seront rattachés à leur `organizationId`.
 

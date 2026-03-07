@@ -71,15 +71,10 @@ export class CreateSubscriptionPlanDto {
   @IsOptional()
   hasAdvancedReports?: boolean;
 
-  @ApiPropertyOptional({ description: 'Stripe Product ID (Phase 2)', example: 'prod_xxx' })
+  @ApiPropertyOptional({ description: 'Flutterwave Payment Plan ID', example: 'plan_xxx' })
   @IsString()
   @IsOptional()
-  stripeProductId?: string;
-
-  @ApiPropertyOptional({ description: 'Stripe Price ID (Phase 2)', example: 'price_xxx' })
-  @IsString()
-  @IsOptional()
-  stripePriceId?: string;
+  fwPlanId?: string;
 
   @ApiPropertyOptional({ description: 'Ordre d\'affichage', example: 5 })
   @IsInt()
@@ -148,15 +143,10 @@ export class UpdateSubscriptionPlanDto {
   @IsOptional()
   hasAdvancedReports?: boolean;
 
-  @ApiPropertyOptional({ description: 'Stripe Product ID (Phase 2)' })
+  @ApiPropertyOptional({ description: 'Flutterwave Payment Plan ID' })
   @IsString()
   @IsOptional()
-  stripeProductId?: string;
-
-  @ApiPropertyOptional({ description: 'Stripe Price ID (Phase 2)' })
-  @IsString()
-  @IsOptional()
-  stripePriceId?: string;
+  fwPlanId?: string;
 
   @ApiPropertyOptional({ description: 'Ordre d\'affichage' })
   @IsInt()

@@ -6,6 +6,14 @@ export class InviteUserDto {
   @IsEmail()
   email!: string;
 
+  @ApiProperty({ example: 'Jean', required: false })
+  @IsString()
+  firstName?: string;
+
+  @ApiProperty({ example: 'Dupont', required: false })
+  @IsString()
+  lastName?: string;
+
   @ApiProperty({ example: 'controller' })
   @IsString()
   role!: string;

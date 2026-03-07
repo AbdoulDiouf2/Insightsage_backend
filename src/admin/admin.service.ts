@@ -1,13 +1,23 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClientDto } from './dto/create-client.dto';
-import { UpdateOrganizationDto } from './dto/update-organization.dto';
+import { AdminUpdateOrganizationDto } from './dto/update-organization.dto';
 import { AdminUpdateUserDto } from './dto/update-user.dto';
 import { CreateSubscriptionPlanDto, UpdateSubscriptionPlanDto } from './dto/subscription-plan.dto';
+import {
+  CreateKpiDefinitionDto,
+  UpdateKpiDefinitionDto,
+  CreateWidgetTemplateDto,
+  UpdateWidgetTemplateDto,
+  CreateKpiPackDto,
+  UpdateKpiPackDto,
+} from './dto/kpi-store.dto';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 
 import { AuditLogService } from '../logs/audit-log.service';
+import { MailerService } from '../mailer/mailer.service';
 import { CreateUserDto } from './dto/create-user.dto';
 
 @Injectable()
@@ -15,7 +25,8 @@ export class AdminService {
   constructor(
     private prisma: PrismaService,
     private auditLog: AuditLogService,
-  ) {}
+    private mailer: MailerService,
+  ) { }
 
   async createClientAccount(dto: CreateClientDto) {
     // 1. Verify if user already exists
@@ -34,6 +45,7 @@ export class AdminService {
         data: {
           name: dto.organizationName,
           size: 'pme', // Default or based on future DTO extensions
+          planId: dto.planId || null,
         },
       });
 
@@ -77,8 +89,8 @@ export class AdminService {
         data: { ownerId: user.id },
       });
 
-      // E. (Optional / ToDo) Send Welcome Email with the link:
-      // https://your-front.com/reset-password?token=${token}
+      // E. Send Welcome + Setup Email to the new DAF admin
+      await this.mailer.sendWelcomeSetupEmail(dto.adminEmail, token, organization.name);
 
       await this.auditLog.log({
         organizationId: organization.id,
@@ -94,11 +106,6 @@ export class AdminService {
         message: 'Client organization and root user created successfully.',
         organizationId: organization.id,
         userId: user.id,
-        debug: {
-          // Temporarily return the reset token here so you can test the onboarding flow
-          // without an actual email provider in place yet.
-          setupToken: token,
-        },
       };
     });
   }
@@ -109,13 +116,22 @@ export class AdminService {
     return this.prisma.organization.findMany({
       include: {
         _count: {
-          select: { users: true, dashboards: true },
+          select: { users: true, dashboards: true, invitations: true },
         },
         owner: {
           select: { email: true, firstName: true, lastName: true },
         },
         subscriptionPlan: {
-          select: { label: true, name: true },
+          select: {
+            label: true,
+            name: true,
+            maxUsers: true,
+            maxKpis: true,
+            maxWidgets: true,
+            hasNlq: true,
+            hasAdvancedReports: true,
+            priceMonthly: true,
+          },
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -127,13 +143,41 @@ export class AdminService {
       where: { id },
       include: {
         _count: {
-          select: { users: true, dashboards: true },
+          select: { users: true, dashboards: true, invitations: true },
         },
         owner: {
           select: { email: true, firstName: true, lastName: true },
         },
         subscriptionPlan: {
-          select: { id: true, label: true, name: true },
+          select: {
+            id: true,
+            label: true,
+            name: true,
+            maxUsers: true,
+            maxKpis: true,
+            maxWidgets: true,
+            hasNlq: true,
+            hasAdvancedReports: true,
+            priceMonthly: true,
+          },
+        },
+        invitations: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            expiresAt: true,
+            isAccepted: true,
+            createdAt: true,
+            role: {
+              select: { name: true },
+            },
+            invitedBy: {
+              select: { firstName: true, lastName: true, email: true },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
         },
       },
     });
@@ -145,7 +189,7 @@ export class AdminService {
     return organization;
   }
 
-  async updateOrganization(id: string, dto: UpdateOrganizationDto) {
+  async updateOrganization(id: string, dto: AdminUpdateOrganizationDto) {
     const organization = await this.prisma.organization.update({
       where: { id },
       data: dto,
@@ -462,6 +506,46 @@ export class AdminService {
       { name: 'Erreur', value: errorAgents, color: '#ef4444' },
     ];
 
+    // --- NEW: Store Inventory ---
+    const [kpiCount, packCount, widgetCount, intentCount, nlqTemplateCount] = await Promise.all([
+      this.prisma.kpiDefinition.count(),
+      this.prisma.kpiPack.count(),
+      this.prisma.widgetTemplate.count(),
+      this.prisma.nlqIntent.count(),
+      this.prisma.nlqTemplate.count(),
+    ]);
+
+    // --- NEW: Distributions ---
+    const plans = await this.prisma.subscriptionPlan.findMany({
+      include: { _count: { select: { organizations: true } } }
+    });
+    const plansDistribution = plans.map(p => ({
+      name: p.label,
+      value: p._count.organizations,
+    })).filter(p => p.value > 0);
+
+    const organizations = await this.prisma.organization.findMany({
+      select: { sector: true }
+    });
+    const sectorMap = new Map<string, number>();
+    organizations.forEach(org => {
+      const s = org.sector || 'Non défini';
+      sectorMap.set(s, (sectorMap.get(s) || 0) + 1);
+    });
+    const sectorDistribution = Array.from(sectorMap.entries()).map(([name, value]) => ({
+      name,
+      value
+    }));
+
+    // --- NEW: Recent Audit Logs ---
+    const recentAuditLogs = await this.prisma.auditLog.findMany({
+      take: 10,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: { select: { firstName: true, lastName: true, email: true } }
+      }
+    });
+
     return {
       organizations: {
         value: totalOrganizations,
@@ -481,6 +565,394 @@ export class AdminService {
       },
       recentActivity,
       agentsDistribution,
+      inventory: {
+        kpis: kpiCount,
+        packs: packCount,
+        widgets: widgetCount,
+        intents: intentCount,
+        nlqTemplates: nlqTemplateCount,
+      },
+      plansDistribution,
+      sectorDistribution,
+      recentAuditLogs,
     };
+  }
+
+  // ─── KPI Definitions Management ───────────────────────────────────────────
+
+  async findAllKpiDefinitions() {
+    return this.prisma.kpiDefinition.findMany({
+      orderBy: [{ category: 'asc' }, { key: 'asc' }],
+    });
+  }
+
+  async findKpiDefinitionById(id: string) {
+    const kpi = await this.prisma.kpiDefinition.findUnique({ where: { id } });
+    if (!kpi) throw new NotFoundException(`KPI Definition introuvable : ${id}`);
+    return kpi;
+  }
+
+  async createKpiDefinition(dto: CreateKpiDefinitionDto) {
+    const existing = await this.prisma.kpiDefinition.findUnique({
+      where: { key: dto.key },
+    });
+    if (existing) {
+      throw new BadRequestException(`Une KPI Definition avec la clé "${dto.key}" existe déjà.`);
+    }
+    return this.prisma.kpiDefinition.create({ data: dto });
+  }
+
+  async updateKpiDefinition(id: string, dto: UpdateKpiDefinitionDto) {
+    const kpi = await this.prisma.kpiDefinition.findUnique({ where: { id } });
+    if (!kpi) throw new NotFoundException(`KPI Definition introuvable : ${id}`);
+    return this.prisma.kpiDefinition.update({ where: { id }, data: dto });
+  }
+
+  async toggleKpiDefinition(id: string) {
+    const kpi = await this.prisma.kpiDefinition.findUnique({ where: { id } });
+    if (!kpi) throw new NotFoundException(`KPI Definition introuvable : ${id}`);
+    return this.prisma.kpiDefinition.update({
+      where: { id },
+      data: { isActive: !kpi.isActive },
+    });
+  }
+
+  // ─── Widget Templates Management ──────────────────────────────────────────
+
+  async findAllWidgetTemplates() {
+    return this.prisma.widgetTemplate.findMany({
+      orderBy: { vizType: 'asc' },
+    });
+  }
+
+  async findWidgetTemplateById(id: string) {
+    const template = await this.prisma.widgetTemplate.findUnique({ where: { id } });
+    if (!template) throw new NotFoundException(`Widget Template introuvable : ${id}`);
+    return template;
+  }
+
+  async createWidgetTemplate(dto: CreateWidgetTemplateDto) {
+    const existing = await this.prisma.widgetTemplate.findUnique({
+      where: { vizType: dto.vizType },
+    });
+    if (existing) {
+      throw new BadRequestException(`Un Widget Template avec vizType "${dto.vizType}" existe déjà.`);
+    }
+    return this.prisma.widgetTemplate.create({
+      data: {
+        ...dto,
+        defaultConfig: dto.defaultConfig as Prisma.InputJsonValue,
+      },
+    });
+  }
+
+  async updateWidgetTemplate(id: string, dto: UpdateWidgetTemplateDto) {
+    const template = await this.prisma.widgetTemplate.findUnique({ where: { id } });
+    if (!template) throw new NotFoundException(`Widget Template introuvable : ${id}`);
+    return this.prisma.widgetTemplate.update({
+      where: { id },
+      data: {
+        ...(dto.name !== undefined && { name: dto.name }),
+        ...(dto.description !== undefined && { description: dto.description }),
+        ...(dto.defaultConfig !== undefined && {
+          defaultConfig: dto.defaultConfig as Prisma.InputJsonValue,
+        }),
+        ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+      },
+    });
+  }
+
+  async toggleWidgetTemplate(id: string) {
+    const template = await this.prisma.widgetTemplate.findUnique({ where: { id } });
+    if (!template) throw new NotFoundException(`Widget Template introuvable : ${id}`);
+    return this.prisma.widgetTemplate.update({
+      where: { id },
+      data: { isActive: !template.isActive },
+    });
+  }
+
+  // ─── KPI Packs Management ─────────────────────────────────────────────────
+
+  async findAllKpiPacks() {
+    return this.prisma.kpiPack.findMany({
+      orderBy: [{ profile: 'asc' }, { name: 'asc' }],
+    });
+  }
+
+  async findKpiPackById(id: string) {
+    const pack = await this.prisma.kpiPack.findUnique({ where: { id } });
+    if (!pack) throw new NotFoundException(`KPI Pack introuvable : ${id}`);
+    return pack;
+  }
+
+  async createKpiPack(dto: CreateKpiPackDto) {
+    const existing = await this.prisma.kpiPack.findUnique({
+      where: { name: dto.name },
+    });
+    if (existing) {
+      throw new BadRequestException(`Un KPI Pack avec le nom "${dto.name}" existe déjà.`);
+    }
+    return this.prisma.kpiPack.create({ data: dto });
+  }
+
+  async updateKpiPack(id: string, dto: UpdateKpiPackDto) {
+    const pack = await this.prisma.kpiPack.findUnique({ where: { id } });
+    if (!pack) throw new NotFoundException(`KPI Pack introuvable : ${id}`);
+    return this.prisma.kpiPack.update({ where: { id }, data: dto });
+  }
+
+  async toggleKpiPack(id: string) {
+    const pack = await this.prisma.kpiPack.findUnique({ where: { id } });
+    if (!pack) throw new NotFoundException(`KPI Pack introuvable : ${id}`);
+    return this.prisma.kpiPack.update({
+      where: { id },
+      data: { isActive: !pack.isActive },
+    });
+  }
+
+  async findAllInvitations() {
+    return this.prisma.invitation.findMany({
+      include: {
+        organization: {
+          select: { id: true, name: true },
+        },
+        role: {
+          select: { id: true, name: true },
+        },
+        invitedBy: {
+          select: { id: true, email: true, firstName: true, lastName: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // ─── Dashboards Management (SuperAdmin) ───────────────────────────────────
+
+  async findAllDashboards() {
+    return this.prisma.dashboard.findMany({
+      include: {
+        organization: {
+          select: { id: true, name: true },
+        },
+        user: {
+          select: { id: true, email: true, firstName: true, lastName: true },
+        },
+        _count: {
+          select: { widgets: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async findDashboardById(id: string) {
+    const dashboard = await this.prisma.dashboard.findUnique({
+      where: { id },
+      include: {
+        organization: {
+          select: { id: true, name: true },
+        },
+        user: {
+          select: { id: true, email: true, firstName: true, lastName: true },
+        },
+        widgets: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    if (!dashboard) {
+      throw new NotFoundException(`Dashboard introuvable : ${id}`);
+    }
+
+    return dashboard;
+  }
+
+  async deleteDashboard(id: string) {
+    const dashboard = await this.prisma.dashboard.findUnique({
+      where: { id },
+      select: { id: true, name: true, organizationId: true },
+    });
+
+    if (!dashboard) {
+      throw new NotFoundException(`Dashboard introuvable : ${id}`);
+    }
+
+    const deleted = await this.prisma.dashboard.delete({
+      where: { id },
+    });
+
+    await this.auditLog.log({
+      organizationId: dashboard.organizationId,
+      event: 'dashboard_deleted',
+      payload: { dashboardId: id, name: dashboard.name, method: 'admin_action' },
+    });
+
+    return deleted;
+  }
+
+  // ─── Billing — Vue SuperAdmin ─────────────────────────────────────────────
+
+  /**
+   * Liste toutes les organisations avec leur abonnement Stripe.
+   * Permet au SuperAdmin de surveiller les statuts de paiement (ACTIVE, PAST_DUE, CANCELLED…).
+   */
+  async findAllBillingSubscriptions() {
+    const subscriptions = await (this.prisma as any).billingSubscription.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        organization: {
+          select: { id: true, name: true, sector: true },
+        },
+        plan: {
+          select: { id: true, name: true, label: true, priceMonthly: true },
+        },
+        customer: {
+          select: { fwCustomerId: true, email: true },
+        },
+        invoices: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { amountPaid: true, currency: true, status: true, paidAt: true },
+        },
+      },
+    });
+
+    // Ajouter les orgs sans abonnement (jamais souscrit)
+    const subscribedOrgIds = subscriptions.map((s) => s.organizationId);
+    const unsubscribedOrgs = await this.prisma.organization.findMany({
+      where: { id: { notIn: subscribedOrgIds } },
+      select: {
+        id: true,
+        name: true,
+        sector: true,
+        subscriptionPlan: { select: { name: true, label: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return {
+      subscriptions,
+      unsubscribed: unsubscribedOrgs,
+      summary: {
+        total: subscriptions.length,
+        active: subscriptions.filter((s) => s.status === 'ACTIVE').length,
+        trialing: subscriptions.filter((s) => s.status === 'TRIALING').length,
+        pastDue: subscriptions.filter((s) => s.status === 'PAST_DUE').length,
+        cancelled: subscriptions.filter((s) => s.status === 'CANCELLED').length,
+        neverSubscribed: unsubscribedOrgs.length,
+      },
+    };
+  }
+
+  /**
+   * Detail complet de l'abonnement d'une organisation : historique des factures inclus.
+   */
+  async findBillingSubscriptionByOrg(organizationId: string) {
+    const org = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { id: true, name: true, sector: true },
+    });
+
+    if (!org) {
+      throw new NotFoundException(`Organisation introuvable : ${organizationId}`);
+    }
+
+    const subscription = await (this.prisma as any).billingSubscription.findUnique({
+      where: { organizationId },
+      include: {
+        plan: true,
+        customer: { select: { fwCustomerId: true, email: true } },
+        invoices: {
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            fwTransactionId: true,
+            amountPaid: true,
+            currency: true,
+            status: true,
+            pdfUrl: true,
+            hostedUrl: true,
+            paidAt: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
+
+    return {
+      organization: org,
+      subscription: subscription ?? null,
+      hasSubscription: !!subscription,
+    };
+  }
+
+  // ─── NLQ Management ───────────────────────────────────────────────────────
+
+  async findAllNlqIntents() {
+    return (this.prisma as any).nlqIntent.findMany({
+      orderBy: [{ category: 'asc' }, { label: 'asc' }],
+    });
+  }
+
+  async findNlqIntentById(id: string) {
+    const intent = await (this.prisma as any).nlqIntent.findUnique({
+      where: { id },
+      include: {
+        templates: true,
+      },
+    });
+    if (!intent) throw new NotFoundException(`NLQ Intent introuvable : ${id}`);
+    return intent;
+  }
+
+  async findAllNlqTemplates() {
+    return (this.prisma as any).nlqTemplate.findMany({
+      orderBy: { intent: { label: 'asc' } },
+      include: {
+        intent: {
+          select: { label: true },
+        },
+      },
+    });
+  }
+
+  async findNlqTemplateById(id: string) {
+    const template = await (this.prisma as any).nlqTemplate.findUnique({
+      where: { id },
+      include: {
+        intent: true,
+      },
+    });
+    return template;
+  }
+
+  async deleteAgent(id: string) {
+    const agent = await this.prisma.agent.findUnique({
+      where: { id },
+      select: { id: true, name: true, organizationId: true },
+    });
+
+    if (!agent) {
+      throw new NotFoundException(`Agent introuvable : ${id}`);
+    }
+
+    // On supprime d'abord les jobs associés car le onDelete: Cascade n'est pas présent dans le schema pour AgentJob
+    await this.prisma.agentJob.deleteMany({
+      where: { agentId: id },
+    });
+
+    const deleted = await this.prisma.agent.delete({
+      where: { id },
+    });
+
+    await this.auditLog.log({
+      organizationId: agent.organizationId,
+      event: 'agent_deleted',
+      payload: { agentId: id, name: agent.name, method: 'admin_action' },
+    });
+
+    return deleted;
   }
 }

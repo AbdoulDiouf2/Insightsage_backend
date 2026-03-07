@@ -70,7 +70,7 @@ src/
 ├── widgets/        # Widget Store + KPI Packs
 ├── nlq/            # Natural Language Querying → SQL sécurisé
 ├── subscriptions/  # Plans Startup / PME / Business / Enterprise
-├── admin/          # SuperAdmin — CRUD clients, users, plans
+├── admin/          # SuperAdmin — CRUD clients, users, plans, NLQ Store
 ├── health/         # Endpoint de disponibilité
 └── prisma/         # PrismaService singleton
 ```
@@ -136,9 +136,10 @@ npm run test:e2e      # Tests end-to-end
 
 ## Sécurité
 
-- **Multi-tenancy** : chaque requête Prisma filtre par `organizationId`
-- **RBAC** : 5 rôles système (`superadmin`, `owner`, `daf`, `controller`, `analyst`) + permissions granulaires `action:resource`
-- **PII** : emails et mots de passe masqués dans tous les audit logs (`j***@acme.com`, `[REDACTED]`)
+- **Audit Log & PII** : Emails et mots de passe masqués automatiquement (`j***@acme.com`).
+- **SQL Sandboxing** : Validation stricte des requêtes NLQ (`SELECT` uniquement, whitelist de tables).
+- **Scoping Dynamique** : Injection automatique du nom de la base de données client dans toutes les requêtes SQL via `sageConfig`.
+- **Isolation Tenant** : Filtrage immuable par `organizationId` au niveau de l'ORM et du tunnel temps réel.
 - **Secrets** : `.env*` protégé par `.gitignore`, jamais commité
 
 ---

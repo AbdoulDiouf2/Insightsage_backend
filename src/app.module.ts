@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { AuditInterceptor } from './audit/audit.interceptor';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -16,12 +17,17 @@ import { RolesModule } from './roles/roles.module';
 import { HealthModule } from './health/health.module';
 import { AgentsModule } from './agents/agents.module';
 import { AuditLogModule } from './logs/audit-log.module';
+import { MailerModule } from './mailer/mailer.module';
+import { TargetsModule } from './targets/targets.module';
+import { BillingModule } from './billing/billing.module';
 // import { AdminPanelModule } from './admin-panel/admin-panel.module'; // Désactivé (AdminJS)
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { TenantGuard } from './auth/guards/tenant.guard';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 @Module({
   imports: [
+    EventEmitterModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath:
@@ -46,6 +52,9 @@ import { TenantGuard } from './auth/guards/tenant.guard';
     HealthModule,
     AgentsModule,
     AuditLogModule,
+    MailerModule,
+    TargetsModule,
+    BillingModule,
     // AdminPanelModule, // Désactivé (AdminJS)
   ],
   providers: [
@@ -59,6 +68,11 @@ import { TenantGuard } from './auth/guards/tenant.guard';
     {
       provide: APP_GUARD,
       useClass: TenantGuard,
+    },
+    // Global audit interceptor — logs every HTTP action to audit_logs
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
     },
   ],
 })

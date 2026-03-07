@@ -8,7 +8,7 @@ import { TestConnectionDto } from './dto/test-connection.dto';
 @ApiBearerAuth()
 @Controller('datasource')
 export class DatasourceController {
-  constructor(private readonly onboardingService: OnboardingService) {}
+  constructor(private readonly onboardingService: OnboardingService) { }
 
   @Post('test-connection')
   @HttpCode(HttpStatus.OK)
@@ -24,5 +24,16 @@ export class DatasourceController {
     @Body() dto: TestConnectionDto,
   ) {
     return this.onboardingService.testConnection(organizationId, dto);
+  }
+
+  @Post('discover')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Découvrir les dossiers/sociétés Sage disponibles',
+    description:
+      'Envoie une requête à l\'agent pour lister les bases de données ou dossiers Sage configurés sur le serveur local.',
+  })
+  async discover(@OrganizationId() organizationId: string) {
+    return this.onboardingService.discover(organizationId);
   }
 }

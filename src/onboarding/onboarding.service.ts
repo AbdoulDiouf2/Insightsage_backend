@@ -31,7 +31,7 @@ export class OnboardingService {
     private auditLog: AuditLogService,
     private authService: AuthService,
     private agentsService: AgentsService,
-  ) {}
+  ) { }
 
   // Cree le statut d onboarding si inexistant pour l organisation
   async getOrCreateStatus(organizationId: string) {
@@ -323,14 +323,89 @@ export class OnboardingService {
       ? Math.floor((Date.now() - agent.lastSeen.getTime()) / 1000)
       : null;
 
-    return {
-      status: 'OK',
-      agentOnline: true,
-      agentId: agent.id,
-      agentName: agent.name,
-      lastSeen: agent.lastSeen,
-      secondsSinceHeartbeat,
-      message: 'Connexion agent etablie. Votre instance Sage est accessible.',
-    };
+    // --- NOUVEAUTÉ : TEST DE CONNEXION RÉEL VIA WEBSOCKET (TEMPS RÉEL) ---
+    try {
+      // On tente d'envoyer une requête "PING" (SELECT 1)
+      const job = await this.agentsService.executeRealTimeQuery(
+        organizationId,
+        'SELECT 1 as ping',
+        (this.agentsService as any).agentsGateway, // On accède à la gateway via le service
+      );
+
+      return {
+        status: 'OK',
+        agentOnline: true,
+        realTimeReady: true,
+        agentId: agent.id,
+        agentName: agent.name,
+        lastSeen: agent.lastSeen,
+        secondsSinceHeartbeat,
+        jobId: job.id,
+        message: 'Connexion temps réel établie. L\'agent répond instantanément.',
+      };
+    } catch (e) {
+      return {
+        status: 'WARNING',
+        agentOnline: true,
+        realTimeReady: false,
+        agentId: agent.id,
+        agentName: agent.name,
+        lastSeen: agent.lastSeen,
+        secondsSinceHeartbeat,
+        message: 'L\'agent est online (heartbeat) mais le tunnel temps réel n\'est pas encore actif. ' + e.message,
+      };
+    }
+  }
+
+  // --- NOUVEAUTÉ : DÉCOUVERTE DES DOSSIERS/SOCIÉTÉS ---
+  async discover(organizationId: string) {
+    const org = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { sageType: true },
+    });
+
+    const agent = await this.prisma.agent.findFirst({
+      where: { organizationId, status: 'online', isRevoked: false },
+      select: { id: true, name: true },
+      orderBy: { lastSeen: 'desc' },
+    });
+
+    if (!agent) {
+      return {
+        status: 'ERROR',
+        message: "Aucun agent actif trouvé. Assurez-vous que l'agent est démarré.",
+      };
+    }
+
+    // Requête de découverte intelligente selon l'ERP
+    let sql = "SELECT name FROM sys.databases WHERE name NOT IN ('master', 'tempdb', 'model', 'msdb')";
+
+    if (org?.sageType === '100') {
+      // Pour Sage 100, on cherche souvent les bases MAE ou commençant par le nom de l'entreprise
+      sql = "SELECT name as company_name, create_date FROM sys.databases WHERE name NOT IN ('master', 'tempdb', 'model', 'msdb') AND (name LIKE 'MAE_%' OR name LIKE 'SAGE%')";
+    } else if (org?.sageType === 'X3') {
+      // Pour X3 on liste souvent les schémas qui ne sont pas système
+      sql = "SELECT SCHEMA_NAME as name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME NOT IN ('information_schema', 'sys', 'dbo')";
+    }
+
+    try {
+      const job = await this.agentsService.executeRealTimeQuery(
+        organizationId,
+        sql,
+        (this.agentsService as any).agentsGateway,
+      );
+
+      return {
+        status: 'PENDING',
+        message: "Scan de découverte lancé via l'agent.",
+        jobId: job.id,
+        agentId: agent.id,
+      };
+    } catch (e) {
+      return {
+        status: 'ERROR',
+        message: "Le tunnel temps réel n'est pas prêt. " + e.message,
+      };
+    }
   }
 }

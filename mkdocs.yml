@@ -1,5 +1,5 @@
 site_name: Cockpit — Documentation
-site_description: Documentation ultra-complète de la plateforme Cockpit — InsightSage API & Admin Dashboard
+site_description: Documentation ultra-complète de la plateforme Cockpit — API & Admin Dashboard
 site_author: Nafaka Tech
 site_url: https://docs.cockpit.nafaka.tech
 
@@ -133,13 +133,14 @@ nav:
     - Vue d'ensemble: architecture/overview.md
     - Flux de données: architecture/data-flow.md
     - Stack technique: architecture/tech-stack.md
-  - Backend — InsightSage API:
+  - Backend — Cockpit API:
     - Installation & Config: backend/setup.md
     - Référence API: backend/api-reference.md
     - Base de données: backend/database.md
     - Sécurité: backend/security.md
     - Modules:
       - Authentification: backend/modules/auth.md
+      - Emails transactionnels: backend/modules/mailer.md
       - Organisations: backend/modules/organizations.md
       - Utilisateurs: backend/modules/users.md
       - Agents: backend/modules/agents.md
@@ -147,6 +148,10 @@ nav:
       - Abonnements: backend/modules/subscriptions.md
       - Rôles & Permissions: backend/modules/roles.md
       - Logs d'audit: backend/modules/audit-logs.md
+      - KPI Store: backend/modules/kpi-store.md
+      - Objectifs KPI: backend/modules/targets.md
+      - Facturation & Paiements: backend/modules/billing.md
+      - NLQ (Langage naturel): backend/modules/nlq.md
   - Frontend — Admin Cockpit:
     - Architecture: frontend/architecture.md
     - Design System: frontend/design-system.md

@@ -4,6 +4,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { UsersModule } from '../users/users.module';
+import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategies/jwt.strategy';
@@ -17,6 +18,7 @@ import { RolesGuard } from './guards/roles.guard';
   imports: [
     PrismaModule,
     UsersModule,
+    SubscriptionsModule,
     PassportModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
@@ -42,6 +44,7 @@ import { RolesGuard } from './guards/roles.guard';
     TenantGuard,
     PermissionsGuard,
     RolesGuard,
+    JwtModule,
   ],
 })
-export class AuthModule {}
+export class AuthModule { }

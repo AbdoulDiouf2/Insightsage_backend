@@ -9,8 +9,10 @@ import {
   HttpStatus,
   Ip,
   ForbiddenException,
+  NotFoundException,
 } from '@nestjs/common';
 import { AgentsService } from './agents.service';
+import { AgentsGateway } from './agents.gateway';
 import { RegisterAgentDto } from './dto/register-agent.dto';
 import { HeartbeatDto } from './dto/heartbeat.dto';
 import { GenerateTokenDto } from './dto/generate-token.dto';
@@ -27,7 +29,10 @@ import {
 @ApiTags('Agents')
 @Controller('agents')
 export class AgentsController {
-  constructor(private readonly agentsService: AgentsService) {}
+  constructor(
+    private readonly agentsService: AgentsService,
+    private readonly agentsGateway: AgentsGateway,
+  ) {}
 
   // ============================================================
   // PUBLIC ENDPOINTS (Called by Agent On-Premise)
@@ -150,5 +155,94 @@ export class AgentsController {
     @OrganizationId() organizationId: string,
   ) {
     return this.agentsService.revokeToken(id, organizationId);
+  }
+
+  @Post(':id/test-connection')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions({ action: 'read', resource: 'agents' })
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Test real-time connection using SELECT 1',
+  })
+  @ApiParam({ name: 'id', description: 'Agent ID' })
+  async testConnection(
+    @Param('id') id: string,
+    @OrganizationId() organizationId: string,
+  ) {
+    const agent = await this.agentsService.getAgentById(id);
+    if (agent.organizationId !== organizationId) {
+      throw new ForbiddenException('Access denied to this agent');
+    }
+    
+    // Trigger real-time SELECT 1
+    return this.agentsService.executeRealTimeQuery(
+      organizationId,
+      'SELECT 1',
+      this.agentsGateway,
+    );
+  }
+
+  // ============================================================
+  // REAL-TIME & JOB ENDPOINTS
+  // ============================================================
+
+  @Post('query')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions({ action: 'manage', resource: 'dashboards' }) // Execution permission
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Execute a real-time SQL query via the agent (NLQ Bridge)',
+  })
+  async executeQuery(
+    @OrganizationId() organizationId: string,
+    @Body() dto: { sql: string },
+  ) {
+    return this.agentsService.executeRealTimeQuery(
+      organizationId, 
+      dto.sql, 
+      this.agentsGateway
+    );
+  }
+
+  @Get(':id/logs')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions({ action: 'read', resource: 'agents' })
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get logs for a specific agent',
+    description: 'Returns a paginated list of logs sent by the agent',
+  })
+  @ApiParam({ name: 'id', description: 'Agent ID' })
+  async getAgentLogs(
+    @Param('id') id: string,
+    @OrganizationId() organizationId: string,
+  ) {
+    // Audit log for security visibility
+    // await this.auditLog.log({ ... }) // Optionnel
+
+    return this.agentsService.getAgentLogs(organizationId, id);
+  }
+
+  @Get('jobs/:jobId')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions({ action: 'read', resource: 'dashboards' })
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get the status and result of a specific agent job',
+  })
+  async getJobStatus(
+    @Param('jobId') jobId: string,
+    @OrganizationId() organizationId: string,
+  ) {
+    const job = await (this.agentsService as any).prisma.agentJob.findUnique({
+      where: { id: jobId },
+    });
+
+    if (!job || job.organizationId !== organizationId) {
+      throw new NotFoundException('Job introuvable');
+    }
+
+    return job;
   }
 }

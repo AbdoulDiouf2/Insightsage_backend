@@ -227,9 +227,11 @@ Dashboards
 ├── POST /dashboards
 └── POST /dashboards/{id}/widgets
 
-NLQ & Agent
+NLQ & Store
 ├── POST /agents/register
 ├── GET  /admin/agent-status/:organizationId
+├── GET  /admin/nlq-intents
+├── GET  /admin/nlq-templates
 ├── POST /nlq/query
 └── POST /nlq/add-to-dashboard
 ```

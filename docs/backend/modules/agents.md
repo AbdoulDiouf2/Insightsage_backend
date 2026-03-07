@@ -147,6 +147,28 @@ const tokenPreview = `${token.substring(0, 10)}...${token.substring(token.length
 
 ---
 
+### Exécution Temps Réel (Tunnel WebSocket)
+
+Le module Agents gère le tunnel de communication bidirectionnel permettant d'envoyer des commandes SQL directement à l'agent local du client.
+
+#### `executeRealTimeQuery(orgId, sql, gateway)`
+
+Méthode orchestre l'envoi sécurisé d'une requête SQL :
+1.  **Injection de Scoping** : Injecte les variables de `sageConfig` (ex: `{{database_name}}`) dans le SQL utilisateur.
+2.  **Validation Sécurité** : Passe le SQL final au `SqlSecurityService` (SELECT-only, pas de DROP/DELETE).
+3.  **Vérification Licence** : Vérifie que l'organisation n'a pas dépassé son quota quotidien de synchronisation.
+4.  **Rate Limiting** : Limite à 10 requêtes par minute par agent.
+5.  **Caching** : Vérifie si une requête identique a été exécutée avec succès dans les 5 dernières minutes.
+6.  **Envoi WebSocket** : Émet l'événement `execute_sql` via la `AgentsGateway`.
+
+#### Normalisation des résultats
+Les résultats renvoyés par l'agent sont automatiquement transformés par le backend :
+- Extraction de valeur unique (ex: `SUM`, `COUNT`).
+- Formatage JSON standard pour le frontend.
+- Cast des types numériques.
+
+---
+
 ## Controller — Endpoints
 
 | Méthode | Route | Auth | Description |
