@@ -239,8 +239,7 @@ async function main() {
       allowedKpiPacks: ['pack_finance', 'pack_rentabilite'],
       hasNlq: false,
       hasAdvancedReports: false,
-      stripeProductId: 'prod_U6dOg0LXXRA7M6', // Remplacer après création dans Stripe Dashboard
-      stripePriceId: 'price_1T8Q7JIawW6MkmovPG5OPdN9',  // Remplacer après création dans Stripe Dashboard
+      fwPlanId: null, // Configurer après création du Payment Plan dans Flutterwave Dashboard
       sortOrder: 1,
     },
     {
@@ -255,8 +254,7 @@ async function main() {
       allowedKpiPacks: ['pack_finance', 'pack_rentabilite', 'pack_tresorerie', 'pack_client', 'pack_achats'],
       hasNlq: true,
       hasAdvancedReports: true,
-      stripeProductId: 'prod_U6dOiDeH04QYkj', // Remplacer après création dans Stripe Dashboard
-      stripePriceId: 'price_1T8Q80IawW6Mkmov9ffy8tQ1',  // Remplacer après création dans Stripe Dashboard
+      fwPlanId: null, // Configurer après création du Payment Plan dans Flutterwave Dashboard
       sortOrder: 2,
     },
     {
@@ -271,8 +269,7 @@ async function main() {
       allowedKpiPacks: ['all'],
       hasNlq: true,
       hasAdvancedReports: true,
-      stripeProductId: 'prod_U6dPHr92FTKdFb', // Remplacer après création dans Stripe Dashboard
-      stripePriceId: 'price_1T8Q8PIawW6MkmoviVhkQTMT',  // Remplacer après création dans Stripe Dashboard
+      fwPlanId: null, // Configurer après création du Payment Plan dans Flutterwave Dashboard
       sortOrder: 3,
     },
   ];
@@ -291,8 +288,7 @@ async function main() {
         allowedKpiPacks: plan.allowedKpiPacks,
         hasNlq: plan.hasNlq,
         hasAdvancedReports: plan.hasAdvancedReports,
-        stripeProductId: plan.stripeProductId,
-        stripePriceId: plan.stripePriceId,
+        fwPlanId: plan.fwPlanId,
         sortOrder: plan.sortOrder,
       },
       create: plan,

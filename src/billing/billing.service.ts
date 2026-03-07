@@ -5,26 +5,37 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import Stripe from 'stripe';
+import axios from 'axios';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../logs/audit-log.service';
 import { CreateCheckoutDto } from './dto/create-checkout.dto';
 import { CancelSubscriptionDto } from './dto/cancel-subscription.dto';
 import { BillingStatus } from '@prisma/client';
 
+const FW_BASE_URL = 'https://api.flutterwave.com/v3';
+
 @Injectable()
 export class BillingService {
-  private readonly stripe: Stripe;
   private readonly logger = new Logger(BillingService.name);
+  private readonly fwSecretKey: string;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly auditLog: AuditLogService,
   ) {
-    this.stripe = new Stripe(this.config.get<string>('STRIPE_SECRET_KEY')!, {
-      apiVersion: '2026-02-25.clover',
-    });
+    this.fwSecretKey = this.config.get<string>('FLW_SECRET_KEY')!;
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Helpers HTTP Flutterwave
+  // ──────────────────────────────────────────────────────────────────────────
+
+  private fwHeaders() {
+    return {
+      Authorization: `Bearer ${this.fwSecretKey}`,
+      'Content-Type': 'application/json',
+    };
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -70,7 +81,7 @@ export class BillingService {
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
-        stripeInvoiceId: true,
+        fwTransactionId: true,
         amountPaid: true,
         currency: true,
         status: true,
@@ -83,12 +94,12 @@ export class BillingService {
   }
 
   // ──────────────────────────────────────────────────────────────────────────
-  // Checkout
+  // Checkout / Payment Link
   // ──────────────────────────────────────────────────────────────────────────
 
   /**
-   * Cree une session Stripe Checkout et retourne l'URL de paiement.
-   * L'organisation est redirigee vers Stripe pour saisir sa carte.
+   * Cree un lien de paiement Flutterwave Hosted Payment et retourne l'URL.
+   * L'organisation est redirigee vers Flutterwave pour saisir ses informations de paiement.
    */
   async createCheckoutSession(
     organizationId: string,
@@ -97,7 +108,7 @@ export class BillingService {
   ): Promise<{ url: string }> {
     const frontendUrl = this.config.get<string>('FRONTEND_URL');
 
-    // Verifier que le plan existe et a un stripePriceId configure
+    // Verifier que le plan existe et a un fwPlanId configure
     const plan = await this.prisma.subscriptionPlan.findUnique({
       where: { id: dto.planId },
     });
@@ -106,42 +117,63 @@ export class BillingService {
       throw new NotFoundException('Plan d\'abonnement introuvable.');
     }
 
-    if (!plan.stripePriceId || plan.stripePriceId.startsWith('price_PLACEHOLDER') || plan.stripePriceId.endsWith('_PLACEHOLDER')) {
+    if (!plan.fwPlanId) {
       throw new BadRequestException(
         'Ce plan n\'est pas encore configure pour le paiement en ligne. Contactez le support.',
       );
     }
 
-    // Recuperer ou creer le customer Stripe pour cette organisation
-    const customer = await this.getOrCreateStripeCustomer(organizationId);
+    // Recuperer les infos de l'organisation / proprietaire
+    const org = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      include: { owner: { select: { email: true, firstName: true, lastName: true } } },
+    });
 
-    const successUrl = dto.successUrl ?? `${frontendUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl = dto.cancelUrl ?? `${frontendUrl}/billing/cancel`;
+    if (!org) throw new NotFoundException('Organisation introuvable.');
 
-    // Creer la session Stripe Checkout
-    const session = await this.stripe.checkout.sessions.create({
-      customer: customer.stripeCustomerId,
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price: plan.stripePriceId,
-          quantity: 1,
+    const ownerEmail = org.owner?.email ?? `org-${organizationId}@cockpit.internal`;
+    const ownerName = org.owner
+      ? `${org.owner.firstName ?? ''} ${org.owner.lastName ?? ''}`.trim()
+      : org.name;
+
+    const redirectUrl = dto.successUrl ?? `${frontendUrl}/billing/success`;
+
+    // Creer le lien de paiement Flutterwave (Hosted Payment)
+    const response = await axios.post(
+      `${FW_BASE_URL}/payments`,
+      {
+        tx_ref: `cockpit-${organizationId}-${Date.now()}`,
+        amount: plan.priceMonthly,
+        currency: 'XOF',
+        redirect_url: redirectUrl,
+        payment_plan: plan.fwPlanId,
+        customer: {
+          email: ownerEmail,
+          name: ownerName,
         },
-      ],
-      mode: 'subscription',
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-      currency: 'xof',
-      metadata: {
-        organizationId,
-        planId: dto.planId,
-      },
-      subscription_data: {
-        metadata: {
+        meta: {
           organizationId,
           planId: dto.planId,
         },
+        customizations: {
+          title: `Cockpit — Plan ${plan.label}`,
+          description: `Abonnement mensuel ${plan.label}`,
+        },
       },
+      { headers: this.fwHeaders() },
+    );
+
+    const paymentLink: string = response.data?.data?.link;
+    if (!paymentLink) {
+      this.logger.error('Flutterwave payment link creation failed', response.data);
+      throw new BadRequestException('Impossible de creer le lien de paiement. Reessayez.');
+    }
+
+    // Upsert BillingCustomer (fwCustomerId arrive via webhook charge.completed)
+    await this.prisma.billingCustomer.upsert({
+      where: { organizationId },
+      create: { organizationId, email: ownerEmail },
+      update: { email: ownerEmail },
     });
 
     await this.auditLog.log({
@@ -151,50 +183,11 @@ export class BillingService {
       payload: {
         planId: dto.planId,
         planName: plan.name,
-        sessionId: session.id,
+        fwPlanId: plan.fwPlanId,
       },
     });
 
-    return { url: session.url! };
-  }
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // Portail Client
-  // ──────────────────────────────────────────────────────────────────────────
-
-  /**
-   * Cree une session Stripe Customer Portal.
-   * Permet au client de gerer sa carte, voir ses factures, modifier l'abonnement.
-   */
-  async createPortalSession(
-    organizationId: string,
-    userId: string,
-  ): Promise<{ url: string }> {
-    const frontendUrl = this.config.get<string>('FRONTEND_URL');
-
-    const billingCustomer = await this.prisma.billingCustomer.findUnique({
-      where: { organizationId },
-    });
-
-    if (!billingCustomer) {
-      throw new NotFoundException(
-        'Aucun abonnement actif. Veuillez d\'abord souscrire a un plan.',
-      );
-    }
-
-    const session = await this.stripe.billingPortal.sessions.create({
-      customer: billingCustomer.stripeCustomerId,
-      return_url: `${frontendUrl}/billing`,
-    });
-
-    await this.auditLog.log({
-      organizationId,
-      userId,
-      event: 'billing_portal_opened',
-      payload: { stripeCustomerId: billingCustomer.stripeCustomerId },
-    });
-
-    return { url: session.url };
+    return { url: paymentLink };
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -202,9 +195,9 @@ export class BillingService {
   // ──────────────────────────────────────────────────────────────────────────
 
   /**
-   * Annule l'abonnement Stripe de l'organisation.
-   * Par defaut : annulation a la fin de la periode (acces maintenu jusqu'a la date).
-   * Si immediately=true : annulation immediate, acces coupe maintenant.
+   * Annule l'abonnement Flutterwave de l'organisation.
+   *   immediately=false : on marque cancelAtPeriodEnd, l'acces reste actif jusqu'a currentPeriodEnd.
+   *   immediately=true  : appel API FW pour annulation immediate.
    */
   async cancelSubscription(
     organizationId: string,
@@ -223,15 +216,23 @@ export class BillingService {
       throw new BadRequestException('L\'abonnement est deja annule.');
     }
 
-    if (dto.immediately) {
-      // Annulation immediate : Stripe met fin au sub maintenant
-      await this.stripe.subscriptions.cancel(sub.stripeSubscriptionId);
-    } else {
-      // Annulation a la fin de periode (cancel_at_period_end)
-      await this.stripe.subscriptions.update(sub.stripeSubscriptionId, {
-        cancel_at_period_end: true,
-      });
+    if (dto.immediately && sub.fwSubscriptionId) {
+      // Annulation immediate via API Flutterwave
+      await axios.put(
+        `${FW_BASE_URL}/subscriptions/${sub.fwSubscriptionId}/cancel`,
+        {},
+        { headers: this.fwHeaders() },
+      );
 
+      await this.prisma.billingSubscription.update({
+        where: { organizationId },
+        data: {
+          status: BillingStatus.CANCELLED,
+          cancelledAt: new Date(),
+        },
+      });
+    } else {
+      // Annulation programmee a la fin de la periode
       await this.prisma.billingSubscription.update({
         where: { organizationId },
         data: { cancelAtPeriodEnd: true },
@@ -243,7 +244,7 @@ export class BillingService {
       userId,
       event: 'subscription_cancelled',
       payload: {
-        stripeSubscriptionId: sub.stripeSubscriptionId,
+        fwSubscriptionId: sub.fwSubscriptionId,
         immediately: dto.immediately ?? false,
       },
     });
@@ -255,52 +256,5 @@ export class BillingService {
       cancelAtPeriodEnd: !dto.immediately,
       currentPeriodEnd: sub.currentPeriodEnd,
     };
-  }
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // Helpers internes
-  // ──────────────────────────────────────────────────────────────────────────
-
-  /**
-   * Recupere le BillingCustomer existant ou en cree un nouveau dans Stripe.
-   */
-  async getOrCreateStripeCustomer(organizationId: string) {
-    const existing = await this.prisma.billingCustomer.findUnique({
-      where: { organizationId },
-    });
-
-    if (existing) return existing;
-
-    // Recuperer les infos de l'organisation pour le customer Stripe
-    const org = await this.prisma.organization.findUnique({
-      where: { id: organizationId },
-      include: { owner: { select: { email: true, firstName: true, lastName: true } } },
-    });
-
-    if (!org) throw new NotFoundException('Organisation introuvable.');
-
-    const ownerEmail = org.owner?.email ?? `org-${organizationId}@cockpit.internal`;
-    const ownerName = org.owner
-      ? `${org.owner.firstName ?? ''} ${org.owner.lastName ?? ''}`.trim()
-      : org.name;
-
-    // Creer le customer dans Stripe
-    const stripeCustomer = await this.stripe.customers.create({
-      email: ownerEmail,
-      name: org.name,
-      metadata: {
-        organizationId,
-        ownerName,
-      },
-    });
-
-    // Persister en DB
-    return this.prisma.billingCustomer.create({
-      data: {
-        organizationId,
-        stripeCustomerId: stripeCustomer.id,
-        email: ownerEmail,
-      },
-    });
   }
 }

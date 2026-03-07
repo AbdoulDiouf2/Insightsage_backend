@@ -378,9 +378,8 @@ model SubscriptionPlan {
   hasNlq             Boolean  @default(false)
   hasAdvancedReports Boolean  @default(false)
 
-  // Stripe — IDs produit/prix pour souscriptions récurrentes
-  stripeProductId    String?
-  stripePriceId      String?
+  // Flutterwave — ID du Payment Plan pour souscriptions récurrentes
+  fwPlanId           String?
 
   sortOrder          Int      @default(0)
   createdAt          DateTime @default(now())
@@ -546,70 +545,70 @@ model Target {
   @@map("targets")
 }
 
-// ─── Billing / Stripe ─────────────────────────────────────────────────────────
+// ─── Billing / Flutterwave ─────────────────────────────────────────────────────
 
 enum BillingStatus {
   TRIALING   // En période d'essai
   ACTIVE     // Abonnement actif et à jour
-  PAST_DUE   // Paiement en retard (Stripe retente)
+  PAST_DUE   // Paiement en retard (FW retente)
   CANCELLED  // Abonnement annulé
-  UNPAID     // Échec définitif après retentes Stripe
+  UNPAID     // Échec définitif après retentes FW
   PAUSED     // Suspendu manuellement
 }
 
-// Client Stripe associé à l'organisation (1 org → 1 customer Stripe)
+// Client Flutterwave associé à l'organisation (1 org → 1 customer FW)
 model BillingCustomer {
-  id               String              @id @default(uuid())
-  organizationId   String              @unique
-  organization     Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  stripeCustomerId String              @unique // "cus_xxxx"
-  email            String
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
+  id             String              @id @default(uuid())
+  organizationId String              @unique
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  fwCustomerId   String?             @unique // customer_id retourné par FW webhook
+  email          String
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
 
-  subscription     BillingSubscription?
+  subscription   BillingSubscription?
 
   @@map("billing_customers")
 }
 
-// Abonnement Stripe actif de l'organisation
+// Abonnement Flutterwave actif de l'organisation
 model BillingSubscription {
-  id                   String           @id @default(uuid())
-  organizationId       String           @unique
-  organization         Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  customerId           String           @unique
-  customer             BillingCustomer  @relation(fields: [customerId], references: [id])
-  stripeSubscriptionId String           @unique // "sub_xxxx"
-  planId               String
-  plan                 SubscriptionPlan @relation(fields: [planId], references: [id])
-  status               BillingStatus    @default(TRIALING)
-  currentPeriodStart   DateTime
-  currentPeriodEnd     DateTime
-  cancelAtPeriodEnd    Boolean          @default(false) // annulation programmée fin de période
-  trialEndsAt          DateTime?
-  cancelledAt          DateTime?
-  createdAt            DateTime         @default(now())
-  updatedAt            DateTime         @updatedAt
+  id               String           @id @default(uuid())
+  organizationId   String           @unique
+  organization     Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customerId       String           @unique
+  customer         BillingCustomer  @relation(fields: [customerId], references: [id])
+  fwSubscriptionId String?          @unique // subscription_id retourné par FW
+  planId           String
+  plan             SubscriptionPlan @relation(fields: [planId], references: [id])
+  status           BillingStatus    @default(TRIALING)
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean        @default(false) // annulation programmée fin de période
+  trialEndsAt        DateTime?
+  cancelledAt        DateTime?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
 
-  invoices             BillingInvoice[]
+  invoices         BillingInvoice[]
 
   @@index([organizationId])
   @@map("billing_subscriptions")
 }
 
-// Historique des factures / paiements Stripe
+// Historique des factures / paiements Flutterwave
 model BillingInvoice {
   id              String              @id @default(uuid())
   organizationId  String
   organization    Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   subscriptionId  String
   subscription    BillingSubscription @relation(fields: [subscriptionId], references: [id])
-  stripeInvoiceId String              @unique // "in_xxxx"
+  fwTransactionId String              @unique // transaction_id retourné par FW
   amountPaid      Int                 // en XOF — entier (ex: 36000)
   currency        String              @default("xof")
-  status          String              // "paid" | "open" | "void" | "uncollectible"
-  pdfUrl          String?             // URL PDF facture hébergée par Stripe
-  hostedUrl       String?             // URL page facture Stripe
+  status          String              // "paid" | "open" | "failed"
+  pdfUrl          String?             // URL reçu PDF (si disponible)
+  hostedUrl       String?             // URL page de paiement FW
   paidAt          DateTime?
   createdAt       DateTime            @default(now())
 

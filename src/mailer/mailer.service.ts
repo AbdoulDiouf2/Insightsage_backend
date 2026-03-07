@@ -135,7 +135,7 @@ export class MailerService implements OnModuleInit {
           correspondant a votre abonnement Cockpit.
         </p>
         <p>
-          Stripe effectuera automatiquement de nouvelles tentatives de prelevement.
+          Flutterwave effectuera automatiquement de nouvelles tentatives de prelevement.
           Si le paiement reste en echec, votre acces sera suspendu.
         </p>
         <p>

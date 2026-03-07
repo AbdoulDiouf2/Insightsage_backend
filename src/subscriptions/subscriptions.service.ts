@@ -27,7 +27,7 @@ export class SubscriptionsService {
         hasNlq: true,
         hasAdvancedReports: true,
         sortOrder: true,
-        // Exclus : stripeProductId, stripePriceId (internes)
+        // Exclus : fwPlanId (interne)
       },
     });
   }

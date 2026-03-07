@@ -193,7 +193,7 @@ export class AdminController {
 
   @Get('billing/subscriptions')
   @ApiOperation({
-    summary: 'Lister les abonnements Stripe de toutes les organisations',
+    summary: 'Lister les abonnements Flutterwave de toutes les organisations',
     description:
       'Retourne tous les abonnements actifs avec leur statut (ACTIVE, PAST_DUE, CANCELLED...), ' +
       'le plan souscrit, la derniere facture et un resume des statuts. ' +
@@ -209,8 +209,8 @@ export class AdminController {
   @ApiOperation({
     summary: 'Detail de l\'abonnement d\'une organisation',
     description:
-      'Retourne l\'abonnement Stripe complet d\'une organisation : plan, statut, ' +
-      'dates de periode, customer Stripe et historique complet des factures.',
+      'Retourne l\'abonnement Flutterwave complet d\'une organisation : plan, statut, ' +
+      'dates de periode, customer Flutterwave et historique complet des factures.',
   })
   @ApiResponse({ status: 200, description: 'Detail abonnement + factures.' })
   @ApiResponse({ status: 404, description: 'Organisation introuvable.' })

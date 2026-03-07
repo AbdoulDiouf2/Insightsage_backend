@@ -72,7 +72,7 @@ export type AuditEventType =
   | 'target_created'
   | 'target_updated'
   | 'target_deleted'
-  // ── Billing / Paiements Stripe ─────────────────────────────────────────────
+  // ── Billing / Paiements Flutterwave ────────────────────────────────────────
   | 'billing_checkout_initiated'
   | 'billing_portal_opened'
   | 'subscription_created'

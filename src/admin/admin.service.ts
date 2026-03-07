@@ -809,7 +809,7 @@ export class AdminService {
           select: { id: true, name: true, label: true, priceMonthly: true },
         },
         customer: {
-          select: { stripeCustomerId: true, email: true },
+          select: { fwCustomerId: true, email: true },
         },
         invoices: {
           orderBy: { createdAt: 'desc' },
@@ -863,12 +863,12 @@ export class AdminService {
       where: { organizationId },
       include: {
         plan: true,
-        customer: { select: { stripeCustomerId: true, email: true } },
+        customer: { select: { fwCustomerId: true, email: true } },
         invoices: {
           orderBy: { createdAt: 'desc' },
           select: {
             id: true,
-            stripeInvoiceId: true,
+            fwTransactionId: true,
             amountPaid: true,
             currency: true,
             status: true,

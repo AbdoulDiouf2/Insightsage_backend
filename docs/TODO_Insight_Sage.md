@@ -337,80 +337,79 @@ Le backend ne :
 
 ***
 
-## 4.7. Facturation & Paiements (Billing Stripe)
+## 4.7. Facturation & Paiements (Billing Flutterwave)
+
+> Migration Stripe → Flutterwave effectuée. Flutterwave est agréé localement au Sénégal, supporte XOF nativement et offre des virements bancaires en ~1 jour ouvré.
 
 ### Modèle de données
 
 - [x] Enum `BillingStatus` : `TRIALING` | `ACTIVE` | `PAST_DUE` | `CANCELLED` | `UNPAID` | `PAUSED`
-- [x] Modèle `BillingCustomer` : lien 1:1 Organisation → Customer Stripe (`stripeCustomerId`)
-- [x] Modèle `BillingSubscription` : abonnement actif (`stripeSubscriptionId`, `planId`, `status`, `currentPeriodStart/End`, `cancelAtPeriodEnd`)
-- [x] Modèle `BillingInvoice` : historique factures (`stripeInvoiceId`, `amountPaid` en XOF, `pdfUrl`, `hostedUrl`)
-- [x] Back-relations ajoutées sur `Organization` (`billingCustomer`, `billingSubscription`, `billingInvoices[]`)
-- [x] Back-relation ajoutée sur `SubscriptionPlan` (`billingSubscriptions[]`)
+- [x] Modèle `BillingCustomer` : lien 1:1 Organisation → Customer FW (`fwCustomerId` nullable — renseigné par webhook)
+- [x] Modèle `BillingSubscription` : abonnement actif (`fwSubscriptionId`, `planId`, `status`, `currentPeriodStart/End`, `cancelAtPeriodEnd`)
+- [x] Modèle `BillingInvoice` : historique factures (`fwTransactionId`, `amountPaid` en XOF, `pdfUrl`, `hostedUrl`)
+- [x] Champ `SubscriptionPlan.fwPlanId` : ID du Payment Plan Flutterwave (remplace `stripePriceId` + `stripeProductId` supprimé)
+- [x] Back-relations sur `Organization` (`billingCustomer`, `billingSubscription`, `billingInvoices[]`)
+- [x] Back-relation sur `SubscriptionPlan` (`billingSubscriptions[]`)
 
 ### Seed
 
-- [x] Permissions `read:billing` et `manage:billing` ajoutées dans `DEFAULT_PERMISSIONS`
+- [x] Permissions `read:billing` et `manage:billing` dans `DEFAULT_PERMISSIONS`
 - [x] Rôle `owner` : `read:billing` + `manage:billing`
 - [x] Rôle `daf` : `read:billing` uniquement
-- [x] Plans `essentiel`, `business`, `enterprise` mis à jour avec `stripePriceId` et `stripeProductId` (placeholders à remplacer après création dans Stripe Dashboard)
+- [x] Plans `essentiel`, `business`, `enterprise` avec `fwPlanId: null` (à renseigner après création dans FW Dashboard)
 
 ### Variables d'environnement
 
-- [x] `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` ajoutées dans `.env.example`
+- [x] `FLW_SECRET_KEY`, `FLW_PUBLIC_KEY`, `FLW_SECRET_HASH` ajoutées dans `.env.example`
 
 ### Module `src/billing/`
 
-- [x] `src/billing/billing.module.ts`
-- [x] `src/billing/billing.service.ts` — checkout, portal, cancel, getSubscription, getInvoices, getOrCreateStripeCustomer
-- [x] `src/billing/stripe-webhook.service.ts` — constructEvent + 5 handlers d'événements Stripe
-- [x] `src/billing/billing.controller.ts` — 6 endpoints RBAC + Swagger + webhook public
+- [x] `src/billing/billing.module.ts` — imports PrismaModule, UsersModule, AuditLogModule, MailerModule
+- [x] `src/billing/billing.service.ts` — createCheckoutSession (FW Hosted Payment via axios), cancelSubscription, getSubscription, getInvoices
+- [x] `src/billing/flutterwave-webhook.service.ts` — verifyWebhook (verif-hash) + handlers `charge.completed` + `subscription.cancelled`
+- [x] `src/billing/billing.controller.ts` — 5 endpoints RBAC + Swagger + webhook public
 - [x] `src/billing/dto/create-checkout.dto.ts`
 - [x] `src/billing/dto/cancel-subscription.dto.ts`
 - [x] `BillingModule` enregistré dans `AppModule`
 - [x] `sendPaymentFailedAlert()` ajouté à `MailerService`
+- [x] Package `stripe` désinstallé — `axios` utilisé à la place (déjà présent)
 
 ### Endpoints
 
 - [x] `GET /billing/subscription` — statut abonnement + plan (read:billing)
 - [x] `GET /billing/invoices` — historique factures (read:billing)
-- [x] `POST /billing/checkout` — session Stripe Checkout → `{ url }` (manage:billing)
-- [x] `POST /billing/portal` — portail Stripe → `{ url }` (read:billing)
-- [x] `POST /billing/cancel` — annulation fin de période ou immédiate (manage:billing)
-- [x] `POST /billing/webhook` — webhook public, signature HMAC vérifiée
+- [x] `POST /billing/checkout` — lien paiement Flutterwave Hosted Payment → `{ url }` (manage:billing)
+- [x] `POST /billing/cancel` — annulation fin de période ou immédiate via API FW (manage:billing)
+- [x] `POST /billing/webhook` — webhook public, hash `verif-hash` vérifié
 
-### Webhook Stripe — Événements traités
+### Webhook Flutterwave — Événements traités
 
-- [x] `checkout.session.completed` → activation abonnement
-- [x] `invoice.payment_succeeded` → renouvellement + facture DB
-- [x] `invoice.payment_failed` → statut PAST_DUE + email alerte
-- [x] `customer.subscription.updated` → sync statut/dates/plan
-- [x] `customer.subscription.deleted` → statut CANCELLED
+- [x] `charge.completed` (status=successful + payment_plan) → activation/renouvellement abonnement + facture DB
+- [x] `subscription.cancelled` → statut CANCELLED + email alerte propriétaire
 
 ### Audit Log
 
-- [x] `billing_checkout_initiated`, `billing_portal_opened`, `subscription_created`, `subscription_updated`, `subscription_cancelled`, `payment_succeeded`, `payment_failed` ajoutés à `AuditEventType`
+- [x] `billing_checkout_initiated`, `subscription_cancelled`, `payment_succeeded` ajoutés à `AuditEventType`
 
 ### Documentation
 
-- [x] `src/billing/README.md` créé
-- [x] `docs/backend/modules/billing.md` créé (MkDocs)
-- [x] `mkdocs.yml` mis à jour (`Facturation & Paiements: backend/modules/billing.md`)
+- [x] `src/billing/README.md` mis à jour (Flutterwave)
+- [x] `docs/backend/modules/billing.md` mis à jour (Flutterwave)
+- [x] `mkdocs.yml` — nav item `Facturation & Paiements: backend/modules/billing.md` existant
 
-### Commandes à exécuter après ce commit
+### Commandes exécutées
 
-- [ ] `npm install stripe --legacy-peer-deps`
-- [ ] `npx prisma generate` — régénérer le client Prisma (enum BillingStatus + 3 nouveaux modèles)
-- [ ] `npx prisma db push` — appliquer les changements de schéma sur la DB
-- [ ] `npx ts-node prisma/seed.ts` — réinjecter permissions billing + stripePriceId sur les plans
+- [x] `npm uninstall stripe --legacy-peer-deps`
+- [x] `npx prisma generate` — client Prisma régénéré (champs FW)
+- [x] `npx prisma db push` — schéma synchronisé en DB
 
-### Actions à faire dans Stripe Dashboard (après création de compte)
+### Actions à faire dans Flutterwave Dashboard
 
-- [ ] Créer le produit "Essentiel" (36 000 FCFA/mois) → récupérer `price_xxx` → mettre à jour seed
-- [ ] Créer le produit "Business" (100 000 FCFA/mois) → récupérer `price_xxx` → mettre à jour seed
-- [ ] Créer le produit "Enterprise" (300 000 FCFA/mois) → récupérer `price_xxx` → mettre à jour seed
-- [ ] Créer le webhook pointant vers `https://domaine.com/billing/webhook` (5 événements)
-- [ ] Renseigner `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` dans `.env.prod`
+- [ ] Créer le Payment Plan "Essentiel" (36 000 XOF/mois) → récupérer `plan_id` → `PATCH /admin/subscription-plans/:id { "fwPlanId": "plan_xxx" }`
+- [ ] Créer le Payment Plan "Business" (100 000 XOF/mois) → même démarche
+- [ ] Créer le Payment Plan "Enterprise" (300 000 XOF/mois) → même démarche
+- [ ] Créer le webhook pointant vers `https://domaine.com/billing/webhook` (events: `charge.completed` + `subscription.cancelled`)
+- [ ] Renseigner `FLW_SECRET_KEY`, `FLW_PUBLIC_KEY`, `FLW_SECRET_HASH` dans `.env.prod`
 
 ***
 

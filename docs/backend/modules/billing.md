@@ -1,11 +1,13 @@
 ---
 title: Facturation & Paiements (Billing)
-description: Module de gestion des abonnements SaaS via Stripe — Cockpit API
+description: Module de gestion des abonnements SaaS via Flutterwave — Cockpit API
 ---
 
 # Module Billing — Facturation & Paiements
 
-Le module `BillingModule` gere l'integralite du cycle de vie des abonnements SaaS Cockpit via **Stripe** : paiement initial, renouvellement automatique mensuel, historique des factures, portail client et annulation.
+Le module `BillingModule` gere l'integralite du cycle de vie des abonnements SaaS Cockpit via **Flutterwave** : paiement initial, renouvellement automatique mensuel, historique des factures et annulation.
+
+> **Pourquoi Flutterwave ?** Agree localement en Afrique de l'Ouest (Senegal), supporte le XOF nativement, virements bancaires en ~1 jour ouvre (vs 4-10 jours cross-border pour Stripe).
 
 ---
 
@@ -14,18 +16,18 @@ Le module `BillingModule` gere l'integralite du cycle de vie des abonnements Saa
 ```
 Client choisit un plan
         ↓
-POST /billing/checkout → session Stripe Checkout → { url }
+POST /billing/checkout → lien Flutterwave Hosted Payment → { url }
         ↓
-Client saisit sa carte sur stripe.com (ton serveur ne touche pas les donnees de carte)
+Client saisit ses infos sur flutterwave.com (ton serveur ne touche pas les donnees de carte)
         ↓
-Stripe appelle POST /billing/webhook → checkout.session.completed
+Flutterwave appelle POST /billing/webhook → charge.completed
         ↓
 Ton serveur active BillingSubscription + Organisation.planId
         ↓
-Chaque mois, Stripe preleve automatiquement
+Chaque mois, Flutterwave preleve automatiquement (Payment Plan)
         ↓
-invoice.payment_succeeded → BillingInvoice enregistree
-invoice.payment_failed    → email d'alerte + statut PAST_DUE
+charge.completed → BillingInvoice enregistree
+subscription.cancelled → email d'alerte + statut CANCELLED
 ```
 
 ---
@@ -35,9 +37,9 @@ invoice.payment_failed    → email d'alerte + statut PAST_DUE
 ```
 src/billing/
   billing.module.ts
-  billing.controller.ts          <- 6 endpoints
-  billing.service.ts             <- logique metier + Stripe API
-  stripe-webhook.service.ts      <- traitement evenements Stripe
+  billing.controller.ts               <- 5 endpoints
+  billing.service.ts                  <- logique metier + Flutterwave REST API (axios)
+  flutterwave-webhook.service.ts      <- traitement evenements FW
   dto/
     create-checkout.dto.ts
     cancel-subscription.dto.ts
@@ -53,40 +55,40 @@ src/billing/
 |--------|-------------|
 | `TRIALING` | Periode d'essai en cours |
 | `ACTIVE` | Abonnement actif et paiements a jour |
-| `PAST_DUE` | Paiement en retard — Stripe retente automatiquement (Smart Retries) |
+| `PAST_DUE` | Paiement en retard |
 | `CANCELLED` | Abonnement annule (fin de periode ou immediat) |
-| `UNPAID` | Echec definitif apres toutes les retentes Stripe |
+| `UNPAID` | Echec definitif apres toutes les retentes |
 | `PAUSED` | Suspendu manuellement |
 
 ### Modele `BillingCustomer`
 
 ```prisma
 model BillingCustomer {
-  id               String  @id @default(uuid())
-  organizationId   String  @unique
-  stripeCustomerId String  @unique  // "cus_xxxx"
-  email            String
-  createdAt        DateTime
-  updatedAt        DateTime
+  id             String   @id @default(uuid())
+  organizationId String   @unique
+  fwCustomerId   String?  @unique  // customer_id retourne par FW webhook
+  email          String
+  createdAt      DateTime
+  updatedAt      DateTime
 }
 ```
 
-Un customer Stripe est cree automatiquement lors du premier checkout. La relation est 1 organisation → 1 customer Stripe.
+Le `BillingCustomer` est cree lors du premier checkout. Le `fwCustomerId` est renseigne lors de la reception du premier webhook `charge.completed`.
 
 ### Modele `BillingSubscription`
 
 ```prisma
 model BillingSubscription {
-  id                   String        @id @default(uuid())
-  organizationId       String        @unique
-  stripeSubscriptionId String        @unique  // "sub_xxxx"
-  planId               String        // FK → SubscriptionPlan
-  status               BillingStatus @default(TRIALING)
-  currentPeriodStart   DateTime
-  currentPeriodEnd     DateTime
-  cancelAtPeriodEnd    Boolean       @default(false)
-  trialEndsAt          DateTime?
-  cancelledAt          DateTime?
+  id               String        @id @default(uuid())
+  organizationId   String        @unique
+  fwSubscriptionId String?       @unique  // subscription_id retourne par FW
+  planId           String        // FK → SubscriptionPlan
+  status           BillingStatus @default(TRIALING)
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean     @default(false)
+  trialEndsAt        DateTime?
+  cancelledAt        DateTime?
 }
 ```
 
@@ -94,18 +96,28 @@ model BillingSubscription {
 
 ```prisma
 model BillingInvoice {
-  id              String  @id @default(uuid())
+  id              String   @id @default(uuid())
   organizationId  String
   subscriptionId  String
-  stripeInvoiceId String  @unique  // "in_xxxx"
-  amountPaid      Int     // en XOF, entier (ex: 36000)
-  currency        String  @default("xof")
-  status          String  // "paid" | "open" | "void"
+  fwTransactionId String   @unique  // transaction_id Flutterwave
+  amountPaid      Int      // en XOF, entier (ex: 36000)
+  currency        String   @default("xof")
+  status          String   // "paid" | "open" | "failed"
   pdfUrl          String?
   hostedUrl       String?
   paidAt          DateTime?
 }
 ```
+
+### Champ `SubscriptionPlan.fwPlanId`
+
+Chaque plan doit avoir son `fwPlanId` renseigne — c'est l'ID du Payment Plan cree dans le Dashboard Flutterwave :
+
+| Plan | Prix | Champ |
+|------|------|-------|
+| Essentiel | 36 000 XOF/mois | `fwPlanId: "plan_xxx"` |
+| Business | 100 000 XOF/mois | `fwPlanId: "plan_yyy"` |
+| Enterprise | 300 000 XOF/mois | `fwPlanId: "plan_zzz"` |
 
 ---
 
@@ -115,33 +127,31 @@ model BillingInvoice {
 |---------|-------|-------------|------------|
 | `GET` | `/billing/subscription` | Statut abonnement + plan souscrit | `read:billing` |
 | `GET` | `/billing/invoices` | Historique des factures triees par date | `read:billing` |
-| `POST` | `/billing/checkout` | Creer session Stripe Checkout | `manage:billing` |
-| `POST` | `/billing/portal` | Ouvrir portail Stripe (carte, factures) | `read:billing` |
+| `POST` | `/billing/checkout` | Creer lien paiement Flutterwave | `manage:billing` |
 | `POST` | `/billing/cancel` | Annuler l'abonnement | `manage:billing` |
-| `POST` | `/billing/webhook` | Webhook Stripe **(public, signature verifiee)** | — |
+| `POST` | `/billing/webhook` | Webhook Flutterwave **(public, hash verifie)** | — |
 
 ### `POST /billing/checkout` — Payload
 
 ```json
 {
   "planId": "uuid-plan-business",
-  "successUrl": "https://app.cockpit.io/billing/success",
-  "cancelUrl": "https://app.cockpit.io/billing/cancel"
+  "successUrl": "https://app.cockpit.io/billing/success"
 }
 ```
 
-!!! info "successUrl / cancelUrl optionnels"
-    Si non fournis, les URLs par defaut sont `FRONTEND_URL/billing/success` et `FRONTEND_URL/billing/cancel`.
+!!! info "successUrl optionnel"
+    Si non fourni, l'URL par defaut est `FRONTEND_URL/billing/success`.
 
 **Reponse :**
 
 ```json
 {
-  "url": "https://checkout.stripe.com/c/pay/cs_live_xxx..."
+  "url": "https://checkout.flutterwave.com/v3/hosted/pay/xxx..."
 }
 ```
 
-Le frontend redirige le client vers cette URL. Apres paiement, Stripe redirige vers `successUrl`.
+Le frontend redirige le client vers cette URL. Apres paiement, Flutterwave redirige vers `successUrl`.
 
 ### `POST /billing/cancel` — Payload
 
@@ -154,30 +164,28 @@ Le frontend redirige le client vers cette URL. Apres paiement, Stripe redirige v
 | `immediately` | Comportement |
 |--------------|-------------|
 | `false` (defaut) | Annulation a la fin de la periode — l'acces reste actif jusqu'a `currentPeriodEnd` |
-| `true` | Annulation immediate — l'acces est coupe maintenant |
+| `true` | Annulation immediate via API Flutterwave (`PUT /v3/subscriptions/{id}/cancel`) |
 
 ### `POST /billing/webhook` — Securite
 
 !!! warning "Ne pas appeler manuellement"
-    Cet endpoint est appele exclusivement par Stripe. Chaque requete est verifiee via la signature HMAC-SHA256 dans le header `stripe-signature`.
+    Cet endpoint est appele exclusivement par Flutterwave. Chaque requete est verifiee via le header `verif-hash`.
 
+```typescript
+if (verif-hash !== FLW_SECRET_HASH) → 401 Unauthorized
 ```
-stripe.webhooks.constructEvent(rawBody, signature, STRIPE_WEBHOOK_SECRET)
-```
-
-Si la signature est invalide → `400 Bad Request` immediat.
 
 ---
 
-## Evenements Stripe traites
+## Evenements Flutterwave traites
 
-| Evenement | Action dans Cockpit |
-|-----------|---------------------|
-| `checkout.session.completed` | Cree `BillingSubscription` + `BillingCustomer` + active `Organization.planId` |
-| `invoice.payment_succeeded` | Renouvellement OK → met a jour `currentPeriodEnd` + cree `BillingInvoice` |
-| `invoice.payment_failed` | Statut → `PAST_DUE` + email d'alerte proprietaire |
-| `customer.subscription.updated` | Synchronise statut, dates, `cancelAtPeriodEnd`, changement de plan |
-| `customer.subscription.deleted` | Statut → `CANCELLED` + `cancelledAt` |
+| Evenement | Condition | Action dans Cockpit |
+|-----------|-----------|---------------------|
+| `charge.completed` | `status === "successful"` + `payment_plan` present | Upsert `BillingSubscription` (ACTIVE) + `BillingCustomer` + `BillingInvoice` + `Organization.planId` |
+| `subscription.cancelled` | — | Statut → `CANCELLED` + `cancelledAt` + email alerte proprietaire |
+
+!!! note "Periode calculee"
+    Flutterwave ne retourne pas de dates de periode explicites dans le webhook. Le backend calcule : `currentPeriodStart = now()`, `currentPeriodEnd = now() + 1 mois`.
 
 ---
 
@@ -192,7 +200,7 @@ Si la signature est invalide → `400 Bad Request` immediat.
 | `analyst` | — | — |
 
 !!! note "Owner uniquement pour manage"
-    Seul le proprietaire (`owner`) peut souscrire, annuler ou changer de plan. Le DAF peut consulter les factures et le statut.
+    Seul le proprietaire (`owner`) peut souscrire, annuler ou changer de plan. Le DAF peut uniquement consulter.
 
 ---
 
@@ -201,26 +209,28 @@ Si la signature est invalide → `400 Bad Request` immediat.
 ### Variables d'environnement
 
 ```bash
-STRIPE_SECRET_KEY=sk_live_...       # cle secrete Stripe
-STRIPE_PUBLISHABLE_KEY=pk_live_...  # cle publique (pour le frontend)
-STRIPE_WEBHOOK_SECRET=whsec_...     # secret webhook (Dashboard Stripe → Webhooks)
+FLW_SECRET_KEY=FLWSECK_LIVE_...      # Cle secrete (Dashboard → Settings → API Keys)
+FLW_PUBLIC_KEY=FLWPUBK_LIVE_...      # Cle publique (pour le frontend)
+FLW_SECRET_HASH=mon_secret_hash      # Secret defini dans Dashboard → Webhooks
 ```
 
-### Plans Stripe
+### Setup Flutterwave Dashboard
 
-Chaque `SubscriptionPlan` doit avoir `stripePriceId` renseigne. Ces IDs sont obtenus depuis le Dashboard Stripe apres creation des produits :
+1. **Creer les Payment Plans** (Settings → Subscriptions → Payment Plans) :
+   - Nom : "Cockpit Essentiel" / Montant : 36 000 / Devise : XOF / Interval : monthly
+   - Nom : "Cockpit Business" / Montant : 100 000 / Devise : XOF / Interval : monthly
+   - Nom : "Cockpit Enterprise" / Montant : 300 000 / Devise : XOF / Interval : monthly
 
-| Plan | Champ | Exemple |
-|------|-------|---------|
-| Essentiel | `stripePriceId` | `price_1AbcDef...` |
-| Business | `stripePriceId` | `price_2GhiJkl...` |
-| Enterprise | `stripePriceId` | `price_3MnoPqr...` |
+2. **Renseigner les `fwPlanId`** dans le panel SuperAdmin :
+   ```
+   PATCH /admin/subscription-plans/:id
+   Body: { "fwPlanId": "plan_xxxxxxxx" }
+   ```
 
----
-
-## Devise
-
-Tous les montants sont en **XOF (Franc CFA UEMOA)** — Stripe traite les devises a zero decimale, donc on passe les montants en entiers : `36000` = 36 000 FCFA.
+3. **Configurer le Webhook** (Settings → Webhooks) :
+   - URL : `https://ton-domaine.com/billing/webhook`
+   - Events : `charge.completed` + `subscription.cancelled`
+   - Copier le **Secret Hash** dans `FLW_SECRET_HASH`
 
 ---
 
@@ -228,20 +238,15 @@ Tous les montants sont en **XOF (Franc CFA UEMOA)** — Stripe traite les devise
 
 | Action | Evenement |
 |--------|-----------|
-| Session checkout initiee | `billing_checkout_initiated` |
-| Portail ouvert | `billing_portal_opened` |
-| Abonnement cree | `subscription_created` |
-| Abonnement mis a jour | `subscription_updated` |
-| Abonnement annule | `subscription_cancelled` |
+| Lien checkout initie | `billing_checkout_initiated` |
 | Paiement reussi | `payment_succeeded` |
-| Paiement echoue | `payment_failed` |
+| Abonnement annule | `subscription_cancelled` |
 
 ---
 
-## Commandes a executer
+## Commandes de mise en service
 
 ```bash
-npm install stripe --legacy-peer-deps
 npx prisma generate
 npx prisma db push
 npx ts-node prisma/seed.ts
