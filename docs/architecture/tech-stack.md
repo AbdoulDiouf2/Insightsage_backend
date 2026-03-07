@@ -5,7 +5,7 @@ description: Technologies utilisées par la plateforme Cockpit
 
 # Stack technique
 
-## Backend — InsightSage API
+## Backend — Cockpit API
 
 | Couche | Technologie | Version | Rôle |
 |--------|-------------|---------|------|
@@ -18,6 +18,7 @@ description: Technologies utilisées par la plateforme Cockpit
 | **Crypto** | bcrypt | v6 | Hash des mots de passe |
 | **Validation** | class-validator + class-transformer | — | DTO validation |
 | **Queue** | Bull + Redis | — | Jobs asynchrones |
+| **Email** | Nodemailer | v6 | Emails transactionnels (SMTP) |
 | **Logging** | Winston + DailyRotateFile | v3 | Logs fichier rotatifs |
 | **Monitoring** | Sentry | v10 | Error tracking |
 | **Docs** | Swagger UI | v5 | Documentation interactive |

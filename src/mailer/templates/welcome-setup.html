@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bienvenue sur Cockpit</title>
+  <style>
+    body { margin: 0; padding: 0; background: #f4f6f9; font-family: Arial, sans-serif; color: #333; }
+    .wrapper { max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .header { background: #1a1a2e; padding: 32px 40px; text-align: center; }
+    .header h1 { margin: 0; color: #ffffff; font-size: 22px; letter-spacing: 1px; }
+    .header span { color: #6c63ff; }
+    .body { padding: 40px; }
+    .body p { line-height: 1.7; margin: 0 0 16px; }
+    .steps { background: #f8f7ff; border-left: 4px solid #6c63ff; padding: 16px 20px; border-radius: 4px; margin: 20px 0; }
+    .steps ol { margin: 0; padding-left: 20px; }
+    .steps li { margin-bottom: 8px; line-height: 1.6; }
+    .btn { display: inline-block; margin: 24px 0; padding: 14px 32px; background: #6c63ff; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 15px; }
+    .note { font-size: 13px; color: #888; margin-top: 24px; }
+    .footer { background: #f4f6f9; padding: 20px 40px; text-align: center; font-size: 12px; color: #aaa; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>Cockpit</h1>
+    </div>
+    <div class="body">
+      <p>Bonjour,</p>
+      <p>Votre espace <strong>{{orgName}}</strong> a été créé sur Cockpit. Vous êtes désormais administrateur de votre organisation.</p>
+      <p>Pour commencer, configurez votre mot de passe en cliquant ci-dessous :</p>
+      <a href="{{setupLink}}" class="btn">Configurer mon compte</a>
+      <div class="steps">
+        <strong>Prochaines étapes :</strong>
+        <ol>
+          <li>Créez votre mot de passe via le lien ci-dessus</li>
+          <li>Connectez-vous et complétez le wizard d'onboarding</li>
+          <li>Installez l'agent on-premise sur votre serveur Sage</li>
+          <li>Invitez votre équipe et configurez vos KPIs</li>
+        </ol>
+      </div>
+      <p class="note">Le lien de configuration est à usage unique. Si vous avez des questions, contactez votre interlocuteur Nafaka Tech.</p>
+    </div>
+    <div class="footer">
+      &copy; Cockpit by Nafaka Tech — Tous droits réservés
+    </div>
+  </div>
+</body>
+</html>

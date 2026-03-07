@@ -30,6 +30,7 @@ export type AuditEventType =
   | 'nlq_saved_to_dashboard'
   // ── Agents ─────────────────────────────────────────────────────────────────
   | 'agent_registered'
+  | 'agent_deleted'
   | 'agent_token_generated'
   | 'agent_token_regenerated'
   | 'agent_token_revoked'
@@ -89,7 +90,7 @@ export interface AuditLogPayload {
  */
 @Injectable()
 export class AuditLogService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   /**
    * Masque un email : jean.dupont@acme.com → j***@acme.com

@@ -115,9 +115,27 @@ Le backend ne :
   - [x] `POST /auth/login`.  
   - [x] `POST /auth/refresh`.  
   - [x] `POST /auth/logout`.  
-- [x] Gérer la récupération de mot de passe (optional mais utile) :  
-  - [x] `POST /auth/forgot-password`.  
-  - [x] `POST /auth/reset-password`.  
+- [x] Gérer la récupération de mot de passe (optional mais utile) :
+  - [x] `POST /auth/forgot-password`.
+  - [x] `POST /auth/reset-password`.
+
+### 2.5. Emails transactionnels (Mailer)
+
+- [x] Installer `nodemailer` + `@types/nodemailer` (`--legacy-peer-deps`)
+- [x] Créer `src/mailer/mailer.module.ts` — module global NestJS
+- [x] Créer `src/mailer/mailer.service.ts` — transport nodemailer + fallback `console.log` si `SMTP_HOST` absent
+- [x] Créer les 3 templates HTML dans `src/mailer/templates/` :
+  - [x] `reset-password.html` — lien valable 1h
+  - [x] `invitation.html` — lien valable 7j, inclut nom org + rôle
+  - [x] `welcome-setup.html` — lien de configuration compte pour nouveau DAF créé par superadmin
+- [x] Intégrer `MailerService` dans `AuthService` :
+  - [x] `forgotPassword()` → `sendResetPasswordEmail()`
+  - [x] `inviteUser()` → `sendInvitationEmail()`
+- [x] Intégrer `MailerService` dans `AdminService` :
+  - [x] `createClientAccount()` → `sendWelcomeSetupEmail()` + suppression du `debug.setupToken` dans la réponse
+- [x] Enregistrer `MailerModule` dans `AppModule`
+- [x] Variables SMTP ajoutées dans `.env.example` et `.env.dev` (`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`)
+- [ ] Renseigner les variables SMTP dans `.env.prod` quand le client fournit ses accès
 
 ### 2.2. Gestion des rôles & permissions (RBAC)
 

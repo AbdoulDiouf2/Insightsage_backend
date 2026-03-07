@@ -391,4 +391,11 @@ export class AdminController {
   async deleteDashboard(@Param('id') id: string) {
     return this.adminService.deleteDashboard(id);
   }
+
+  @Delete('agents/:id')
+  @ApiOperation({ summary: 'Supprimer un agent (SuperAdmin)' })
+  @ApiParam({ name: 'id', description: 'ID de l\'agent' })
+  async deleteAgent(@Param('id') id: string) {
+    return this.adminService.deleteAgent(id);
+  }
 }

@@ -17,6 +17,7 @@ import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 
 import { AuditLogService } from '../logs/audit-log.service';
+import { MailerService } from '../mailer/mailer.service';
 import { CreateUserDto } from './dto/create-user.dto';
 
 @Injectable()
@@ -24,6 +25,7 @@ export class AdminService {
   constructor(
     private prisma: PrismaService,
     private auditLog: AuditLogService,
+    private mailer: MailerService,
   ) { }
 
   async createClientAccount(dto: CreateClientDto) {
@@ -87,8 +89,8 @@ export class AdminService {
         data: { ownerId: user.id },
       });
 
-      // E. (Optional / ToDo) Send Welcome Email with the link:
-      // https://your-front.com/reset-password?token=${token}
+      // E. Send Welcome + Setup Email to the new DAF admin
+      await this.mailer.sendWelcomeSetupEmail(dto.adminEmail, token, organization.name);
 
       await this.auditLog.log({
         organizationId: organization.id,
@@ -104,11 +106,6 @@ export class AdminService {
         message: 'Client organization and root user created successfully.',
         organizationId: organization.id,
         userId: user.id,
-        debug: {
-          // Temporarily return the reset token here so you can test the onboarding flow
-          // without an actual email provider in place yet.
-          setupToken: token,
-        },
       };
     });
   }
@@ -832,7 +829,34 @@ export class AdminService {
         intent: true,
       },
     });
-    if (!template) throw new NotFoundException(`NLQ Template introuvable : ${id}`);
     return template;
+  }
+
+  async deleteAgent(id: string) {
+    const agent = await this.prisma.agent.findUnique({
+      where: { id },
+      select: { id: true, name: true, organizationId: true },
+    });
+
+    if (!agent) {
+      throw new NotFoundException(`Agent introuvable : ${id}`);
+    }
+
+    // On supprime d'abord les jobs associés car le onDelete: Cascade n'est pas présent dans le schema pour AgentJob
+    await this.prisma.agentJob.deleteMany({
+      where: { agentId: id },
+    });
+
+    const deleted = await this.prisma.agent.delete({
+      where: { id },
+    });
+
+    await this.auditLog.log({
+      organizationId: agent.organizationId,
+      event: 'agent_deleted',
+      payload: { agentId: id, name: agent.name, method: 'admin_action' },
+    });
+
+    return deleted;
   }
 }

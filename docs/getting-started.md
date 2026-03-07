@@ -30,7 +30,7 @@ git --version    # >= 2.x
 
 ---
 
-## 1. Backend — InsightSage API
+## 1. Backend — Cockpit API
 
 ### Cloner et installer
 
@@ -181,7 +181,7 @@ curl http://localhost:3000/health
 
 | Service | URL locale | Description |
 |---------|-----------|-------------|
-| **InsightSage API** | `http://localhost:3000` | Backend REST |
+| **Cockpit API** | `http://localhost:3000` | Backend REST |
 | **Swagger UI** | `http://localhost:3000/api` | Documentation interactive |
 | **Admin Cockpit** | `http://localhost:5173` | Dashboard frontend |
 | **Prisma Studio** | `http://localhost:5555` | Explorateur de base de données |

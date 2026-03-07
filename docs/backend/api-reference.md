@@ -1,6 +1,6 @@
 ---
 title: Référence API
-description: Référence exhaustive de tous les endpoints InsightSage API
+description: Référence exhaustive de tous les endpoints Cockpit API
 ---
 
 # Référence API

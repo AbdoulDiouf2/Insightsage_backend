@@ -15,6 +15,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { InviteUserDto } from './dto/invite-user.dto';
 import { AuditLogService } from '../logs/audit-log.service';
 import { LicenseGuardianService } from '../subscriptions/license-guardian.service';
+import { MailerService } from '../mailer/mailer.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
@@ -27,6 +28,7 @@ export class AuthService {
     private prisma: PrismaService,
     private auditLog: AuditLogService,
     private licenseGuardian: LicenseGuardianService,
+    private mailer: MailerService,
   ) { }
 
   async register(dto: RegisterDto) {
@@ -160,10 +162,7 @@ export class AuthService {
       resetPasswordExpires,
     });
 
-    // TODO: envoyer l'email ici via un service email (ex: Resend, SendGrid)
-    // await this.emailService.sendResetPasswordEmail(user.email, token);
-    // En attendant, le token est disponible dans les logs serveur uniquement (jamais dans la réponse HTTP)
-    console.log(`[DEV] Reset token for user ${user.id}: ${token}`);
+    await this.mailer.sendResetPasswordEmail(user.email, token);
 
     // L'audit log est toujours déclenché (y compris en dev) — Section 2.3
     await this.auditLog.log({
@@ -230,6 +229,11 @@ export class AuthService {
       throw new BadRequestException('The specified role does not exist.');
     }
 
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: dto.organizationId },
+      select: { name: true },
+    });
+
     await this.prisma.invitation.create({
       data: {
         email: dto.email,
@@ -243,8 +247,12 @@ export class AuthService {
       },
     });
 
-    // In a real application, send the invitation email here
-    console.log(`Invitation token for ${dto.email}: ${token}`);
+    await this.mailer.sendInvitationEmail(
+      dto.email,
+      token,
+      organization?.name ?? '',
+      dto.role,
+    );
 
     await this.auditLog.log({
       organizationId: dto.organizationId,

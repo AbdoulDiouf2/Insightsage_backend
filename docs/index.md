@@ -27,7 +27,7 @@ La plateforme **Cockpit** est composée de trois éléments interconnectés :
 ```mermaid
 graph LR
     A["🖥️ Sage ERP\n(On-Premise)"] -->|SQL queries| B["🤖 Agent\n(Python / Docker)"]
-    B -->|HTTPS + Token| C["⚙️ InsightSage API\n(NestJS / PostgreSQL)"]
+    B -->|HTTPS + Token| C["⚙️ Cockpit API\n(NestJS / PostgreSQL)"]
     C -->|REST JSON| D["🎛️ Admin Cockpit\n(React / Vite)"]
 
     style A fill:#1e293b,stroke:#475569,color:#94a3b8
@@ -38,7 +38,7 @@ graph LR
 
 | Composant | Technologie | Rôle |
 |-----------|-------------|------|
-| **InsightSage API** | NestJS + Prisma + PostgreSQL | Backend central multi-tenant |
+| **Cockpit API** | NestJS + Prisma + PostgreSQL | Backend central multi-tenant |
 | **Admin Cockpit** | React + Vite + Tailwind | Interface d'administration SuperAdmin |
 | **Agent** | Python / Docker | Pont sécurisé vers Sage ERP |
 

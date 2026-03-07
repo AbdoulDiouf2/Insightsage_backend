@@ -1,4 +1,4 @@
-# Module Utilisateurs (InsightSage)
+# Module Utilisateurs (Cockpit)
 
 Ce module centralise la gestion des profils et la configuration des accès d'équipe au sein d'une organisation (Tenant).
 

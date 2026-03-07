@@ -1,6 +1,6 @@
 ---
 title: Installation & Configuration
-description: Guide complet d'installation du backend InsightSage API
+description: Guide complet d'installation du backend Cockpit API
 ---
 
 # Installation & Configuration
@@ -28,8 +28,11 @@ cd Insightsage_backend
 ### 2. Installer les dépendances
 
 ```bash
-npm install
+npm install --legacy-peer-deps
 ```
+
+!!! warning "Peer deps"
+    Le flag `--legacy-peer-deps` est requis en raison d'un conflit de dépendances entre `@adminjs/prisma` (désactivé) et `@prisma/client v7`. Sans ce flag, npm refuse d'installer.
 
 ### 3. Configurer l'environnement
 
@@ -92,7 +95,23 @@ ADMIN_EMAIL="admin@insightsage.com"
 ADMIN_PASSWORD="Admin123!"
 ADMIN_COOKIE_SECRET="cookie-secret-minimum-32-caracteres!!"
 ADMIN_SESSION_SECRET="session-secret-minimum-32-caracteres!"
+
+# ============================================================
+# SMTP — EMAIL TRANSACTIONNEL
+# Laisser vide en dev : fallback console.log automatique
+# Renseigner en prod quand le client fournit ses accès SMTP
+# ============================================================
+
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=
+SMTP_PASS=
+SMTP_FROM="Cockpit <noreply@votre-domaine.com>"
 ```
+
+!!! info "Emails en développement"
+    Si `SMTP_HOST` est vide, le `MailerService` ne lève pas d'erreur. Les liens d'email (reset password, invitation, welcome) sont loggés en console avec le préfixe `[DEV]`. Aucune configuration SMTP n'est requise pour développer.
 
 !!! warning "Secrets en production"
     Ne commettez **jamais** vos fichiers `.env.*` dans Git.
