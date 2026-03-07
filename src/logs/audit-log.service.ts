@@ -72,6 +72,14 @@ export type AuditEventType =
   | 'target_created'
   | 'target_updated'
   | 'target_deleted'
+  // ── Billing / Paiements Stripe ─────────────────────────────────────────────
+  | 'billing_checkout_initiated'
+  | 'billing_portal_opened'
+  | 'subscription_created'
+  | 'subscription_updated'
+  | 'subscription_cancelled'
+  | 'payment_succeeded'
+  | 'payment_failed'
   // ── Audit / Consultation données sensibles ─────────────────────────────────
   | 'audit_logs_viewed'
   | 'admin_users_listed'

@@ -13,7 +13,7 @@ import {
 import { AdminService } from './admin.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateOrganizationDto } from './dto/update-organization.dto';
+import { AdminUpdateOrganizationDto } from './dto/update-organization.dto';
 import { AdminUpdateUserDto } from './dto/update-user.dto';
 import { CreateSubscriptionPlanDto, UpdateSubscriptionPlanDto } from './dto/subscription-plan.dto';
 import {
@@ -80,7 +80,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Update organization details' })
   async updateOrganization(
     @Param('id') id: string,
-    @Body() dto: UpdateOrganizationDto,
+    @Body() dto: AdminUpdateOrganizationDto,
   ) {
     return this.adminService.updateOrganization(id, dto);
   }
@@ -187,6 +187,35 @@ export class AdminController {
   })
   async deactivateSubscriptionPlan(@Param('id') id: string) {
     return this.adminService.deactivateSubscriptionPlan(id);
+  }
+
+  // ─── Billing — Vue SuperAdmin ─────────────────────────────────────────────
+
+  @Get('billing/subscriptions')
+  @ApiOperation({
+    summary: 'Lister les abonnements Stripe de toutes les organisations',
+    description:
+      'Retourne tous les abonnements actifs avec leur statut (ACTIVE, PAST_DUE, CANCELLED...), ' +
+      'le plan souscrit, la derniere facture et un resume des statuts. ' +
+      'Inclut egalement les organisations sans abonnement.',
+  })
+  @ApiResponse({ status: 200, description: 'Liste des abonnements + resume.' })
+  async findAllBillingSubscriptions() {
+    return this.adminService.findAllBillingSubscriptions();
+  }
+
+  @Get('billing/subscriptions/:orgId')
+  @ApiParam({ name: 'orgId', description: 'ID de l\'organisation' })
+  @ApiOperation({
+    summary: 'Detail de l\'abonnement d\'une organisation',
+    description:
+      'Retourne l\'abonnement Stripe complet d\'une organisation : plan, statut, ' +
+      'dates de periode, customer Stripe et historique complet des factures.',
+  })
+  @ApiResponse({ status: 200, description: 'Detail abonnement + factures.' })
+  @ApiResponse({ status: 404, description: 'Organisation introuvable.' })
+  async findBillingSubscriptionByOrg(@Param('orgId') orgId: string) {
+    return this.adminService.findBillingSubscriptionByOrg(orgId);
   }
 
   // ─── KPI Definitions Management ───────────────────────────────────────────

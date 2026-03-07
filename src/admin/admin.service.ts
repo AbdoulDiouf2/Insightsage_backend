@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClientDto } from './dto/create-client.dto';
-import { UpdateOrganizationDto } from './dto/update-organization.dto';
+import { AdminUpdateOrganizationDto } from './dto/update-organization.dto';
 import { AdminUpdateUserDto } from './dto/update-user.dto';
 import { CreateSubscriptionPlanDto, UpdateSubscriptionPlanDto } from './dto/subscription-plan.dto';
 import {
@@ -189,7 +189,7 @@ export class AdminService {
     return organization;
   }
 
-  async updateOrganization(id: string, dto: UpdateOrganizationDto) {
+  async updateOrganization(id: string, dto: AdminUpdateOrganizationDto) {
     const organization = await this.prisma.organization.update({
       where: { id },
       data: dto,
@@ -790,6 +790,102 @@ export class AdminService {
     });
 
     return deleted;
+  }
+
+  // ─── Billing — Vue SuperAdmin ─────────────────────────────────────────────
+
+  /**
+   * Liste toutes les organisations avec leur abonnement Stripe.
+   * Permet au SuperAdmin de surveiller les statuts de paiement (ACTIVE, PAST_DUE, CANCELLED…).
+   */
+  async findAllBillingSubscriptions() {
+    const subscriptions = await (this.prisma as any).billingSubscription.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        organization: {
+          select: { id: true, name: true, sector: true },
+        },
+        plan: {
+          select: { id: true, name: true, label: true, priceMonthly: true },
+        },
+        customer: {
+          select: { stripeCustomerId: true, email: true },
+        },
+        invoices: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { amountPaid: true, currency: true, status: true, paidAt: true },
+        },
+      },
+    });
+
+    // Ajouter les orgs sans abonnement (jamais souscrit)
+    const subscribedOrgIds = subscriptions.map((s) => s.organizationId);
+    const unsubscribedOrgs = await this.prisma.organization.findMany({
+      where: { id: { notIn: subscribedOrgIds } },
+      select: {
+        id: true,
+        name: true,
+        sector: true,
+        subscriptionPlan: { select: { name: true, label: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return {
+      subscriptions,
+      unsubscribed: unsubscribedOrgs,
+      summary: {
+        total: subscriptions.length,
+        active: subscriptions.filter((s) => s.status === 'ACTIVE').length,
+        trialing: subscriptions.filter((s) => s.status === 'TRIALING').length,
+        pastDue: subscriptions.filter((s) => s.status === 'PAST_DUE').length,
+        cancelled: subscriptions.filter((s) => s.status === 'CANCELLED').length,
+        neverSubscribed: unsubscribedOrgs.length,
+      },
+    };
+  }
+
+  /**
+   * Detail complet de l'abonnement d'une organisation : historique des factures inclus.
+   */
+  async findBillingSubscriptionByOrg(organizationId: string) {
+    const org = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { id: true, name: true, sector: true },
+    });
+
+    if (!org) {
+      throw new NotFoundException(`Organisation introuvable : ${organizationId}`);
+    }
+
+    const subscription = await (this.prisma as any).billingSubscription.findUnique({
+      where: { organizationId },
+      include: {
+        plan: true,
+        customer: { select: { stripeCustomerId: true, email: true } },
+        invoices: {
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            stripeInvoiceId: true,
+            amountPaid: true,
+            currency: true,
+            status: true,
+            pdfUrl: true,
+            hostedUrl: true,
+            paidAt: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
+
+    return {
+      organization: org,
+      subscription: subscription ?? null,
+      hasSubscription: !!subscription,
+    };
   }
 
   // ─── NLQ Management ───────────────────────────────────────────────────────

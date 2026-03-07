@@ -72,6 +72,13 @@ const DEFAULT_PERMISSIONS = [
     resource: 'targets',
     description: 'Create, edit and delete KPI targets',
   },
+  // Billing / Paiements
+  { action: 'read', resource: 'billing', description: 'View subscription and invoices' },
+  {
+    action: 'manage',
+    resource: 'billing',
+    description: 'Manage subscription, checkout and cancellation',
+  },
   // Global Admin
   {
     action: 'manage',
@@ -104,6 +111,8 @@ const DEFAULT_ROLES = [
       { action: 'read', resource: 'logs' },
       { action: 'read', resource: 'targets' },
       { action: 'manage', resource: 'targets' },
+      { action: 'read', resource: 'billing' },
+      { action: 'manage', resource: 'billing' },
     ],
   },
   {
@@ -123,6 +132,7 @@ const DEFAULT_ROLES = [
       { action: 'read', resource: 'logs' },
       { action: 'read', resource: 'targets' },
       { action: 'manage', resource: 'targets' },
+      { action: 'read', resource: 'billing' },
     ],
   },
   {
@@ -225,10 +235,12 @@ async function main() {
       maxUsers: 3,
       maxKpis: 6,
       maxWidgets: 10,
-      maxAgentSyncPerDay: null, // Unlimited (requested removal)
+      maxAgentSyncPerDay: null,
       allowedKpiPacks: ['pack_finance', 'pack_rentabilite'],
       hasNlq: false,
       hasAdvancedReports: false,
+      stripeProductId: 'prod_U6dOg0LXXRA7M6', // Remplacer après création dans Stripe Dashboard
+      stripePriceId: 'price_1T8Q7JIawW6MkmovPG5OPdN9',  // Remplacer après création dans Stripe Dashboard
       sortOrder: 1,
     },
     {
@@ -237,12 +249,14 @@ async function main() {
       description: 'DAF + équipe. NLQ illimité. Dashboards perso.',
       priceMonthly: 100000, // FCFA (approx 150 €)
       maxUsers: 10,
-      maxKpis: null, // illimité
-      maxWidgets: null, // illimité
-      maxAgentSyncPerDay: null, // Unlimited (requested removal)
+      maxKpis: null,
+      maxWidgets: null,
+      maxAgentSyncPerDay: null,
       allowedKpiPacks: ['pack_finance', 'pack_rentabilite', 'pack_tresorerie', 'pack_client', 'pack_achats'],
       hasNlq: true,
       hasAdvancedReports: true,
+      stripeProductId: 'prod_U6dOiDeH04QYkj', // Remplacer après création dans Stripe Dashboard
+      stripePriceId: 'price_1T8Q80IawW6Mkmov9ffy8tQ1',  // Remplacer après création dans Stripe Dashboard
       sortOrder: 2,
     },
     {
@@ -250,13 +264,15 @@ async function main() {
       label: 'Enterprise',
       description: 'Multi-Sage + illimité. Support dédié.',
       priceMonthly: 300000, // FCFA (approx 450 €)
-      maxUsers: null, // illimité
-      maxKpis: null, // illimité
-      maxWidgets: null, // illimité
-      maxAgentSyncPerDay: null, // Unlimited
+      maxUsers: null,
+      maxKpis: null,
+      maxWidgets: null,
+      maxAgentSyncPerDay: null,
       allowedKpiPacks: ['all'],
       hasNlq: true,
       hasAdvancedReports: true,
+      stripeProductId: 'prod_U6dPHr92FTKdFb', // Remplacer après création dans Stripe Dashboard
+      stripePriceId: 'price_1T8Q8PIawW6MkmoviVhkQTMT',  // Remplacer après création dans Stripe Dashboard
       sortOrder: 3,
     },
   ];
@@ -275,6 +291,8 @@ async function main() {
         allowedKpiPacks: plan.allowedKpiPacks,
         hasNlq: plan.hasNlq,
         hasAdvancedReports: plan.hasAdvancedReports,
+        stripeProductId: plan.stripeProductId,
+        stripePriceId: plan.stripePriceId,
         sortOrder: plan.sortOrder,
       },
       create: plan,

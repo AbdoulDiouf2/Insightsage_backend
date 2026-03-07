@@ -110,6 +110,55 @@ export class MailerService implements OnModuleInit {
     });
   }
 
+  async sendPaymentFailedAlert(
+    email: string,
+    recipientName: string,
+    amountDue: number,
+    currency: string,
+  ): Promise<void> {
+    const frontendUrl = this.config.get<string>('FRONTEND_URL');
+    const billingUrl = `${frontendUrl}/billing`;
+
+    if (!this.smtpConfigured) {
+      this.logger.log(
+        `[DEV] Payment failed alert for ${email} — ${amountDue} ${currency}`,
+      );
+      return;
+    }
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #e53e3e;">Echec de paiement de votre abonnement Cockpit</h2>
+        <p>Bonjour ${recipientName},</p>
+        <p>
+          Nous n\'avons pas pu prélever le montant de <strong>${amountDue} ${currency}</strong>
+          correspondant a votre abonnement Cockpit.
+        </p>
+        <p>
+          Stripe effectuera automatiquement de nouvelles tentatives de prelevement.
+          Si le paiement reste en echec, votre acces sera suspendu.
+        </p>
+        <p>
+          <a href="${billingUrl}" style="
+            display: inline-block; padding: 12px 24px;
+            background: #3182ce; color: white; text-decoration: none; border-radius: 6px;
+          ">
+            Mettre a jour mon moyen de paiement
+          </a>
+        </p>
+        <p style="color: #718096; font-size: 12px;">
+          Si vous pensez que c\'est une erreur, contactez notre support.
+        </p>
+      </div>
+    `;
+
+    await this.send({
+      to: email,
+      subject: 'Action requise — Echec de paiement de votre abonnement Cockpit',
+      html,
+    });
+  }
+
   private async send(options: { to: string; subject: string; html: string }): Promise<void> {
     try {
       await this.transporter!.sendMail({

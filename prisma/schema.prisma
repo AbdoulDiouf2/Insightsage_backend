@@ -45,7 +45,10 @@ model Organization {
   onboardingStatus OnboardingStatus?
   agentLogs        AgentLog[]
   nlqSessions      NlqSession[]
-  targets          Target[]
+  targets             Target[]
+  billingCustomer     BillingCustomer?
+  billingSubscription BillingSubscription?
+  billingInvoices     BillingInvoice[]
 
   @@map("organizations")
 }
@@ -375,7 +378,7 @@ model SubscriptionPlan {
   hasNlq             Boolean  @default(false)
   hasAdvancedReports Boolean  @default(false)
 
-  // Stripe (Phase 2 — stockés pour future intégration facturation)
+  // Stripe — IDs produit/prix pour souscriptions récurrentes
   stripeProductId    String?
   stripePriceId      String?
 
@@ -383,7 +386,8 @@ model SubscriptionPlan {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  organizations      Organization[]
+  organizations        Organization[]
+  billingSubscriptions BillingSubscription[]
 
   @@map("subscription_plans")
 }
@@ -540,4 +544,76 @@ model Target {
   @@index([kpiKey])
   @@index([year])
   @@map("targets")
+}
+
+// ─── Billing / Stripe ─────────────────────────────────────────────────────────
+
+enum BillingStatus {
+  TRIALING   // En période d'essai
+  ACTIVE     // Abonnement actif et à jour
+  PAST_DUE   // Paiement en retard (Stripe retente)
+  CANCELLED  // Abonnement annulé
+  UNPAID     // Échec définitif après retentes Stripe
+  PAUSED     // Suspendu manuellement
+}
+
+// Client Stripe associé à l'organisation (1 org → 1 customer Stripe)
+model BillingCustomer {
+  id               String              @id @default(uuid())
+  organizationId   String              @unique
+  organization     Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  stripeCustomerId String              @unique // "cus_xxxx"
+  email            String
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  subscription     BillingSubscription?
+
+  @@map("billing_customers")
+}
+
+// Abonnement Stripe actif de l'organisation
+model BillingSubscription {
+  id                   String           @id @default(uuid())
+  organizationId       String           @unique
+  organization         Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customerId           String           @unique
+  customer             BillingCustomer  @relation(fields: [customerId], references: [id])
+  stripeSubscriptionId String           @unique // "sub_xxxx"
+  planId               String
+  plan                 SubscriptionPlan @relation(fields: [planId], references: [id])
+  status               BillingStatus    @default(TRIALING)
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean          @default(false) // annulation programmée fin de période
+  trialEndsAt          DateTime?
+  cancelledAt          DateTime?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  invoices             BillingInvoice[]
+
+  @@index([organizationId])
+  @@map("billing_subscriptions")
+}
+
+// Historique des factures / paiements Stripe
+model BillingInvoice {
+  id              String              @id @default(uuid())
+  organizationId  String
+  organization    Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  subscriptionId  String
+  subscription    BillingSubscription @relation(fields: [subscriptionId], references: [id])
+  stripeInvoiceId String              @unique // "in_xxxx"
+  amountPaid      Int                 // en XOF — entier (ex: 36000)
+  currency        String              @default("xof")
+  status          String              // "paid" | "open" | "void" | "uncollectible"
+  pdfUrl          String?             // URL PDF facture hébergée par Stripe
+  hostedUrl       String?             // URL page facture Stripe
+  paidAt          DateTime?
+  createdAt       DateTime            @default(now())
+
+  @@index([organizationId])
+  @@index([subscriptionId])
+  @@map("billing_invoices")
 }

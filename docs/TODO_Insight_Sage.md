@@ -337,6 +337,83 @@ Le backend ne :
 
 ***
 
+## 4.7. Facturation & Paiements (Billing Stripe)
+
+### Modèle de données
+
+- [x] Enum `BillingStatus` : `TRIALING` | `ACTIVE` | `PAST_DUE` | `CANCELLED` | `UNPAID` | `PAUSED`
+- [x] Modèle `BillingCustomer` : lien 1:1 Organisation → Customer Stripe (`stripeCustomerId`)
+- [x] Modèle `BillingSubscription` : abonnement actif (`stripeSubscriptionId`, `planId`, `status`, `currentPeriodStart/End`, `cancelAtPeriodEnd`)
+- [x] Modèle `BillingInvoice` : historique factures (`stripeInvoiceId`, `amountPaid` en XOF, `pdfUrl`, `hostedUrl`)
+- [x] Back-relations ajoutées sur `Organization` (`billingCustomer`, `billingSubscription`, `billingInvoices[]`)
+- [x] Back-relation ajoutée sur `SubscriptionPlan` (`billingSubscriptions[]`)
+
+### Seed
+
+- [x] Permissions `read:billing` et `manage:billing` ajoutées dans `DEFAULT_PERMISSIONS`
+- [x] Rôle `owner` : `read:billing` + `manage:billing`
+- [x] Rôle `daf` : `read:billing` uniquement
+- [x] Plans `essentiel`, `business`, `enterprise` mis à jour avec `stripePriceId` et `stripeProductId` (placeholders à remplacer après création dans Stripe Dashboard)
+
+### Variables d'environnement
+
+- [x] `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` ajoutées dans `.env.example`
+
+### Module `src/billing/`
+
+- [x] `src/billing/billing.module.ts`
+- [x] `src/billing/billing.service.ts` — checkout, portal, cancel, getSubscription, getInvoices, getOrCreateStripeCustomer
+- [x] `src/billing/stripe-webhook.service.ts` — constructEvent + 5 handlers d'événements Stripe
+- [x] `src/billing/billing.controller.ts` — 6 endpoints RBAC + Swagger + webhook public
+- [x] `src/billing/dto/create-checkout.dto.ts`
+- [x] `src/billing/dto/cancel-subscription.dto.ts`
+- [x] `BillingModule` enregistré dans `AppModule`
+- [x] `sendPaymentFailedAlert()` ajouté à `MailerService`
+
+### Endpoints
+
+- [x] `GET /billing/subscription` — statut abonnement + plan (read:billing)
+- [x] `GET /billing/invoices` — historique factures (read:billing)
+- [x] `POST /billing/checkout` — session Stripe Checkout → `{ url }` (manage:billing)
+- [x] `POST /billing/portal` — portail Stripe → `{ url }` (read:billing)
+- [x] `POST /billing/cancel` — annulation fin de période ou immédiate (manage:billing)
+- [x] `POST /billing/webhook` — webhook public, signature HMAC vérifiée
+
+### Webhook Stripe — Événements traités
+
+- [x] `checkout.session.completed` → activation abonnement
+- [x] `invoice.payment_succeeded` → renouvellement + facture DB
+- [x] `invoice.payment_failed` → statut PAST_DUE + email alerte
+- [x] `customer.subscription.updated` → sync statut/dates/plan
+- [x] `customer.subscription.deleted` → statut CANCELLED
+
+### Audit Log
+
+- [x] `billing_checkout_initiated`, `billing_portal_opened`, `subscription_created`, `subscription_updated`, `subscription_cancelled`, `payment_succeeded`, `payment_failed` ajoutés à `AuditEventType`
+
+### Documentation
+
+- [x] `src/billing/README.md` créé
+- [x] `docs/backend/modules/billing.md` créé (MkDocs)
+- [x] `mkdocs.yml` mis à jour (`Facturation & Paiements: backend/modules/billing.md`)
+
+### Commandes à exécuter après ce commit
+
+- [ ] `npm install stripe --legacy-peer-deps`
+- [ ] `npx prisma generate` — régénérer le client Prisma (enum BillingStatus + 3 nouveaux modèles)
+- [ ] `npx prisma db push` — appliquer les changements de schéma sur la DB
+- [ ] `npx ts-node prisma/seed.ts` — réinjecter permissions billing + stripePriceId sur les plans
+
+### Actions à faire dans Stripe Dashboard (après création de compte)
+
+- [ ] Créer le produit "Essentiel" (36 000 FCFA/mois) → récupérer `price_xxx` → mettre à jour seed
+- [ ] Créer le produit "Business" (100 000 FCFA/mois) → récupérer `price_xxx` → mettre à jour seed
+- [ ] Créer le produit "Enterprise" (300 000 FCFA/mois) → récupérer `price_xxx` → mettre à jour seed
+- [ ] Créer le webhook pointant vers `https://domaine.com/billing/webhook` (5 événements)
+- [ ] Renseigner `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` dans `.env.prod`
+
+***
+
 ## 5. Interface NLQ & intégration avec API (Phase 3/4)
 
 ### 5.1. Modèle de données NLQ
