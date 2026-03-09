@@ -294,6 +294,75 @@ Le backend ne :
 
 ***
 
+### 4.5.1. Migration KPI Store — Catalogue enrichi 114 KPIs (09/03/2026)
+
+> Migration du catalogue de 39 KPIs (kpi.json) vers 114 KPIs uniques (kpi-bis.json).
+> Schéma `KpiDefinition` enrichi, packs alignés sur les nouveaux plans.
+
+#### Schéma Prisma — `KpiDefinition`
+
+- [x] Nouveaux champs ajoutés au modèle `kpi_definitions` :
+  - [x] `code String?` — code court du KPI (ex: `KPI-F01`)
+  - [x] `domain String?` — domaine métier (ex: `Finance & Trésorerie`)
+  - [x] `subcategory String?` — sous-catégorie (ex: `Revenus`)
+  - [x] `usage String?` — cas d'usage métier
+  - [x] `frequency String?` — fréquence de suivi (ex: `Mensuel / Annuel`)
+  - [x] `risk String?` — niveau de risque : `Faible` | `Moyen` | `Élevé`
+  - [x] `profiles String[]` — profils cibles : `["DAF", "CFO", "DG"]`
+  - [x] `sectors String[]` — secteurs applicables : `["Tous secteurs"]`
+  - [x] `sqlSage100View String?` — vue Sage 100 principale
+  - [x] `sqlSage100Tables String[]` — tables Sage 100 sous-jacentes
+  - [x] `mlUsage String?` — usage ML / IA prédictif
+- [x] `npx prisma db push` exécuté — schéma synchronisé en DB
+- [x] `npx prisma generate` exécuté — client Prisma régénéré
+
+#### Backend
+
+- [x] `src/admin/dto/kpi-store.dto.ts` mis à jour :
+  - [x] `CreateKpiDefinitionDto` : 11 nouveaux champs optionnels + `direction` (`HIGHER_IS_BETTER` | `LOWER_IS_BETTER`)
+  - [x] `UpdateKpiDefinitionDto` : mêmes champs en `@IsOptional()`
+  - [x] `@IsIn` sur `category` supprimé (catégorie libre)
+  - [x] `@IsIn` sur `defaultVizType` étendu : `pie`, `map`, `text` ajoutés
+  - [x] `CreateWidgetTemplateDto` : `vizType` étendu aux 8 types
+- [x] `admin.service.ts` : aucune modification requise (`data: dto` passe les nouveaux champs automatiquement)
+
+#### Seed (`prisma/seed.ts`)
+
+- [x] Cleanup destructif en début de `main()` : `widget → nlqTemplate → nlqIntent → kpiPack → kpiDefinition`
+- [x] Source changée de `kpi.json` → `kpi-bis.json`
+- [x] Déduplication automatique des 12 clés en doublon (126 → 114 KPIs uniques)
+- [x] Mapping complet de tous les nouveaux champs dans `kpiDefinition.create()`
+- [x] Liste `LOWER_IS_BETTER_KEYS` pour les KPIs inversés (DSO, DPO, Taux Impayés, BFR…)
+- [x] 3 nouveaux `WidgetTemplate` seedés : `pie`, `map`, `text` (total : 8 types)
+- [x] 12 KPI Packs générés dynamiquement par catégorie (remplacent les 3 anciens)
+- [x] `allowedKpiPacks` des plans mis à jour :
+  - `essentiel` : `pack_finance`, `pack_tresorerie`
+  - `business` : + `pack_clients`, `pack_fournisseurs`, `pack_stocks`, `pack_comptabilite`, `pack_analytique`, `pack_commandes`
+  - `enterprise` : `all`
+- [x] Seed ré-exécuté avec succès : 114 KPIs, 126 NlqIntents, 8 WidgetTemplates, 12 KpiPacks
+
+#### Frontend Admin Cockpit
+
+- [x] `src/types/index.ts` — interface `KpiDefinition` enrichie (11 nouveaux champs)
+- [x] `src/features/kpi-store/CreateKpiDefinitionModal.tsx` :
+  - [x] `category` : Select → Input texte libre
+  - [x] `defaultVizType` : 8 types via constante `VIZ_TYPES`
+  - [x] Nouveaux champs : `code`, `domain`, `subcategory`
+- [x] `src/features/kpi-store/EditKpiDefinitionModal.tsx` : mêmes corrections
+- [x] `src/features/kpi-store/KpiDefinitionDetailPage.tsx` :
+  - [x] Affichage du `code` dans le header
+  - [x] Grille étendue : `domain`, `subcategory`, `frequency`, `risk`, `direction`
+  - [x] Badges `profiles[]` (violet) et `sectors[]` (gris)
+  - [x] Carte "Source Sage 100" : `sqlSage100View` + `sqlSage100Tables[]`
+  - [x] Carte "Usage ML / IA" : `mlUsage`
+
+#### Documentation
+
+- [x] `docs/backend/modules/kpi-store.md` — entièrement reécrit pour refléter les 114 KPIs et le nouveau schéma
+- [x] `docs/TODO_Insight_Sage.md` — section 4.5.1 ajoutée (cette section)
+
+***
+
 ## 4.6. Objectifs KPI (Targets)
 
 ### Modèle de données

@@ -379,7 +379,7 @@ model SubscriptionPlan {
   hasAdvancedReports Boolean  @default(false)
 
   // Flutterwave — ID du Payment Plan pour souscriptions récurrentes
-  fwPlanId           String?
+  fwPlanId           String?  @map("fw_plan_id")
 
   sortOrder          Int      @default(0)
   createdAt          DateTime @default(now())
@@ -408,18 +408,29 @@ model OnboardingStatus {
 
 // Définitions des KPIs disponibles (seedées par profil)
 model KpiDefinition {
-  id             String   @id @default(uuid())
-  key            String   @unique // "revenue_mom" | "dmp" | "ar_aging" | "gross_margin" | "ebitda"
-  name           String   // "CA Mois/Mois", "Délai Moyen Paiement"
-  description    String?
-  unit           String?  // "€", "%", "jours"
-  category       String   // "finance" | "commercial" | "treasury"
-  defaultVizType String   // "gauge" | "bar" | "card"
-  direction      String   @default("HIGHER_IS_BETTER") // "HIGHER_IS_BETTER" | "LOWER_IS_BETTER"
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
+  id               String   @id @default(uuid())
+  key              String   @unique  // ex: "f01_ca_ht"
+  code             String?           // ex: "KPI-F01"
+  name             String
+  domain           String?           // ex: "Finance & Trésorerie"
+  description      String?
+  category         String
+  subcategory      String?           // ex: "Revenus"
+  usage            String?           // description métier
+  unit             String?           // "€", "%", "jours"
+  frequency        String?           // ex: "Mensuel / Annuel"
+  risk             String?           // "Faible" | "Moyen" | "Élevé"
+  profiles         String[]          // ex: ["DAF", "CFO", "DG"]
+  sectors          String[]          // ex: ["Tous secteurs"]
+  defaultVizType   String            // "gauge" | "bar" | "line" | "table" | "pie" | "map" | "text"
+  direction        String   @default("HIGHER_IS_BETTER")
+  sqlSage100View   String?           // vue principale Sage 100
+  sqlSage100Tables String[]          // tables Sage 100 sous-jacentes
+  mlUsage          String?           // usage ML / IA
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
 
-  targets        Target[]
+  targets          Target[]
 
   @@map("kpi_definitions")
 }
@@ -561,7 +572,7 @@ model BillingCustomer {
   id             String              @id @default(uuid())
   organizationId String              @unique
   organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  fwCustomerId   String?             @unique // customer_id retourné par FW webhook
+  fwCustomerId   String?             @unique @map("fw_customer_id") // customer_id retourné par FW webhook
   email          String
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
@@ -578,7 +589,7 @@ model BillingSubscription {
   organization     Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   customerId       String           @unique
   customer         BillingCustomer  @relation(fields: [customerId], references: [id])
-  fwSubscriptionId String?          @unique // subscription_id retourné par FW
+  fwSubscriptionId String?          @unique @map("fw_subscription_id") // subscription_id retourné par FW
   planId           String
   plan             SubscriptionPlan @relation(fields: [planId], references: [id])
   status           BillingStatus    @default(TRIALING)
@@ -603,7 +614,7 @@ model BillingInvoice {
   organization    Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   subscriptionId  String
   subscription    BillingSubscription @relation(fields: [subscriptionId], references: [id])
-  fwTransactionId String              @unique // transaction_id retourné par FW
+  fwTransactionId String              @unique @map("fw_transaction_id") // transaction_id retourné par FW
   amountPaid      Int                 // en XOF — entier (ex: 36000)
   currency        String              @default("xof")
   status          String              // "paid" | "open" | "failed"
