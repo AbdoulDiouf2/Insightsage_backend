@@ -12,70 +12,194 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 // ─── KpiDefinition DTOs ───────────────────────────────────────────────────────
 
 export class CreateKpiDefinitionDto {
-  @ApiProperty({ example: 'revenue_mom', description: 'Clé unique du KPI' })
+  @ApiProperty({ example: 'f01_ca_ht', description: 'Clé unique du KPI' })
   @IsString()
   @IsNotEmpty()
   key: string;
 
-  @ApiProperty({ example: 'CA Mois/Mois' })
+  @ApiPropertyOptional({ example: 'KPI-F01', description: 'Code court du KPI' })
+  @IsString()
+  @IsOptional()
+  code?: string;
+
+  @ApiProperty({ example: 'Chiffre d\'Affaires (CA) HT' })
   @IsString()
   @IsNotEmpty()
   name: string;
 
-  @ApiPropertyOptional({ example: 'Variation du chiffre d\'affaires mois sur mois' })
+  @ApiPropertyOptional({ example: 'Finance & Trésorerie', description: 'Domaine métier' })
+  @IsString()
+  @IsOptional()
+  domain?: string;
+
+  @ApiPropertyOptional({ example: 'Total des ventes nettes hors taxes.' })
   @IsString()
   @IsOptional()
   description?: string;
 
-  @ApiPropertyOptional({ example: '%', description: 'Unité : €, %, jours' })
+  @ApiProperty({ example: 'finance', description: 'Catégorie du KPI' })
+  @IsString()
+  @IsNotEmpty()
+  category: string;
+
+  @ApiPropertyOptional({ example: 'Revenus', description: 'Sous-catégorie' })
+  @IsString()
+  @IsOptional()
+  subcategory?: string;
+
+  @ApiPropertyOptional({ example: 'Mesurer la performance commerciale globale.' })
+  @IsString()
+  @IsOptional()
+  usage?: string;
+
+  @ApiPropertyOptional({ example: '€', description: 'Unité : €, %, jours' })
   @IsString()
   @IsOptional()
   unit?: string;
 
-  @ApiProperty({
-    example: 'finance',
-    description: 'Catégorie : finance | commercial | treasury',
-  })
+  @ApiPropertyOptional({ example: 'Mensuel / Annuel' })
   @IsString()
-  @IsIn(['finance', 'commercial', 'treasury'])
-  category: string;
+  @IsOptional()
+  frequency?: string;
+
+  @ApiPropertyOptional({ example: 'Faible', description: 'Niveau de risque : Faible | Moyen | Élevé' })
+  @IsString()
+  @IsOptional()
+  risk?: string;
+
+  @ApiPropertyOptional({ example: ['DAF', 'CFO', 'DG'], description: 'Profils métier cibles' })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  profiles?: string[];
+
+  @ApiPropertyOptional({ example: ['Tous secteurs'], description: 'Secteurs applicables' })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  sectors?: string[];
 
   @ApiProperty({
-    example: 'gauge',
-    description: 'Type de visualisation par défaut : gauge | bar | card | line | table',
+    example: 'bar',
+    description: 'Type de visualisation par défaut',
   })
   @IsString()
-  @IsIn(['gauge', 'bar', 'card', 'line', 'table'])
+  @IsIn(['gauge', 'bar', 'card', 'kpi', 'line', 'table', 'pie', 'map', 'text'])
   defaultVizType: string;
+
+  @ApiPropertyOptional({ example: 'VW_Finances_Clients_Flat', description: 'Vue Sage 100 principale' })
+  @IsString()
+  @IsOptional()
+  sqlSage100View?: string;
+
+  @ApiPropertyOptional({ example: ['F_COMPTET', 'G_ECRITUREC'], description: 'Tables Sage 100 sous-jacentes' })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  sqlSage100Tables?: string[];
+
+  @ApiPropertyOptional({ example: 'HIGHER_IS_BETTER', description: 'Direction : HIGHER_IS_BETTER | LOWER_IS_BETTER' })
+  @IsString()
+  @IsIn(['HIGHER_IS_BETTER', 'LOWER_IS_BETTER'])
+  @IsOptional()
+  direction?: string;
+
+  @ApiPropertyOptional({ example: 'Feature principale pour prévision de revenus.' })
+  @IsString()
+  @IsOptional()
+  mlUsage?: string;
 }
 
 export class UpdateKpiDefinitionDto {
-  @ApiPropertyOptional({ example: 'CA Mois/Mois (mis à jour)' })
+  @ApiPropertyOptional({ example: 'KPI-F01 (mis à jour)' })
+  @IsString()
+  @IsOptional()
+  code?: string;
+
+  @ApiPropertyOptional({ example: 'Chiffre d\'Affaires (CA) HT (mis à jour)' })
   @IsString()
   @IsOptional()
   name?: string;
+
+  @ApiPropertyOptional({ example: 'Finance & Trésorerie' })
+  @IsString()
+  @IsOptional()
+  domain?: string;
 
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
   description?: string;
 
+  @ApiPropertyOptional({ example: 'finance' })
+  @IsString()
+  @IsOptional()
+  category?: string;
+
+  @ApiPropertyOptional({ example: 'Revenus' })
+  @IsString()
+  @IsOptional()
+  subcategory?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  usage?: string;
+
   @ApiPropertyOptional({ example: '€' })
   @IsString()
   @IsOptional()
   unit?: string;
 
-  @ApiPropertyOptional({ example: 'finance' })
+  @ApiPropertyOptional({ example: 'Mensuel' })
   @IsString()
-  @IsIn(['finance', 'commercial', 'treasury'])
   @IsOptional()
-  category?: string;
+  frequency?: string;
 
-  @ApiPropertyOptional({ example: 'card' })
+  @ApiPropertyOptional({ example: 'Faible' })
   @IsString()
-  @IsIn(['gauge', 'bar', 'card', 'line', 'table'])
+  @IsOptional()
+  risk?: string;
+
+  @ApiPropertyOptional({ example: ['DAF', 'CFO'] })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  profiles?: string[];
+
+  @ApiPropertyOptional({ example: ['Commerce'] })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  sectors?: string[];
+
+  @ApiPropertyOptional({ example: 'bar' })
+  @IsString()
+  @IsIn(['gauge', 'bar', 'card', 'kpi', 'line', 'table', 'pie', 'map', 'text'])
   @IsOptional()
   defaultVizType?: string;
+
+  @ApiPropertyOptional({ example: 'VW_Finances_Clients_Flat' })
+  @IsString()
+  @IsOptional()
+  sqlSage100View?: string;
+
+  @ApiPropertyOptional({ example: ['F_COMPTET'] })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  sqlSage100Tables?: string[];
+
+  @ApiPropertyOptional({ example: 'HIGHER_IS_BETTER', description: 'Direction : HIGHER_IS_BETTER | LOWER_IS_BETTER' })
+  @IsString()
+  @IsIn(['HIGHER_IS_BETTER', 'LOWER_IS_BETTER'])
+  @IsOptional()
+  direction?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  mlUsage?: string;
 
   @ApiPropertyOptional({ example: true })
   @IsBoolean()
@@ -93,10 +217,10 @@ export class CreateWidgetTemplateDto {
 
   @ApiProperty({
     example: 'card',
-    description: 'Type de visualisation unique : card | bar | line | gauge | table',
+    description: 'Type de visualisation unique : card | bar | line | gauge | table | pie | map | text',
   })
   @IsString()
-  @IsIn(['card', 'bar', 'line', 'gauge', 'table'])
+  @IsIn(['card', 'bar', 'line', 'gauge', 'table', 'pie', 'map', 'text'])
   vizType: string;
 
   @ApiPropertyOptional({ example: 'Affiche une métrique KPI sous forme de carte' })
@@ -156,7 +280,7 @@ export class CreateKpiPackDto {
   profile: string;
 
   @ApiProperty({
-    example: ['revenue_mom', 'dmp', 'ar_aging'],
+    example: ['f01_ca_ht', 'f05_dso', 'f06_encours_clients'],
     description: 'Clés KPI incluses dans ce pack',
   })
   @IsArray()
@@ -181,7 +305,7 @@ export class UpdateKpiPackDto {
   @IsOptional()
   profile?: string;
 
-  @ApiPropertyOptional({ example: ['revenue_mom', 'gross_margin'] })
+  @ApiPropertyOptional({ example: ['f01_ca_ht', 'f03_marge_brute'] })
   @IsArray()
   @IsString({ each: true })
   @IsOptional()
