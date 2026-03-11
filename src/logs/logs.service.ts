@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface AuditLogFilters {
@@ -66,6 +66,26 @@ export class LogsService {
         hasMore: offset + logs.length < total,
       },
     };
+  }
+
+  async findById(id: string, organizationId: string) {
+    const log = await this.prisma.auditLog.findFirst({
+      where: { id, organizationId },
+      include: {
+        user: {
+          select: { id: true, email: true, firstName: true, lastName: true },
+        },
+        organization: {
+          select: { id: true, name: true },
+        },
+      },
+    });
+
+    if (!log) {
+      throw new NotFoundException(`Audit log ${id} not found`);
+    }
+
+    return log;
   }
 
   async getEventTypes(organizationId: string) {

@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Param,
   Query,
   UseGuards,
   ParseIntPipe,
@@ -81,5 +82,16 @@ export class LogsController {
   @ApiOperation({ summary: 'Get available event types with counts' })
   async getEventTypes(@OrganizationId() organizationId: string) {
     return this.logsService.getEventTypes(organizationId);
+  }
+
+  @Get('audit/:id')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions({ action: 'read', resource: 'logs' })
+  @ApiOperation({ summary: 'Get a single audit log entry by ID' })
+  async getAuditLogById(
+    @Param('id') id: string,
+    @OrganizationId() organizationId: string,
+  ) {
+    return this.logsService.findById(id, organizationId);
   }
 }

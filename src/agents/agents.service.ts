@@ -494,6 +494,28 @@ export class AgentsService implements OnModuleInit {
     };
   }
 
+  async getJobStats(agentId: string, organizationId: string) {
+    const rows = await this.prisma.agentJob.groupBy({
+      by: ['status'],
+      where: { agentId, organizationId },
+      _count: { status: true },
+    });
+
+    const stats: Record<string, number> = {
+      PENDING: 0,
+      RUNNING: 0,
+      COMPLETED: 0,
+      FAILED: 0,
+    };
+
+    for (const row of rows) {
+      stats[row.status] = row._count.status;
+    }
+
+    const total = Object.values(stats).reduce((a, b) => a + b, 0);
+    return { ...stats, total };
+  }
+
   /**
    * Marque les agents sans heartbeat récent comme offline (appelé par un cron job)
    */

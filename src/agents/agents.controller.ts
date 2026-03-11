@@ -208,6 +208,19 @@ export class AgentsController {
     );
   }
 
+  @Get(':id/job-stats')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions({ action: 'read', resource: 'agents' })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get job stats (count per status) for a specific agent' })
+  @ApiParam({ name: 'id', description: 'Agent ID' })
+  async getJobStats(
+    @Param('id') id: string,
+    @OrganizationId() organizationId: string,
+  ) {
+    return this.agentsService.getJobStats(id, organizationId);
+  }
+
   @Get(':id/logs')
   @UseGuards(PermissionsGuard)
   @RequirePermissions({ action: 'read', resource: 'agents' })
