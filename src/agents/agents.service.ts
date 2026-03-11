@@ -562,11 +562,12 @@ export class AgentsService implements OnModuleInit {
   /**
    * Crée un job d'exécution SQL pour un agent
    */
-  async createJob(organizationId: string, agentId: string, sql: string) {
+  async createJob(organizationId: string, agentId: string, sql: string, userId?: string) {
     return this.prisma.agentJob.create({
       data: {
         organizationId,
         agentId,
+        userId: userId || null,
         sql,
         status: JobStatus.PENDING,
       },
@@ -611,6 +612,7 @@ export class AgentsService implements OnModuleInit {
     organizationId: string,
     sql: string,
     gateway: any, // On passe la gateway pour éviter les cycles d'injection si nécessaire
+    userId?: string,
   ) {
     // 0. Injection dynamique de la configuration (Scoping par Dossier/Société)
     const org = await this.prisma.organization.findUnique({
@@ -672,7 +674,7 @@ export class AgentsService implements OnModuleInit {
     }
 
     // 5. Créer le job
-    const job = await this.createJob(organizationId, agent.id, finalSql);
+    const job = await this.createJob(organizationId, agent.id, finalSql, userId);
 
     // 6. Envoyer via WebSocket
     const sent = await gateway.emitExecuteSql(organizationId, job.id, finalSql);
@@ -839,6 +841,14 @@ export class AgentsService implements OnModuleInit {
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
+        include: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+            }
+          }
+        }
       }),
       this.prisma.agentJob.count({
         where,

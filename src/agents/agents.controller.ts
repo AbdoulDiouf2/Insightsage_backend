@@ -19,7 +19,7 @@ import { HeartbeatDto } from './dto/heartbeat.dto';
 import { GenerateTokenDto } from './dto/generate-token.dto';
 import { ExecuteQueryDto } from './dto/execute-query.dto';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
-import { Public, RequirePermissions, OrganizationId } from '../auth/decorators';
+import { Public, RequirePermissions, OrganizationId, CurrentUser } from '../auth/decorators';
 import {
   ApiTags,
   ApiOperation,
@@ -173,6 +173,7 @@ export class AgentsController {
   async testConnection(
     @Param('id') id: string,
     @OrganizationId() organizationId: string,
+    @CurrentUser('id') userId: string,
   ) {
     const agent = await this.agentsService.getAgentById(id);
     if (agent.organizationId !== organizationId) {
@@ -184,6 +185,7 @@ export class AgentsController {
       organizationId,
       'SELECT 1',
       this.agentsGateway,
+      userId,
     );
   }
 
@@ -200,12 +202,14 @@ export class AgentsController {
   })
   async executeQuery(
     @OrganizationId() organizationId: string,
+    @CurrentUser('id') userId: string,
     @Body() dto: ExecuteQueryDto,
   ) {
     return this.agentsService.executeRealTimeQuery(
       organizationId,
       dto.sql,
-      this.agentsGateway
+      this.agentsGateway,
+      userId,
     );
   }
 
