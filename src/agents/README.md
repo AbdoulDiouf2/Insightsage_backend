@@ -184,14 +184,23 @@ Révoque immédiatement le token de l'agent. L'agent ne pourra plus se connecter
 
 ### Token Format
 ```
-isag_[48 caractères hexadécimaux]
+isag_[64 caractères hexadécimaux]  (32 bytes via crypto.randomBytes)
 ```
-Exemple : `isag_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4`
+Exemple : `isag_a1b2c3d4e5f6...`
 
 ### Isolation Multi-Tenant
 - Chaque agent est lié à une `organizationId`
-- Les endpoints protégés vérifient que l'utilisateur appartient à la même organisation
+- `getJobById(jobId, organizationId)` vérifie que le job appartient bien à l'organisation (logique dans le service, pas le controller)
 - Les superadmins peuvent voir tous les agents
+
+### Rate Limiting Redis distribué
+Les requêtes SQL temps réel sont limitées à **10 req/min par organisation** via Redis :
+
+```
+Clé : sql_rl:{organizationId}
+Pattern : INCR + EXPIRE 60s
+Fail-open : si Redis indisponible → warning loggé, requête autorisée
+```
 
 ### Heartbeat Monitoring
 - Un agent sans heartbeat depuis 2+ minutes est marqué `offline`

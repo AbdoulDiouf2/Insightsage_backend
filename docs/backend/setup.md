@@ -73,12 +73,19 @@ PORT=3000
 NODE_ENV=development   # development | test | production
 
 # ============================================================
+# REDIS — Rate limiting distribué + cache
+# ============================================================
+
+REDIS_URL="redis://localhost:6379"
+# En production (Upstash) : rediss://default:<token>@<host>.upstash.io:6379
+
+# ============================================================
 # JWT — SÉCURITÉ
 # Générer avec : openssl rand -base64 64
 # ============================================================
 
-JWT_SECRET="votre-secret-jwt-tres-long-minimum-32-chars"
-JWT_REFRESH_SECRET="votre-secret-refresh-different-du-jwt"
+JWT_SECRET="<generate: openssl rand -base64 64>"
+JWT_REFRESH_SECRET="<generate: openssl rand -base64 64>"
 
 # ============================================================
 # FRONTEND
@@ -91,10 +98,10 @@ FRONTEND_URL="http://localhost:5173"
 # ADMINJS PANEL (optionnel)
 # ============================================================
 
-ADMIN_EMAIL="admin@insightsage.com"
-ADMIN_PASSWORD="Admin123!"
-ADMIN_COOKIE_SECRET="cookie-secret-minimum-32-caracteres!!"
-ADMIN_SESSION_SECRET="session-secret-minimum-32-caracteres!"
+ADMIN_EMAIL="admin@cockpit.io"
+ADMIN_PASSWORD="<define a strong password>"
+ADMIN_COOKIE_SECRET="<generate: openssl rand -base64 32>"
+ADMIN_SESSION_SECRET="<generate: openssl rand -base64 32>"
 
 # ============================================================
 # SMTP — EMAIL TRANSACTIONNEL
@@ -107,7 +114,22 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=
 SMTP_PASS=
-SMTP_FROM="Cockpit <noreply@votre-domaine.com>"
+SMTP_FROM="Cockpit <noreply@insightsage.io>"
+
+# ============================================================
+# SENTRY — Error monitoring (optionnel, laisser vide pour désactiver)
+# ============================================================
+
+SENTRY_DSN=
+
+# ============================================================
+# FLUTTERWAVE — Paiements & Abonnements
+# Utiliser les clés TEST en dev, LIVE en production
+# ============================================================
+
+FLW_SECRET_KEY=
+FLW_PUBLIC_KEY=
+FLW_SECRET_HASH=
 ```
 
 !!! info "Emails en développement"
@@ -201,7 +223,7 @@ curl http://localhost:3000/health
 # { "status": "ok", "timestamp": "2026-03-02T..." }
 ```
 
-**Swagger UI** : [http://localhost:3000/api](http://localhost:3000/api)
+**Swagger UI** : [http://localhost:3000/docs](http://localhost:3000/docs) (protégé par JWT — page de connexion affichée si non authentifié)
 
 ---
 
@@ -268,6 +290,39 @@ ConfigModule.forRoot({
 | `npm run test:e2e` | Tests end-to-end |
 | `npm run lint` | ESLint (avec auto-fix) |
 | `npm run format` | Prettier (avec auto-fix) |
+
+---
+
+## Redis
+
+Redis est utilisé pour le rate limiting distribué des requêtes SQL temps réel (par organisation) et le ThrottlerGuard global.
+
+### Options de configuration
+
+=== "Développement local (Docker)"
+    ```bash
+    docker run -d --name redis -p 6379:6379 redis:alpine
+    # REDIS_URL=redis://localhost:6379
+    ```
+
+=== "Développement local (WSL2)"
+    ```bash
+    # Dans WSL2 :
+    sudo apt install redis-server
+    sudo service redis-server start
+    # REDIS_URL=redis://localhost:6379
+    ```
+
+=== "Production (Upstash — recommandé)"
+    1. Créer une base sur [console.upstash.com](https://console.upstash.com)
+    2. Récupérer l'URL Redis avec TLS
+    3. Définir dans `.env.prod` :
+    ```env
+    REDIS_URL="rediss://default:<token>@<host>.upstash.io:6379"
+    ```
+
+!!! tip "Fail-open"
+    Si Redis est indisponible au démarrage ou en cours d'exécution, les requêtes ne sont **pas bloquées** — un warning est loggé. Le rate limiting SQL est désactivé temporairement mais le reste de l'API fonctionne normalement.
 
 ---
 

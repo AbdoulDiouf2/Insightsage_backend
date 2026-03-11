@@ -4,6 +4,8 @@ import {
   BadRequestException,
   ForbiddenException,
   OnModuleInit,
+  Inject,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../logs/audit-log.service';
@@ -15,6 +17,8 @@ import { JobStatus } from '@prisma/client';
 import { SqlSecurityService } from './sql-security.service';
 import { LicenseGuardianService } from '../subscriptions/license-guardian.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { REDIS_CLIENT } from '../redis/redis.module';
+import type { RedisClientType } from 'redis';
 
 // Durée de vie d'un token : 30 jours (Section 2.4)
 const TOKEN_TTL_DAYS = 30;
@@ -27,8 +31,8 @@ const MAX_REQUESTS_PER_MINUTE = 10;
 
 @Injectable()
 export class AgentsService implements OnModuleInit {
+  private readonly logger = new Logger(AgentsService.name);
   private connectedAgents = new Set<string>(); // Map organizationId -> presence via WebSocket
-  private rateLimits = new Map<string, { count: number; lastReset: number }>();
 
   constructor(
     private prisma: PrismaService,
@@ -36,6 +40,7 @@ export class AgentsService implements OnModuleInit {
     private sqlSecurity: SqlSecurityService,
     private licenseGuardian: LicenseGuardianService,
     private eventEmitter: EventEmitter2,
+    @Inject(REDIS_CLIENT) private redis: RedisClientType,
   ) { }
 
   onModuleInit() {
@@ -112,22 +117,24 @@ export class AgentsService implements OnModuleInit {
     };
   }
 
-  private checkRateLimit(organizationId: string): void {
-    const now = Date.now();
-    const limit = this.rateLimits.get(organizationId);
-
-    if (!limit || now - limit.lastReset > 60000) {
-      this.rateLimits.set(organizationId, { count: 1, lastReset: now });
-      return;
+  private async checkRateLimit(organizationId: string): Promise<void> {
+    const key = `sql_rl:${organizationId}`;
+    try {
+      const count = await this.redis.incr(key);
+      if (count === 1) {
+        // Première requête de la fenêtre — définir TTL de 60 secondes
+        await this.redis.expire(key, 60);
+      }
+      if (count > MAX_REQUESTS_PER_MINUTE) {
+        throw new BadRequestException(
+          `Limite de requêtes atteinte (${MAX_REQUESTS_PER_MINUTE}/min). Veuillez patienter.`,
+        );
+      }
+    } catch (err) {
+      if (err instanceof BadRequestException) throw err;
+      // Si Redis est indisponible, on laisse passer (fail-open) plutôt que de bloquer
+      this.logger.warn(`Redis indisponible pour rate limiting org ${organizationId}: ${err.message}`);
     }
-
-    if (limit.count >= MAX_REQUESTS_PER_MINUTE) {
-      throw new BadRequestException(
-        `Limite de requêtes atteinte (${MAX_REQUESTS_PER_MINUTE}/min). Veuillez patienter.`,
-      );
-    }
-
-    limit.count++;
   }
 
   /**
@@ -612,8 +619,8 @@ export class AgentsService implements OnModuleInit {
     // 2. Vérification de la limite de licence (Synchronisation quotidienne) - DESACTIVÉ
     // await this.licenseGuardian.assertLimit(organizationId, 'maxAgentSyncPerDay');
 
-    // 3. Rate limiting check
-    this.checkRateLimit(organizationId);
+    // 3. Rate limiting check (Redis distribué)
+    await this.checkRateLimit(organizationId);
 
     // 3.5 Stratégie de Caching : Vérifier si une requête identique a été faite récemment (< 5 min)
     const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -700,6 +707,21 @@ export class AgentsService implements OnModuleInit {
 
   isAgentConnected(organizationId: string): boolean {
     return this.connectedAgents.has(organizationId);
+  }
+
+  /**
+   * Récupère un job par ID avec vérification tenant isolation
+   */
+  async getJobById(jobId: string, organizationId: string) {
+    const job = await this.prisma.agentJob.findUnique({
+      where: { id: jobId },
+    });
+
+    if (!job || job.organizationId !== organizationId) {
+      throw new NotFoundException('Job introuvable');
+    }
+
+    return job;
   }
 
   /**

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { timingSafeEqual } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../logs/audit-log.service';
@@ -17,6 +18,11 @@ export class FlutterwaveWebhookService {
     private readonly mailer: MailerService,
   ) {
     this.secretHash = this.config.get<string>('FLW_SECRET_HASH') ?? '';
+    if (!this.secretHash) {
+      this.logger.warn(
+        'FLW_SECRET_HASH est vide — le webhook Flutterwave rejettera toutes les requêtes.',
+      );
+    }
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -24,11 +30,27 @@ export class FlutterwaveWebhookService {
   // ──────────────────────────────────────────────────────────────────────────
 
   /**
-   * Verifie que la requete provient bien de Flutterwave.
+   * Vérifie que la requête provient bien de Flutterwave.
    * Flutterwave envoie le secret hash dans le header "verif-hash".
+   *
+   * Utilise timingSafeEqual pour éviter les timing attacks.
+   * Rejette immédiatement si FLW_SECRET_HASH n'est pas configuré.
    */
   verifyWebhook(signature: string): boolean {
-    return signature === this.secretHash;
+    if (!this.secretHash || !signature) {
+      return false;
+    }
+    try {
+      const sigBuf = Buffer.from(signature);
+      const secretBuf = Buffer.from(this.secretHash);
+      // Les buffers doivent avoir la même longueur pour timingSafeEqual
+      if (sigBuf.length !== secretBuf.length) {
+        return false;
+      }
+      return timingSafeEqual(sigBuf, secretBuf);
+    } catch {
+      return false;
+    }
   }
 
   // ──────────────────────────────────────────────────────────────────────────

@@ -9,13 +9,14 @@ import {
   HttpStatus,
   Ip,
   ForbiddenException,
-  NotFoundException,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AgentsService } from './agents.service';
 import { AgentsGateway } from './agents.gateway';
 import { RegisterAgentDto } from './dto/register-agent.dto';
 import { HeartbeatDto } from './dto/heartbeat.dto';
 import { GenerateTokenDto } from './dto/generate-token.dto';
+import { ExecuteQueryDto } from './dto/execute-query.dto';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Public, RequirePermissions, OrganizationId } from '../auth/decorators';
 import {
@@ -39,6 +40,7 @@ export class AgentsController {
   // ============================================================
 
   @Public()
+  @Throttle({ default: { ttl: 60000, limit: 10 } }) // 10 inscriptions/min par IP (agent on-prem)
   @Post('register')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -55,6 +57,7 @@ export class AgentsController {
   }
 
   @Public()
+  @Throttle({ default: { ttl: 60000, limit: 120 } }) // 120/min : heartbeat toutes les 30s = 2/min par agent, marge x60
   @Post('heartbeat')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -196,7 +199,7 @@ export class AgentsController {
   })
   async executeQuery(
     @OrganizationId() organizationId: string,
-    @Body() dto: { sql: string },
+    @Body() dto: ExecuteQueryDto,
   ) {
     return this.agentsService.executeRealTimeQuery(
       organizationId, 
@@ -235,14 +238,6 @@ export class AgentsController {
     @Param('jobId') jobId: string,
     @OrganizationId() organizationId: string,
   ) {
-    const job = await (this.agentsService as any).prisma.agentJob.findUnique({
-      where: { id: jobId },
-    });
-
-    if (!job || job.organizationId !== organizationId) {
-      throw new NotFoundException('Job introuvable');
-    }
-
-    return job;
+    return this.agentsService.getJobById(jobId, organizationId);
   }
 }

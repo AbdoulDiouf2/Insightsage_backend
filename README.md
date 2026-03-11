@@ -48,8 +48,11 @@ Sections couvertes : Architecture · API Reference · Sécurité · Base de donn
 | ORM | Prisma v7.4.2 + adaptateur `@prisma/adapter-pg` |
 | Base de données | PostgreSQL — hébergé sur Supabase (pooling PgBouncer) |
 | Auth | JWT Access (15 min) + Refresh (7 j) + Tokens agents (30 j) |
+| Cache / Rate Limiting | Redis (`node-redis` v5) — rate limiting distribué SQL + ThrottlerGuard |
 | Validation | `class-validator` + `class-transformer` |
+| Sécurité | Helmet (CSP) + bcrypt ×12 + SHA-256 token hashing + `timingSafeEqual` |
 | Logs | AuditLogService global — masquage PII automatique |
+| Monitoring | Sentry (conditionnel via `SENTRY_DSN`) |
 | Tests | Jest + couverture Istanbul |
 | Docs | MkDocs Material 9.x |
 
@@ -89,14 +92,15 @@ Guards globaux : `JwtAuthGuard` → `TenantGuard` (isolation multi-tenant strict
 ### 1. Dépendances
 
 ```bash
-npm install
+npm install --legacy-peer-deps
 ```
 
 ### 2. Variables d'environnement
 
 ```bash
-cp .env.example .env
-# Remplir DATABASE_URL, DIRECT_URL, JWT_SECRET, JWT_REFRESH_SECRET, FRONTEND_URL
+cp .env.example .env.dev
+# Remplir : DATABASE_URL, DIRECT_URL, JWT_SECRET, JWT_REFRESH_SECRET, REDIS_URL, FRONTEND_URL
+# Optionnel : SMTP_*, SENTRY_DSN, FLW_*
 ```
 
 ### 3. Base de données
@@ -119,8 +123,8 @@ npm run start:dev
 npm run build && npm run start:prod
 ```
 
-L'API écoute sur `http://localhost:3000`.
-Swagger disponible sur `http://localhost:3000/api`.
+L'API écoute sur `http://localhost:3000/api`.
+Swagger (protégé JWT) : `http://localhost:3000/docs`.
 
 ---
 
@@ -136,11 +140,18 @@ npm run test:e2e      # Tests end-to-end
 
 ## Sécurité
 
+- **Helmet + CSP** : Headers de sécurité HTTP avec Content Security Policy stricte.
+- **JWT protégé** : Swagger UI (`/docs`) protégé par JWT — page de connexion si non authentifié.
+- **bcrypt ×12** : Mots de passe et refresh tokens hashés avec le facteur OWASP recommandé.
+- **SHA-256 tokens** : Tokens d'invitation et reset password stockés hashés en DB (jamais en clair).
+- **CORS strict** : Whitelist d'origines explicite, aucune origine `null` autorisée.
+- **Rate Limiting Redis** : 10 req/min par organisation sur les requêtes SQL temps réel (distribué).
+- **timingSafeEqual** : Vérification des webhooks Flutterwave en temps constant (anti-timing attacks).
 - **Audit Log & PII** : Emails et mots de passe masqués automatiquement (`j***@acme.com`).
 - **SQL Sandboxing** : Validation stricte des requêtes NLQ (`SELECT` uniquement, whitelist de tables).
-- **Scoping Dynamique** : Injection automatique du nom de la base de données client dans toutes les requêtes SQL via `sageConfig`.
-- **Isolation Tenant** : Filtrage immuable par `organizationId` au niveau de l'ORM et du tunnel temps réel.
-- **Secrets** : `.env*` protégé par `.gitignore`, jamais commité
+- **Isolation Tenant** : Filtrage immuable par `organizationId` au niveau Guard + ORM + tunnel WebSocket.
+- **Sentry** : Monitoring d'erreurs en production (désactivé si `SENTRY_DSN` vide).
+- **Secrets** : `.env*` protégé par `.gitignore`, jamais commité.
 
 ---
 

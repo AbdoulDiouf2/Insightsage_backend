@@ -332,33 +332,147 @@ L'agent révoqué ne peut plus passer le guard de validation de token sur `POST 
 ## 7. Chiffrement des mots de passe
 
 ```typescript
-// bcrypt avec saltRounds = 10
-const passwordHash = await bcrypt.hash(password, 10);
+// bcrypt avec saltRounds = 12 (recommandation OWASP pour nouvelles applications)
+const passwordHash = await bcrypt.hash(password, 12);
 
 // Vérification
 const isValid = await bcrypt.compare(inputPassword, user.passwordHash);
 ```
 
+!!! info "Facteur 12 vs 10"
+    Le facteur 12 (vs 10 historique) représente ~4× plus de calcul par tentative, rendant le brute-force significativement plus coûteux. Appliqué sur les mots de passe utilisateurs ET le hachage des refresh tokens.
+
 ---
 
-## 8. Headers de sécurité recommandés (Production)
+## 8. Hachage des tokens sensibles (SHA-256)
 
-Configurer via Nginx ou un middleware Helmet :
-
-```nginx
-add_header X-Content-Type-Options "nosniff";
-add_header X-Frame-Options "DENY";
-add_header X-XSS-Protection "1; mode=block";
-add_header Strict-Transport-Security "max-age=31536000; includeSubDomains";
-add_header Content-Security-Policy "default-src 'self'";
-```
+Les tokens d'invitation et de réinitialisation de mot de passe sont stockés en DB sous forme de hash SHA-256, jamais en clair :
 
 ```typescript
-// Dans main.ts (NestJS)
-import helmet from 'helmet';
-app.use(helmet());
+// Génération + stockage
+const rawToken = crypto.randomBytes(32).toString('hex');
+const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+// Stockage en DB : tokenHash (jamais rawToken)
+// Envoi par email : rawToken
+
+// Vérification à la réception
+const incomingHash = crypto.createHash('sha256').update(dto.token).digest('hex');
+const record = await prisma.invitation.findUnique({
+  where: { token: incomingHash }
+});
+```
+
+Résultat : même si la DB est compromise, les tokens en clair restent inconnus.
+
+---
+
+## 9. Headers de sécurité (Helmet)
+
+Helmet est configuré dans `main.ts` avec une **Content Security Policy** stricte :
+
+```typescript
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"], // Requis pour Swagger UI
+        imgSrc: ["'self'", 'data:'],
+      },
+    },
+  }),
+);
+```
+
+Helmet ajoute automatiquement : `X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`, `Strict-Transport-Security` (en production HTTPS).
+
+---
+
+## 10. CORS
+
+```typescript
+const allowedOrigins = [
+  configService.get<string>('FRONTEND_URL') || 'http://localhost:3001',
+  'http://localhost:5173', // Admin Frontend dev
+  'http://localhost:3000', // Backend local
+];
+
 app.enableCors({
-  origin: process.env.FRONTEND_URL,
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 });
 ```
+
+!!! warning "Pas d'origine `null`"
+    L'origine `null` (ex: fichiers HTML locaux) n'est jamais autorisée, même en développement, pour éviter les attaques CSRF via `file://`.
+
+---
+
+## 11. Protection Swagger UI
+
+La documentation Swagger (`/docs`) est protégée par JWT. Toute tentative d'accès sans token valide affiche une page de connexion HTML :
+
+```typescript
+expressApp.use(['/docs', '/docs-json', '/docs-yaml'], (req, res, next) => {
+  const token = extractBearerToken(req) || req.cookies['swagger_token'];
+  if (token && jwtSecret) {
+    try {
+      jwt.verify(token, jwtSecret);
+      return next();
+    } catch { /* Token invalide */ }
+  }
+  res.status(401).type('html').send(SWAGGER_LOGIN_PAGE);
+});
+```
+
+Le token Swagger est stocké dans un cookie `SameSite=Strict` côté navigateur.
+
+---
+
+## 12. Rate Limiting distribué (Redis)
+
+### Rate limiting global (ThrottlerGuard)
+
+Toutes les requêtes sont limitées via `@nestjs/throttler` (60 req/min par IP par défaut) avec Redis comme store distribué via `RedisModule`.
+
+### Rate limiting SQL par organisation
+
+Les requêtes SQL temps réel envoyées aux agents sont limitées à **10 req/min par organisation** via Redis :
+
+```typescript
+// Clé Redis : sql_rl:{organizationId}
+const key = `sql_rl:${organizationId}`;
+const count = await this.redis.incr(key);
+if (count === 1) await this.redis.expire(key, 60); // TTL 60s
+if (count > MAX_REQUESTS_PER_MINUTE) {
+  throw new BadRequestException(`Limite de requêtes atteinte (10/min). Veuillez patienter.`);
+}
+```
+
+**Stratégie fail-open** : si Redis est indisponible, un warning est loggé mais la requête n'est pas bloquée, pour éviter une interruption de service.
+
+---
+
+## 13. Monitoring d'erreurs (Sentry)
+
+Sentry est initialisé conditionnellement au démarrage si `SENTRY_DSN` est défini :
+
+```typescript
+const sentryDsn = configService.get<string>('SENTRY_DSN');
+if (sentryDsn) {
+  Sentry.init({
+    dsn: sentryDsn,
+    environment: configService.get<string>('NODE_ENV') || 'development',
+  });
+}
+```
+
+Laisser `SENTRY_DSN` vide en dev pour désactiver (aucun impact sur le fonctionnement).

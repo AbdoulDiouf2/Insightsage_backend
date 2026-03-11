@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AuditInterceptor } from './audit/audit.interceptor';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
@@ -24,10 +25,12 @@ import { BillingModule } from './billing/billing.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { TenantGuard } from './auth/guards/tenant.guard';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
   imports: [
     EventEmitterModule.forRoot(),
+    RedisModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath:
@@ -37,6 +40,14 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
             ? '.env.prod'
             : ['.env.dev', '.env'],
     }),
+    // Rate limiting global : 60 requêtes/minute par IP par défaut
+    // Les endpoints sensibles surchargent cette valeur avec @Throttle()
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,  // fenêtre de 1 minute
+        limit: 60,   // 60 requêtes max par IP par défaut
+      },
+    ]),
     PrismaModule,
     AuthModule,
     UsersModule,
@@ -59,8 +70,13 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
   ],
   providers: [
     // Global guards applied in order:
-    // 1. JwtAuthGuard - Authenticates user (skipped for @Public() routes)
-    // 2. TenantGuard - Ensures multi-tenant isolation
+    // 1. ThrottlerGuard - Rate limiting (avant tout le reste)
+    // 2. JwtAuthGuard  - Authentification (skipped for @Public() routes)
+    // 3. TenantGuard   - Isolation multi-tenant
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,

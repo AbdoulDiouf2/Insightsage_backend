@@ -7,6 +7,7 @@ import {
   HttpStatus,
   BadRequestException,
 } from '@nestjs/common';
+import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -29,6 +30,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) { }
 
   @Public()
+  @Throttle({ default: { ttl: 60000, limit: 10 } }) // 10 inscriptions/min par IP
   @Post('register')
   @ApiOperation({
     summary: 'Join an organization via invitation token',
@@ -48,6 +50,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { ttl: 60000, limit: 5 } }) // 5 tentatives/min par IP (anti brute-force)
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login user' })
@@ -57,6 +60,7 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
+  @SkipThrottle() // Logout ne nécessite pas de rate limiting
   @Post('logout')
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
@@ -67,6 +71,7 @@ export class AuthController {
   }
 
   @Public()
+  @SkipThrottle() // Le refresh est déjà protégé par le token signé
   @UseGuards(JwtRefreshAuthGuard)
   @Post('refresh')
   @ApiBearerAuth()
@@ -81,6 +86,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { ttl: 3600000, limit: 3 } }) // 3 demandes/heure par IP (anti spam email)
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request password reset link' })
@@ -89,6 +95,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { ttl: 60000, limit: 10 } }) // 10 tentatives/min par IP
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reset password using token' })

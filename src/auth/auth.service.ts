@@ -43,10 +43,10 @@ export class AuthService {
     }
 
     const { email, password, firstName, lastName, invitationToken } = dto;
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(password, 12);
 
     const invite = await this.prisma.invitation.findUnique({
-      where: { token: invitationToken },
+      where: { token: this.hashToken(invitationToken) },
     });
 
     if (
@@ -155,14 +155,15 @@ export class AuthService {
     }
 
     const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = this.hashToken(token);
     const resetPasswordExpires = new Date(Date.now() + 3600000); // 1 hour
 
     await this.usersService.update(user.id, {
-      resetPasswordToken: token,
+      resetPasswordToken: tokenHash, // Seul le hash est stocké en DB
       resetPasswordExpires,
     });
 
-    await this.mailer.sendResetPasswordEmail(user.email, token);
+    await this.mailer.sendResetPasswordEmail(user.email, token); // Token brut dans l'email
 
     // L'audit log est toujours déclenché (y compris en dev) — Section 2.3
     await this.auditLog.log({
@@ -178,9 +179,10 @@ export class AuthService {
   }
 
   async resetPassword(dto: ResetPasswordDto) {
+    const tokenHash = this.hashToken(dto.token);
     const user = await this.prisma.user.findFirst({
       where: {
-        resetPasswordToken: dto.token,
+        resetPasswordToken: tokenHash,
         resetPasswordExpires: { gt: new Date() },
       },
     });
@@ -189,7 +191,7 @@ export class AuthService {
       throw new BadRequestException('Invalid or expired reset token');
     }
 
-    const passwordHash = await bcrypt.hash(dto.newPassword, 10);
+    const passwordHash = await bcrypt.hash(dto.newPassword, 12);
     await this.usersService.update(user.id, {
       passwordHash,
       resetPasswordToken: null,
@@ -216,6 +218,7 @@ export class AuthService {
     }
 
     const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = this.hashToken(token);
     const expiresAt = new Date(Date.now() + 7 * 24 * 3600000); // 7 days
 
     const role = await this.prisma.role.findFirst({
@@ -240,7 +243,7 @@ export class AuthService {
         firstName: dto.firstName,
         lastName: dto.lastName,
         roleId: role.id,
-        token,
+        token: tokenHash, // Seul le hash est stocké en DB
         expiresAt,
         organizationId: dto.organizationId,
         invitedById,
@@ -249,7 +252,7 @@ export class AuthService {
 
     await this.mailer.sendInvitationEmail(
       dto.email,
-      token,
+      token, // Token brut dans l'email
       organization?.name ?? '',
       dto.role,
     );
@@ -283,7 +286,16 @@ export class AuthService {
   }
 
   private async updateRefreshTokenHash(userId: string, refreshToken: string) {
-    const hash = await bcrypt.hash(refreshToken, 10);
+    const hash = await bcrypt.hash(refreshToken, 12);
     await this.usersService.update(userId, { hashedRefreshToken: hash });
+  }
+
+  /**
+   * Hash un token aléatoire avec SHA-256 avant stockage en DB.
+   * Le token brut est envoyé par email ; seul le hash est persisté.
+   * Ainsi, une compromission de la DB n'expose pas les tokens actifs.
+   */
+  private hashToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
   }
 }

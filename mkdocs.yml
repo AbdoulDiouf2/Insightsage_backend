@@ -52,6 +52,7 @@ theme:
     - content.tabs.link
     - content.tooltips
     - toc.follow
+    - content.action.edit
 
   font:
     text: Inter
@@ -76,6 +77,17 @@ plugins:
   - search:
       lang: fr
       separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
+  - print-site:
+      add_to_navigation: false
+      print_page_title: 'Imprimer / Télécharger'
+      add_print_site_banner: false
+      add_table_of_contents: true
+      toc_title: 'Table des matières'
+      add_full_urls: false
+      enumerate_headings: false
+      enumerate_figures: false
+      add_cover_page: false
+      path_to_pdf: ''
 
 markdown_extensions:
   - abbr
