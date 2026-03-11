@@ -4,6 +4,7 @@ import {
   Get,
   Body,
   Param,
+  Query,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -33,7 +34,7 @@ export class AgentsController {
   constructor(
     private readonly agentsService: AgentsService,
     private readonly agentsGateway: AgentsGateway,
-  ) {}
+  ) { }
 
   // ============================================================
   // PUBLIC ENDPOINTS (Called by Agent On-Premise)
@@ -114,12 +115,12 @@ export class AgentsController {
     @OrganizationId() organizationId: string,
   ) {
     const agent = await this.agentsService.getAgentById(id);
-    
+
     // Ensure tenant isolation
     if (agent.organizationId !== organizationId) {
       throw new ForbiddenException('Access denied to this agent');
     }
-    
+
     return agent;
   }
 
@@ -177,7 +178,7 @@ export class AgentsController {
     if (agent.organizationId !== organizationId) {
       throw new ForbiddenException('Access denied to this agent');
     }
-    
+
     // Trigger real-time SELECT 1
     return this.agentsService.executeRealTimeQuery(
       organizationId,
@@ -202,8 +203,8 @@ export class AgentsController {
     @Body() dto: ExecuteQueryDto,
   ) {
     return this.agentsService.executeRealTimeQuery(
-      organizationId, 
-      dto.sql, 
+      organizationId,
+      dto.sql,
       this.agentsGateway
     );
   }
@@ -233,11 +234,44 @@ export class AgentsController {
   async getAgentLogs(
     @Param('id') id: string,
     @OrganizationId() organizationId: string,
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+    @Query('search') search: string,
   ) {
-    // Audit log for security visibility
-    // await this.auditLog.log({ ... }) // Optionnel
+    return this.agentsService.getAgentLogs(
+      organizationId,
+      id,
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 50,
+      search,
+    );
+  }
 
-    return this.agentsService.getAgentLogs(organizationId, id);
+  @Get(':id/jobs')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions({ action: 'read', resource: 'agents' })
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get job history for a specific agent',
+    description: 'Returns a paginated list of jobs (SQL queries) executed by the agent',
+  })
+  @ApiParam({ name: 'id', description: 'Agent ID' })
+  async getAgentJobs(
+    @Param('id') id: string,
+    @OrganizationId() organizationId: string,
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+    @Query('status') status: string,
+    @Query('search') search: string,
+  ) {
+    return this.agentsService.getAgentJobs(
+      organizationId,
+      id,
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 20,
+      status as any,
+      search,
+    );
   }
 
   @Get('jobs/:jobId')

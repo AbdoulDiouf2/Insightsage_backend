@@ -683,7 +683,14 @@ export class AgentsService implements OnModuleInit {
       throw new BadRequestException("L'agent n'est pas prêt pour une exécution en temps réel.");
     }
 
-    return job;
+    // 7. Marquer le job comme RUNNING et enregistrer l'heure de début
+    return this.prisma.agentJob.update({
+      where: { id: job.id },
+      data: {
+        status: JobStatus.RUNNING,
+        startedAt: new Date(),
+      },
+    });
   }
 
   /**
@@ -777,21 +784,69 @@ export class AgentsService implements OnModuleInit {
     agentId: string,
     page = 1,
     limit = 50,
+    search?: string,
   ) {
+    const where: any = { organizationId, agentId };
+    if (search) {
+      where.message = { contains: search, mode: 'insensitive' };
+    }
+
     const [logs, total] = await Promise.all([
       this.prisma.agentLog.findMany({
-        where: { organizationId, agentId },
+        where,
         orderBy: { timestamp: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
       }),
       this.prisma.agentLog.count({
-        where: { organizationId, agentId },
+        where,
       }),
     ]);
 
     return {
       logs,
+      pagination: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
+   * Récupère l'historique des jobs (requêtes) d'un agent avec pagination
+   */
+  async getAgentJobs(
+    organizationId: string,
+    agentId: string,
+    page = 1,
+    limit = 20,
+    status?: JobStatus,
+    search?: string,
+  ) {
+    const where: any = { organizationId, agentId };
+    if (status) {
+      where.status = status;
+    }
+    if (search) {
+      where.sql = { contains: search, mode: 'insensitive' };
+    }
+
+    const [jobs, total] = await Promise.all([
+      this.prisma.agentJob.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.agentJob.count({
+        where,
+      }),
+    ]);
+
+    return {
+      jobs,
       pagination: {
         total,
         page,
