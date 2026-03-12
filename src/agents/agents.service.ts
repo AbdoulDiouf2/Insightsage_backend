@@ -434,6 +434,7 @@ export class AgentsService implements OnModuleInit {
   async getAgentStatusByOrg(organizationId: string) {
     const agents = await this.prisma.agent.findMany({
       where: { organizationId },
+      include: { organization: { select: { name: true } } },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -454,6 +455,7 @@ export class AgentsService implements OnModuleInit {
         rowsSynced: Number(agent.rowsSynced),
         errorCount: agent.errorCount,
         lastError: agent.lastError,
+        organization: agent.organization,
         isStale,
         isSocketConnected: this.connectedAgents.has(organizationId),
         ...this.buildTokenInfo(agent),
