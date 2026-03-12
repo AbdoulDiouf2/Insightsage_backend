@@ -54,13 +54,23 @@ Le flux de paiement fonctionne en 2 couches :
 
 ## Securite Webhook
 
-Le endpoint `POST /billing/webhook` est public (pas de JWT) mais verifie le secret hash Flutterwave via le header `verif-hash` :
+Le endpoint `POST /billing/webhook` est public (pas de JWT) mais verifie le secret hash Flutterwave via le header `verif-hash` avec une comparaison en **temps constant** (anti-timing attacks) :
 
 ```typescript
-if (signature !== FLW_SECRET_HASH) throw new UnauthorizedException();
+// Guard : FLW_SECRET_HASH vide → rejeter immédiatement (pas de bypass accidentel)
+if (!FLW_SECRET_HASH) throw new UnauthorizedException('Webhook secret not configured');
+
+// Comparaison en temps constant via crypto.timingSafeEqual
+const a = Buffer.from(signature);
+const b = Buffer.from(FLW_SECRET_HASH);
+const isValid = a.length === b.length && crypto.timingSafeEqual(a, b);
+if (!isValid) throw new UnauthorizedException('Invalid webhook signature');
 ```
 
 Toute requete avec un hash invalide retourne `401 Unauthorized` immediatement.
+
+!!! warning "Variable d'environnement obligatoire en production"
+    Si `FLW_SECRET_HASH` est vide, **toutes** les requêtes webhook sont rejetées (fail-closed). Configurer cette variable avant d'activer les paiements.
 
 ## Evenements Flutterwave traites
 

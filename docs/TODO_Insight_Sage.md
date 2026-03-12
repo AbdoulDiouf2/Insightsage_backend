@@ -620,14 +620,175 @@ Le backend ne :
 
 ## 8. Sécurité & conformité (MVP)
 
-- [ ] Appliquer les bonnes pratiques sécurité API :  
-  - [ ] HTTPS (assumé en prod),  
-  - [ ] rate limiting sur endpoints sensibles,  
+- [ ] Appliquer les bonnes pratiques sécurité API :
+  - [ ] HTTPS (assumé en prod),
+  - [ ] rate limiting sur endpoints sensibles,
   - [ ] validation stricte des inputs (schema validation).
-- [ ] Préparer la conformité RGPD (au moins en base) :  
-  - [ ] Endpoints pour export des données utilisateur.  
+- [ ] Préparer la conformité RGPD (au moins en base) :
+  - [ ] Endpoints pour export des données utilisateur.
   - [ ] Endpoint pour suppression/anonymisation.
 - [ ] Gérer la séparation des données par organisation avec tests unitaires pour vérifier l’absence de fuites.
+
+***
+
+## 8.1. Audit de Sécurité — Plan de Remédiation (11/03/2026)
+
+> Audit professionnel complet réalisé le 11/03/2026 sur la codebase `insightsage_backend`.
+> Score de sécurité initial : **59 / 100** — Score cible après remédiation P0/P1 : **~78 / 100**
+> Rapport complet disponible dans `docs/security/audit-2026-03-11.md` (à créer).
+
+---
+
+### 🔴 P0 — Critique (À corriger avant toute mise en production)
+
+- [x] **Rate limiting global sur endpoints d’authentification** (`app.module.ts`, `auth.controller.ts`) ✅ 11/03/2026
+  - [x] Installer `@nestjs/throttler` (`npm install @nestjs/throttler --legacy-peer-deps`)
+  - [x] Enregistrer `ThrottlerModule.forRoot([{ ttl: 60000, limit: 60 }])` dans `AppModule` + `APP_GUARD` `ThrottlerGuard`
+  - [x] `@Throttle({ default: { limit: 5, ttl: 60000 } })` sur `POST /auth/login`
+  - [x] `@Throttle({ default: { limit: 3, ttl: 3600000 } })` sur `POST /auth/forgot-password`
+  - [x] `@SkipThrottle()` sur `POST /auth/logout` et `POST /auth/refresh`
+  - [x] Rate limiting sur `POST /agents/register` (10/min) et `POST /agents/heartbeat` (120/min)
+
+- [x] **Corriger le CORS WebSocket wildcard sur AgentsGateway et CockpitGateway** ✅ 11/03/2026
+  - [x] `src/agents/agents.gateway.ts` : `origin: process.env.FRONTEND_URL || ‘http://localhost:3001’`
+  - [x] `src/admin/cockpit.gateway.ts` : même correction
+
+- [x] **Comparaison constant-time sur le webhook Flutterwave** (`src/billing/flutterwave-webhook.service.ts`) ✅ 11/03/2026
+  - [x] Remplacer `signature === this.secretHash` par `timingSafeEqual(Buffer.from(signature), Buffer.from(this.secretHash))`
+  - [x] Guard `if (!this.secretHash || !signature) return false;` + warning au démarrage si hash vide
+
+---
+
+### 🟠 P1 — Élevée (À corriger dans la semaine suivant la mise en prod)
+
+- [x] **Swagger protégé par JWT (remplace la désactivation)** (`src/main.ts`) ✅ 11/03/2026
+  - [x] Déplacé de `/api` vers `/docs` (hors du prefix global)
+  - [x] Middleware Express vérifiant le JWT (header `Authorization: Bearer` ou cookie `swagger_token`)
+  - [x] Mini-page de login HTML servie si token absent/invalide
+  - [x] `persistAuthorization: true` dans Swagger UI options
+  - [x] Titre renommé de `InsightSage API` → `Cockpit API`
+
+- [x] **Ajouter Helmet pour les security headers** (`src/main.ts`) ✅ 11/03/2026
+  - [x] `npm install helmet --legacy-peer-deps`
+  - [x] `app.use(helmet({ contentSecurityPolicy: { ... } }))` dans `bootstrap()` avant `enableCors`
+
+- [x] **Hacher les tokens de réinitialisation de mot de passe avant stockage** (`src/auth/auth.service.ts`) ✅ 11/03/2026
+  - [x] Dans `forgotPassword()` : stocker `sha256(token)` en DB, retourner le token brut dans l’email
+  - [x] Dans `resetPassword()` : hasher le token reçu avant la requête `findFirst`
+  - [x] Helper privé `hashToken(token): string` ajouté au service
+
+- [x] **Hacher les tokens d’invitation avant stockage** (`src/auth/auth.service.ts`) ✅ 11/03/2026
+  - [x] Dans `inviteUser()` : stocker `sha256(token)` en DB, envoyer le token brut dans l’email
+  - [x] Dans `register()` : hasher le token reçu avant `findUnique({ where: { token: hash } })`
+  - ⚠️ **Note** : Les invitations en attente en DB (tokens en clair) sont invalidées — renvoyer les invitations existantes.
+
+- [x] **Créer un DTO typé pour `POST /agents/query`** (`src/agents/agents.controller.ts`, nouveau fichier DTO) ✅ 11/03/2026
+  - [x] Créer `src/agents/dto/execute-query.dto.ts` avec `@IsString() @IsNotEmpty() @MaxLength(4000) sql: string`
+  - [x] Remplacer `@Body() dto: { sql: string }` par `@Body() dto: ExecuteQueryDto`
+
+- [x] **Ajouter `PermissionsGuard` sur le NLQ controller** (`src/nlq/nlq.controller.ts`) ✅ 11/03/2026
+  - [x] Ajouter `@UseGuards(SubscriptionGuard, PermissionsGuard)` sur la classe
+  - [x] Ajouter `@RequirePermissions({ action: ‘read’, resource: ‘dashboards’ })` sur `POST /nlq/query`
+  - [x] Ajouter `@RequirePermissions({ action: ‘write’, resource: ‘dashboards’ })` sur `POST /nlq/add-to-dashboard`
+
+- [ ] **Risque injection SQL via remplacement de placeholders string** (`src/agents/agents.service.ts` lignes 600-609)
+  - [ ] Valider chaque clé de placeholder via une allowlist stricte (`databaseName`, `schema`, etc.)
+  - [ ] Valider les valeurs contre des patterns attendus (alphanumérique + tirets uniquement, pas de guillemets ni points-virgules)
+
+- [ ] **Token preview agent retourné dans les réponses de statut** (`src/agents/agents.service.ts` ~ligne 492)
+  - [ ] Supprimer `tokenPreview` des réponses de `getAgentById` et `getAgentStatus`
+  - [ ] Le token complet ne doit être exposé qu’une seule fois à la génération initiale
+
+- [ ] **Validation incomplète sur `InviteUserDto`** (`src/auth/dto/invite-user.dto.ts`)
+  - [ ] Ajouter `@MaxLength(100)` + `@MinLength(1)` sur `firstName` et `lastName`
+  - [ ] Ajouter `@IsIn([‘owner’, ‘daf’, ‘controller’, ‘analyst’])` sur le champ `role`
+
+---
+
+### 🟡 P2 — Moyenne (À planifier dans le sprint suivant)
+
+- [x] ✅ 11/03/2026 **Migrer le rate limiter SQL vers Redis** (`src/agents/agents.service.ts`)
+  - [x] Créé `src/redis/redis.module.ts` — client `node-redis` global, configuré via `REDIS_URL`
+  - [x] Ajouté `RedisModule` dans `AppModule` (global) et `AgentsModule`
+  - [x] `checkRateLimit` migré vers `INCR` + `EXPIRE` atomique (clé `sql_rl:{organizationId}`)
+  - [x] Fail-open si Redis indisponible (warning loggé, requête non bloquée)
+  - [x] `REDIS_URL` ajouté dans `.env.example`
+
+- [x] ✅ 11/03/2026 **Déplacer la logique Prisma de `getJobStatus` vers `AgentsService`** (`src/agents/agents.controller.ts:238`)
+  - [x] Ajouté `getJobById(jobId: string, organizationId: string)` dans `AgentsService` avec isolation tenant
+  - [x] Supprimé le cast `(this.agentsService as any).prisma` du contrôleur
+
+- [x] ✅ 11/03/2026 **Gérer le cas `FLW_SECRET_HASH` vide au démarrage** (`src/billing/flutterwave-webhook.service.ts`)
+  - [x] Warning constructeur si `FLW_SECRET_HASH` vide
+  - [x] `verifyWebhook` retourne `false` si secret non configuré (fail-closed)
+
+~~- [ ] **Supprimer / sécuriser `docs/.brouillon.md`** (credentials Supabase en clair)~~ exclu puisque ce n'est pas poussé sur git
+~~- [ ] Vérifier que ce fichier est dans `.gitignore`~~
+~~- [ ] Effectuer la rotation des credentials Supabase exposés~~
+~~- [ ] Supprimer ou anonymiser le fichier~~
+
+- [ ] **Cache Redis pour les permissions** (`src/auth/guards/permissions.guard.ts`)
+  - [ ] Implémenter un cache `user:permissions:{userId}` avec TTL 5 minutes pour éviter la requête DB à chaque request
+  - [ ] Invalider le cache lors d'une modification de rôle ou de permission dans `RolesService` / `UsersService`
+
+- [ ] **Blacklist des refresh tokens à la déconnexion** (`src/auth/auth.service.ts`)
+  - [ ] Stocker le hash du refresh token révoqué en Redis avec TTL = durée restante du token (7j)
+  - [ ] Vérifier la blacklist dans `JwtRefreshStrategy.validate()` avant de délivrer un nouvel access token
+
+- [ ] **Contournement de la validation SQL via identifiants entre backticks** (`src/agents/sql-security.service.ts`)
+  - [ ] La regex `\b` ne couvre pas les formes `` `DROP` `` ou `[DROP]` (dialects SQL Server / MySQL)
+  - [ ] Pré-normaliser la requête (strip backticks/crochets) avant le passage aux regex de blacklist
+
+- [ ] **Supprimer les casts `(this.prisma as any)`** (`src/admin/admin.service.ts`)
+  - [ ] Régénérer le client Prisma (`npx prisma generate`) pour obtenir les types `BillingCustomer`, `BillingSubscription`, `BillingInvoice`
+  - [ ] Remplacer tous les accès via `as any` par les types Prisma corrects
+
+---
+
+### 🔵 P3 — Faible (Backlog sécurité)
+
+- [x] ✅ 11/03/2026 **Initialiser Sentry dans `main.ts`** (`src/main.ts`)
+  - [x] `import * as Sentry from ‘@sentry/node’` + `Sentry.init({ dsn, environment })` si `SENTRY_DSN` défini
+  - [x] `SENTRY_DSN` ajouté dans `.env.example` (vide = désactivé)
+
+- [x] ✅ 11/03/2026 **Augmenter le facteur bcrypt de 10 à 12** (`src/auth/auth.service.ts`)
+  - [x] `bcrypt.hash(password, 10)` → `12`, `bcrypt.hash(dto.newPassword, 10)` → `12`, `bcrypt.hash(refreshToken, 10)` → `12`
+
+- [x] ✅ 11/03/2026 **Remplacer les valeurs faibles dans `.env.example`**
+  - [x] `JWT_SECRET` → `"<generate: openssl rand -base64 64>"`
+  - [x] `JWT_REFRESH_SECRET` → `"<generate: openssl rand -base64 64>"`
+  - [x] `ADMIN_PASSWORD` → `"<define a strong password>"`
+  - [x] `ADMIN_COOKIE_SECRET` → `"<generate: openssl rand -base64 32>"`
+  - [x] `ADMIN_SESSION_SECRET` → `"<generate: openssl rand -base64 32>"`
+
+- [x] ✅ 11/03/2026 **Supprimer l’origine `null` du CORS en développement** (`src/main.ts`)
+  - [x] Bloc `allowedOrigins.push(‘null’)` supprimé
+
+- [ ] **Remplacer `console.error` par le logger Winston** (`src/logs/audit-log.service.ts`, `src/redis/redis.module.ts`)
+  - [ ] Utiliser `this.logger.error(...)` (NestJS `Logger`) partout où `console.error` est appelé
+
+- [ ] **Configurer HSTS explicitement dans Helmet** (`src/main.ts`)
+  - [ ] `hsts: { maxAge: 31536000, includeSubDomains: true, preload: true }` dans les options `helmet()`
+
+- [ ] **Lockout de compte après N tentatives de connexion échouées** (`src/auth/auth.service.ts`)
+  - [ ] Compteur Redis `login:fail:{email}` incrémenté à chaque échec, TTL 15min
+  - [ ] Retourner `429 Too Many Requests` après 10 échecs consécutifs
+
+- [ ] **Rate limiting mot de passe oublié par email** (`src/auth/auth.controller.ts`)
+  - [ ] En complément du throttle par IP : limiter à 1 demande/heure par adresse email (clé Redis `pw_reset:{email}`)
+
+- [ ] **Désactiver `unsafe-inline` CSP pour Swagger en production** (`src/main.ts`)
+  - [ ] `scriptSrc: isProd ? ["’self’"] : ["’self’", "’unsafe-inline’"]` — Swagger désactivé ou nonces en prod
+
+---
+
+### ℹ️ Informationnelle (Améliorations futures)
+
+- [x] ✅ 11/03/2026 Renommer le titre Swagger de `InsightSage API` → `Cockpit API` pour ne pas exposer le nom interne
+- [ ] Ajouter des tests d’intégration couvrant les cas de sécurité : IDOR, cross-tenant, brute-force, escalade de rôle
+- [ ] Ajouter `security.txt` (RFC 9116) sur le domaine de production pour le responsible disclosure
+- [ ] Vérifier que les cookies de refresh token ont bien les flags `HttpOnly`, `Secure` et `SameSite=Strict` en production (`src/auth/auth.controller.ts`)
+- [ ] Créer le rapport complet d’audit dans `docs/security/audit-2026-03-11.md` (synthèse technique détaillée pour archivage)
 
 ***
 

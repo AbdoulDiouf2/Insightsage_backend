@@ -4,6 +4,8 @@ import {
   BadRequestException,
   ForbiddenException,
   OnModuleInit,
+  Inject,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../logs/audit-log.service';
@@ -15,6 +17,8 @@ import { JobStatus } from '@prisma/client';
 import { SqlSecurityService } from './sql-security.service';
 import { LicenseGuardianService } from '../subscriptions/license-guardian.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { REDIS_CLIENT } from '../redis/redis.module';
+import type { RedisClientType } from 'redis';
 
 // Durée de vie d'un token : 30 jours (Section 2.4)
 const TOKEN_TTL_DAYS = 30;
@@ -27,8 +31,8 @@ const MAX_REQUESTS_PER_MINUTE = 10;
 
 @Injectable()
 export class AgentsService implements OnModuleInit {
+  private readonly logger = new Logger(AgentsService.name);
   private connectedAgents = new Set<string>(); // Map organizationId -> presence via WebSocket
-  private rateLimits = new Map<string, { count: number; lastReset: number }>();
 
   constructor(
     private prisma: PrismaService,
@@ -36,6 +40,7 @@ export class AgentsService implements OnModuleInit {
     private sqlSecurity: SqlSecurityService,
     private licenseGuardian: LicenseGuardianService,
     private eventEmitter: EventEmitter2,
+    @Inject(REDIS_CLIENT) private redis: RedisClientType,
   ) { }
 
   onModuleInit() {
@@ -112,22 +117,24 @@ export class AgentsService implements OnModuleInit {
     };
   }
 
-  private checkRateLimit(organizationId: string): void {
-    const now = Date.now();
-    const limit = this.rateLimits.get(organizationId);
-
-    if (!limit || now - limit.lastReset > 60000) {
-      this.rateLimits.set(organizationId, { count: 1, lastReset: now });
-      return;
+  private async checkRateLimit(organizationId: string): Promise<void> {
+    const key = `sql_rl:${organizationId}`;
+    try {
+      const count = await this.redis.incr(key);
+      if (count === 1) {
+        // Première requête de la fenêtre — définir TTL de 60 secondes
+        await this.redis.expire(key, 60);
+      }
+      if (count > MAX_REQUESTS_PER_MINUTE) {
+        throw new BadRequestException(
+          `Limite de requêtes atteinte (${MAX_REQUESTS_PER_MINUTE}/min). Veuillez patienter.`,
+        );
+      }
+    } catch (err) {
+      if (err instanceof BadRequestException) throw err;
+      // Si Redis est indisponible, on laisse passer (fail-open) plutôt que de bloquer
+      this.logger.warn(`Redis indisponible pour rate limiting org ${organizationId}: ${err.message}`);
     }
-
-    if (limit.count >= MAX_REQUESTS_PER_MINUTE) {
-      throw new BadRequestException(
-        `Limite de requêtes atteinte (${MAX_REQUESTS_PER_MINUTE}/min). Veuillez patienter.`,
-      );
-    }
-
-    limit.count++;
   }
 
   /**
@@ -427,6 +434,7 @@ export class AgentsService implements OnModuleInit {
   async getAgentStatusByOrg(organizationId: string) {
     const agents = await this.prisma.agent.findMany({
       where: { organizationId },
+      include: { organization: { select: { name: true } } },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -447,6 +455,7 @@ export class AgentsService implements OnModuleInit {
         rowsSynced: Number(agent.rowsSynced),
         errorCount: agent.errorCount,
         lastError: agent.lastError,
+        organization: agent.organization,
         isStale,
         isSocketConnected: this.connectedAgents.has(organizationId),
         ...this.buildTokenInfo(agent),
@@ -485,6 +494,28 @@ export class AgentsService implements OnModuleInit {
       tokenPreview: agent.token.slice(0, 15) + '...',
       ...this.buildTokenInfo(agent),
     };
+  }
+
+  async getJobStats(agentId: string, organizationId: string) {
+    const rows = await this.prisma.agentJob.groupBy({
+      by: ['status'],
+      where: { agentId, organizationId },
+      _count: { status: true },
+    });
+
+    const stats: Record<string, number> = {
+      PENDING: 0,
+      RUNNING: 0,
+      COMPLETED: 0,
+      FAILED: 0,
+    };
+
+    for (const row of rows) {
+      stats[row.status] = row._count.status;
+    }
+
+    const total = Object.values(stats).reduce((a, b) => a + b, 0);
+    return { ...stats, total };
   }
 
   /**
@@ -533,11 +564,12 @@ export class AgentsService implements OnModuleInit {
   /**
    * Crée un job d'exécution SQL pour un agent
    */
-  async createJob(organizationId: string, agentId: string, sql: string) {
+  async createJob(organizationId: string, agentId: string, sql: string, userId?: string) {
     return this.prisma.agentJob.create({
       data: {
         organizationId,
         agentId,
+        userId: userId || null,
         sql,
         status: JobStatus.PENDING,
       },
@@ -582,6 +614,7 @@ export class AgentsService implements OnModuleInit {
     organizationId: string,
     sql: string,
     gateway: any, // On passe la gateway pour éviter les cycles d'injection si nécessaire
+    userId?: string,
   ) {
     // 0. Injection dynamique de la configuration (Scoping par Dossier/Société)
     const org = await this.prisma.organization.findUnique({
@@ -612,8 +645,8 @@ export class AgentsService implements OnModuleInit {
     // 2. Vérification de la limite de licence (Synchronisation quotidienne) - DESACTIVÉ
     // await this.licenseGuardian.assertLimit(organizationId, 'maxAgentSyncPerDay');
 
-    // 3. Rate limiting check
-    this.checkRateLimit(organizationId);
+    // 3. Rate limiting check (Redis distribué)
+    await this.checkRateLimit(organizationId);
 
     // 3.5 Stratégie de Caching : Vérifier si une requête identique a été faite récemment (< 5 min)
     const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -643,7 +676,7 @@ export class AgentsService implements OnModuleInit {
     }
 
     // 5. Créer le job
-    const job = await this.createJob(organizationId, agent.id, finalSql);
+    const job = await this.createJob(organizationId, agent.id, finalSql, userId);
 
     // 6. Envoyer via WebSocket
     const sent = await gateway.emitExecuteSql(organizationId, job.id, finalSql);
@@ -654,7 +687,14 @@ export class AgentsService implements OnModuleInit {
       throw new BadRequestException("L'agent n'est pas prêt pour une exécution en temps réel.");
     }
 
-    return job;
+    // 7. Marquer le job comme RUNNING et enregistrer l'heure de début
+    return this.prisma.agentJob.update({
+      where: { id: job.id },
+      data: {
+        status: JobStatus.RUNNING,
+        startedAt: new Date(),
+      },
+    });
   }
 
   /**
@@ -703,6 +743,21 @@ export class AgentsService implements OnModuleInit {
   }
 
   /**
+   * Récupère un job par ID avec vérification tenant isolation
+   */
+  async getJobById(jobId: string, organizationId: string) {
+    const job = await this.prisma.agentJob.findUnique({
+      where: { id: jobId },
+    });
+
+    if (!job || job.organizationId !== organizationId) {
+      throw new NotFoundException('Job introuvable');
+    }
+
+    return job;
+  }
+
+  /**
    * Crée une entrée de log pour un agent
    */
   async createLog(
@@ -733,21 +788,77 @@ export class AgentsService implements OnModuleInit {
     agentId: string,
     page = 1,
     limit = 50,
+    search?: string,
   ) {
+    const where: any = { organizationId, agentId };
+    if (search) {
+      where.message = { contains: search, mode: 'insensitive' };
+    }
+
     const [logs, total] = await Promise.all([
       this.prisma.agentLog.findMany({
-        where: { organizationId, agentId },
+        where,
         orderBy: { timestamp: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
       }),
       this.prisma.agentLog.count({
-        where: { organizationId, agentId },
+        where,
       }),
     ]);
 
     return {
       logs,
+      pagination: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
+   * Récupère l'historique des jobs (requêtes) d'un agent avec pagination
+   */
+  async getAgentJobs(
+    organizationId: string,
+    agentId: string,
+    page = 1,
+    limit = 20,
+    status?: JobStatus,
+    search?: string,
+  ) {
+    const where: any = { organizationId, agentId };
+    if (status) {
+      where.status = status;
+    }
+    if (search) {
+      where.sql = { contains: search, mode: 'insensitive' };
+    }
+
+    const [jobs, total] = await Promise.all([
+      this.prisma.agentJob.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+            }
+          }
+        }
+      }),
+      this.prisma.agentJob.count({
+        where,
+      }),
+    ]);
+
+    return {
+      jobs,
       pagination: {
         total,
         page,

@@ -83,6 +83,7 @@ model User {
   auditLogs  AuditLog[]
   invitationsCreated Invitation[] @relation("InvitationsCreated")
   nlqSessions        NlqSession[]
+  agentJobs          AgentJob[]
 
   @@index([organizationId])
   @@map("users")
@@ -344,6 +345,8 @@ model AgentJob {
   organization   Organization @relation(fields: [organizationId], references: [id])
   agentId        String
   agent          Agent     @relation(fields: [agentId], references: [id])
+  userId         String?
+  user           User?     @relation(fields: [userId], references: [id])
 
   sql            String    @db.Text
   status         JobStatus @default(PENDING)
@@ -356,6 +359,7 @@ model AgentJob {
 
   @@index([organizationId])
   @@index([agentId])
+  @@index([userId])
   @@index([status])
   @@map("agent_jobs")
 }

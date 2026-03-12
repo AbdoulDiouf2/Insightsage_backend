@@ -399,6 +399,22 @@ export class AdminController {
     return this.adminService.findNlqTemplateById(id);
   }
 
+  @Get('nlq-sessions')
+  @ApiOperation({
+    summary: 'Lister les sessions NLQ (SuperAdmin)',
+    description: 'Retourne les 500 dernières sessions NLQ avec organisation, utilisateur et intention détectée.',
+  })
+  async findAllNlqSessions() {
+    return this.adminService.findAllNlqSessions();
+  }
+
+  @Get('nlq-sessions/:id')
+  @ApiOperation({ summary: 'Détail complet d\'une session NLQ (SuperAdmin)' })
+  @ApiParam({ name: 'id', description: 'ID UUID de la session NLQ' })
+  async findNlqSessionById(@Param('id') id: string) {
+    return this.adminService.findNlqSessionById(id);
+  }
+
   // ─── Dashboards Management ────────────────────────────────────────────────
 
   @Get('dashboards')

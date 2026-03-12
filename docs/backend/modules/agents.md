@@ -20,6 +20,8 @@ src/agents/
     └── generate-token.dto.ts
 ```
 
+**Dépendances du module** : `PrismaModule`, `AuditLogModule`, `UsersModule`, `SubscriptionsModule`, `RedisModule` (rate limiting distribué).
+
 ---
 
 ## Cycle de vie d'un agent
@@ -151,15 +153,46 @@ const tokenPreview = `${token.substring(0, 10)}...${token.substring(token.length
 
 Le module Agents gère le tunnel de communication bidirectionnel permettant d'envoyer des commandes SQL directement à l'agent local du client.
 
+#### `getJobById(jobId, organizationId)`
+
+Récupère un `AgentJob` en vérifiant l'isolation tenant :
+
+```typescript
+async getJobById(jobId: string, organizationId: string) {
+  const job = await this.prisma.agentJob.findUnique({ where: { id: jobId } });
+  if (!job || job.organizationId !== organizationId) {
+    throw new NotFoundException('Job introuvable');
+  }
+  return job;
+}
+```
+
+La logique métier (y compris la vérification tenant) est dans le **service**, pas dans le controller.
+
 #### `executeRealTimeQuery(orgId, sql, gateway)`
 
-Méthode orchestre l'envoi sécurisé d'une requête SQL :
-1.  **Injection de Scoping** : Injecte les variables de `sageConfig` (ex: `{{database_name}}`) dans le SQL utilisateur.
-2.  **Validation Sécurité** : Passe le SQL final au `SqlSecurityService` (SELECT-only, pas de DROP/DELETE).
-3.  **Vérification Licence** : Vérifie que l'organisation n'a pas dépassé son quota quotidien de synchronisation.
-4.  **Rate Limiting** : Limite à 10 requêtes par minute par agent.
-5.  **Caching** : Vérifie si une requête identique a été exécutée avec succès dans les 5 dernières minutes.
-6.  **Envoi WebSocket** : Émet l'événement `execute_sql` via la `AgentsGateway`.
+Orchestre l'envoi sécurisé d'une requête SQL :
+
+1. **Injection de Scoping** : Injecte les variables de `sageConfig` (ex: `{{database_name}}`) dans le SQL utilisateur.
+2. **Validation Sécurité** : Passe le SQL final au `SqlSecurityService` (SELECT-only, pas de DROP/DELETE).
+3. **Vérification Licence** : Vérifie que l'organisation n'a pas dépassé son quota quotidien de synchronisation.
+4. **Rate Limiting Redis** : Limite à 10 requêtes par minute par organisation (distribué, voir ci-dessous).
+5. **Caching** : Vérifie si une requête identique a été exécutée avec succès dans les 5 dernières minutes.
+6. **Envoi WebSocket** : Émet l'événement `execute_sql` via la `AgentsGateway`.
+
+#### Rate Limiting Redis distribué
+
+Le rate limiting SQL est implémenté via Redis (pattern INCR + EXPIRE) — distribué et persistant entre redémarrages du serveur :
+
+```typescript
+// Clé par organisation, fenêtre 60 secondes, max 10 req
+const key = `sql_rl:${organizationId}`;
+const count = await this.redis.incr(key);
+if (count === 1) await this.redis.expire(key, 60);
+if (count > 10) throw new BadRequestException('Limite 10 req/min atteinte');
+```
+
+**Fail-open** : si Redis est indisponible, un warning est loggé (`Logger.warn`) mais la requête n'est pas bloquée.
 
 #### Normalisation des résultats
 Les résultats renvoyés par l'agent sont automatiquement transformés par le backend :

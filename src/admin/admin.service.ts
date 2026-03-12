@@ -210,10 +210,7 @@ export class AdminService {
       select: { id: true, name: true },
     });
 
-    const deleted = await this.prisma.organization.delete({
-      where: { id },
-    });
-
+    // Audit log AVANT la suppression pour éviter la violation de FK
     if (organization) {
       await this.auditLog.log({
         organizationId: id,
@@ -222,7 +219,9 @@ export class AdminService {
       });
     }
 
-    return deleted;
+    return this.prisma.organization.delete({
+      where: { id },
+    });
   }
 
   // --- Users Management ---
@@ -926,6 +925,35 @@ export class AdminService {
       },
     });
     return template;
+  }
+
+  async findAllNlqSessions() {
+    return this.prisma.nlqSession.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+      include: {
+        organization: { select: { id: true, name: true } },
+        user: { select: { id: true, email: true, firstName: true, lastName: true } },
+        intent: { select: { key: true, label: true } },
+      },
+    });
+  }
+
+  async findNlqSessionById(id: string) {
+    const session = await this.prisma.nlqSession.findUnique({
+      where: { id },
+      include: {
+        organization: { select: { id: true, name: true, sector: true, country: true } },
+        user: { select: { id: true, email: true, firstName: true, lastName: true } },
+        intent: {
+          include: {
+            templates: { select: { id: true, sageType: true, defaultVizType: true, isActive: true } },
+          },
+        },
+      },
+    });
+    if (!session) throw new NotFoundException(`Session NLQ introuvable : ${id}`);
+    return session;
   }
 
   async deleteAgent(id: string) {

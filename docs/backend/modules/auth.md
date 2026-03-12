@@ -43,7 +43,7 @@ src/auth/
 
 ### `login(dto: LoginDto)`
 
-Authentifie un utilisateur par email/password. Retourne un access token (15min) et un refresh token (7j). Le refresh token est hashé en bcrypt avant stockage en DB.
+Authentifie un utilisateur par email/password. Retourne un access token (15min) et un refresh token (7j). Le refresh token est hashé en **bcrypt (factor 12)** avant stockage en DB.
 
 ```typescript
 const result = await authService.login({ email, password });
@@ -64,18 +64,26 @@ Vérifie le refresh token contre le hash DB. Si valide, génère un nouveau pair
 
 ### `forgotPassword(dto: ForgotPasswordDto)`
 
-Génère un token de réinitialisation (7 jours), le stocke hashé en DB, et retourne le token en clair (à envoyer par email).
+Génère un token de réinitialisation (7 jours), le stocke **hashé SHA-256** en DB, et retourne le token en clair (à envoyer par email).
 
 !!! note
     La réponse est identique que l'email existe ou non, pour éviter l'énumération d'emails.
 
 ### `resetPassword(dto: ResetPasswordDto)`
 
-Cherche le token en DB, vérifie qu'il n'est pas expiré, hash le nouveau mot de passe et efface le token.
+Reçoit le token en clair, le hash en SHA-256, cherche le hash en DB. Vérifie qu'il n'est pas expiré, hash le nouveau mot de passe (**bcrypt ×12**) et efface le token.
 
 ### `inviteUser(dto: InviteUserDto)`
 
-Vérifie qu'aucune invitation active n'existe pour cet email, crée une `Invitation` en DB avec un token de 7 jours et le rôle associé. Retourne le token (à envoyer par email).
+Vérifie qu'aucune invitation active n'existe pour cet email, crée une `Invitation` en DB avec un token **hashé SHA-256** (7 jours) et le rôle associé. Retourne le token en clair (à envoyer par email).
+
+!!! info "Hachage des tokens sensibles (SHA-256)"
+    Les tokens d'invitation et de reset password sont stockés en DB sous forme de hash SHA-256, jamais en clair. Même si la DB est compromise, les tokens restent inutilisables.
+    ```typescript
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    // DB → tokenHash | Email → rawToken
+    ```
 
 ---
 

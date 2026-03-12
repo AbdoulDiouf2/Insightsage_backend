@@ -4,20 +4,22 @@ import {
   Get,
   Body,
   Param,
+  Query,
   UseGuards,
   HttpCode,
   HttpStatus,
   Ip,
   ForbiddenException,
-  NotFoundException,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AgentsService } from './agents.service';
 import { AgentsGateway } from './agents.gateway';
 import { RegisterAgentDto } from './dto/register-agent.dto';
 import { HeartbeatDto } from './dto/heartbeat.dto';
 import { GenerateTokenDto } from './dto/generate-token.dto';
+import { ExecuteQueryDto } from './dto/execute-query.dto';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
-import { Public, RequirePermissions, OrganizationId } from '../auth/decorators';
+import { Public, RequirePermissions, OrganizationId, CurrentUser } from '../auth/decorators';
 import {
   ApiTags,
   ApiOperation,
@@ -32,13 +34,14 @@ export class AgentsController {
   constructor(
     private readonly agentsService: AgentsService,
     private readonly agentsGateway: AgentsGateway,
-  ) {}
+  ) { }
 
   // ============================================================
   // PUBLIC ENDPOINTS (Called by Agent On-Premise)
   // ============================================================
 
   @Public()
+  @Throttle({ default: { ttl: 60000, limit: 10 } }) // 10 inscriptions/min par IP (agent on-prem)
   @Post('register')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -55,6 +58,7 @@ export class AgentsController {
   }
 
   @Public()
+  @Throttle({ default: { ttl: 60000, limit: 120 } }) // 120/min : heartbeat toutes les 30s = 2/min par agent, marge x60
   @Post('heartbeat')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -111,12 +115,12 @@ export class AgentsController {
     @OrganizationId() organizationId: string,
   ) {
     const agent = await this.agentsService.getAgentById(id);
-    
+
     // Ensure tenant isolation
     if (agent.organizationId !== organizationId) {
       throw new ForbiddenException('Access denied to this agent');
     }
-    
+
     return agent;
   }
 
@@ -169,17 +173,19 @@ export class AgentsController {
   async testConnection(
     @Param('id') id: string,
     @OrganizationId() organizationId: string,
+    @CurrentUser('id') userId: string,
   ) {
     const agent = await this.agentsService.getAgentById(id);
     if (agent.organizationId !== organizationId) {
       throw new ForbiddenException('Access denied to this agent');
     }
-    
+
     // Trigger real-time SELECT 1
     return this.agentsService.executeRealTimeQuery(
       organizationId,
       'SELECT 1',
       this.agentsGateway,
+      userId,
     );
   }
 
@@ -196,13 +202,28 @@ export class AgentsController {
   })
   async executeQuery(
     @OrganizationId() organizationId: string,
-    @Body() dto: { sql: string },
+    @CurrentUser('id') userId: string,
+    @Body() dto: ExecuteQueryDto,
   ) {
     return this.agentsService.executeRealTimeQuery(
-      organizationId, 
-      dto.sql, 
-      this.agentsGateway
+      organizationId,
+      dto.sql,
+      this.agentsGateway,
+      userId,
     );
+  }
+
+  @Get(':id/job-stats')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions({ action: 'read', resource: 'agents' })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get job stats (count per status) for a specific agent' })
+  @ApiParam({ name: 'id', description: 'Agent ID' })
+  async getJobStats(
+    @Param('id') id: string,
+    @OrganizationId() organizationId: string,
+  ) {
+    return this.agentsService.getJobStats(id, organizationId);
   }
 
   @Get(':id/logs')
@@ -217,11 +238,44 @@ export class AgentsController {
   async getAgentLogs(
     @Param('id') id: string,
     @OrganizationId() organizationId: string,
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+    @Query('search') search: string,
   ) {
-    // Audit log for security visibility
-    // await this.auditLog.log({ ... }) // Optionnel
+    return this.agentsService.getAgentLogs(
+      organizationId,
+      id,
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 50,
+      search,
+    );
+  }
 
-    return this.agentsService.getAgentLogs(organizationId, id);
+  @Get(':id/jobs')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions({ action: 'read', resource: 'agents' })
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get job history for a specific agent',
+    description: 'Returns a paginated list of jobs (SQL queries) executed by the agent',
+  })
+  @ApiParam({ name: 'id', description: 'Agent ID' })
+  async getAgentJobs(
+    @Param('id') id: string,
+    @OrganizationId() organizationId: string,
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+    @Query('status') status: string,
+    @Query('search') search: string,
+  ) {
+    return this.agentsService.getAgentJobs(
+      organizationId,
+      id,
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 20,
+      status as any,
+      search,
+    );
   }
 
   @Get('jobs/:jobId')
@@ -235,14 +289,6 @@ export class AgentsController {
     @Param('jobId') jobId: string,
     @OrganizationId() organizationId: string,
   ) {
-    const job = await (this.agentsService as any).prisma.agentJob.findUnique({
-      where: { id: jobId },
-    });
-
-    if (!job || job.organizationId !== organizationId) {
-      throw new NotFoundException('Job introuvable');
-    }
-
-    return job;
+    return this.agentsService.getJobById(jobId, organizationId);
   }
 }

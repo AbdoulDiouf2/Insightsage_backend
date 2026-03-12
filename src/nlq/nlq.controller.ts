@@ -12,19 +12,22 @@ import { SubscriptionGuard } from '../subscriptions/guards/subscription.guard';
 import { RequiresFeature } from '../subscriptions/decorators/requires-feature.decorator';
 import { OrganizationId } from '../auth/decorators/organization.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermissions } from '../auth/decorators';
 import { NlqQueryDto } from './dto/nlq-query.dto';
 import { NlqAddToDashboardDto } from './dto/nlq-add-to-dashboard.dto';
 
 @ApiTags('NLQ')
 @ApiBearerAuth()
 @Controller('nlq')
-@UseGuards(SubscriptionGuard)
+@UseGuards(SubscriptionGuard, PermissionsGuard)
 @RequiresFeature('hasNlq')
 export class NlqController {
     constructor(private readonly nlqService: NlqService) { }
 
     @Post('query')
     @HttpCode(HttpStatus.OK)
+    @RequirePermissions({ action: 'read', resource: 'dashboards' })
     @ApiOperation({
         summary: 'Poser une question en langage naturel',
         description:
@@ -40,6 +43,7 @@ export class NlqController {
 
     @Post('add-to-dashboard')
     @HttpCode(HttpStatus.CREATED)
+    @RequirePermissions({ action: 'write', resource: 'dashboards' })
     @ApiOperation({
         summary: 'Ajouter une recherche NLQ au dashboard',
         description:
