@@ -21,16 +21,19 @@ export class NlqService {
 
         const intents = await this.prisma.nlqIntent.findMany();
 
-        // Score de correspondance très basique : compte le nombre de mots-clés présents
+        // Score de correspondance : clé technique (match exact prioritaire) + mots-clés
         const scoredIntents = intents.map(intent => {
+            // Match exact sur la clé technique (ex: "f01_ca_ht pour current_quarter en XOF")
+            const keyMatch = normalizedText.includes(intent.key.toLowerCase()) ? 100 : 0;
+
             const matchCount = intent.keywords.filter(keyword =>
                 normalizedText.includes(keyword.toLowerCase())
             ).length;
 
-            return { ...intent, score: matchCount };
+            return { ...intent, score: keyMatch + matchCount };
         });
 
-        // On garde la meilleure correspondance si elle a au moins un mot-clé
+        // On garde la meilleure correspondance si elle a au moins un match
         const bestMatch = scoredIntents
             .filter(i => i.score > 0)
             .sort((a, b) => b.score - a.score)[0];

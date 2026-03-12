@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsIn,
   IsNotEmpty,
+  IsNumber,
   IsObject,
   IsOptional,
   IsString,
@@ -11,15 +12,19 @@ import { Type } from 'class-transformer';
 
 export class WidgetPositionDto {
   @ApiProperty({ description: 'Colonne de départ (grille)', example: 0 })
+  @IsNumber()
   x: number;
 
   @ApiProperty({ description: 'Ligne de départ (grille)', example: 0 })
+  @IsNumber()
   y: number;
 
   @ApiProperty({ description: 'Largeur en colonnes', example: 4 })
+  @IsNumber()
   w: number;
 
   @ApiProperty({ description: 'Hauteur en lignes', example: 3 })
+  @IsNumber()
   h: number;
 }
 

@@ -159,6 +159,8 @@ async function bootstrap() {
   const allowedOrigins = [
     configService.get<string>('FRONTEND_URL') || 'http://localhost:3001',
     'http://localhost:5173', // Admin Frontend
+    'http://localhost:5174', // Admin Frontend (fallback)
+    'http://localhost:5175', // Admin Frontend (fallback)
     'http://localhost:3000', // Swagger/Backend itself
   ];
 
