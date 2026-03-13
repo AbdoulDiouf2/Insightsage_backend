@@ -33,7 +33,7 @@
       "G_ECRITUREC",
       "F_PIECE"
     ],
-    "sqlSage100": "SELECT SUM(Montant_HT) FROM VW_Finances_Clients_Flat WHERE Type_Piece IN ('FA','FD') AND Exercice = @Annee",
+    "sqlSage100": "SELECT SUM(Montant_HT) FROM VW_Finances_Clients_Flat WHERE Type_Piece IN ('FA','FD')",
     "mlUsage": "Feature principale pour prévision de revenus (time-series forecasting). Détection d'anomalies de CA."
   },
   {
@@ -69,7 +69,7 @@
       "G_ECRITUREC",
       "F_PIECE"
     ],
-    "sqlSage100": "SELECT SUM(Montant_TTC) FROM VW_Finances_Clients_Flat WHERE Type_Piece IN ('FA','FD') AND Exercice = @Annee",
+    "sqlSage100": "SELECT SUM(Montant_TTC) FROM VW_Finances_Clients_Flat WHERE Type_Piece IN ('FA','FD')",
     "mlUsage": "Feature pour modèles de prévision de flux de trésorerie."
   },
   {
@@ -144,7 +144,7 @@
       "F_ARTICLE",
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT (Marge_Brute / CA_HT) * 100 AS Taux_Marge FROM VW_Finances_Clients_Flat",
+    "sqlSage100": "SELECT SUM(Montant_HT) AS CA_HT, COUNT(DISTINCT Code_Client) AS Nb_Clients FROM VW_Finances_Clients_Flat WHERE Type_Piece IN ('FA','FD')",
     "mlUsage": "Feature pour clustering produits. Détection d'anomalies de pricing."
   },
   {
@@ -181,7 +181,7 @@
       "G_ECRITUREC",
       "F_REGLECH"
     ],
-    "sqlSage100": "SELECT AVG(DATEDIFF(day, Date_Facture, Date_Reglement)) AS DSO FROM VW_Finances_Clients_Flat -- ou (Encours_Client / CA_HT) * 365",
+    "sqlSage100": "-- DSO non calculable depuis VW_Finances_Clients_Flat (pas de date_reglement) -- Utiliser VW_CLIENTS: SELECT AVG(Age_Jours) AS DSO FROM VW_CLIENTS WHERE Est_Lettre=0",
     "mlUsage": "Feature critique pour modèles de risque crédit et prédiction d'impayés."
   },
   {
@@ -217,7 +217,7 @@
       "F_COMPTET",
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT SUM(Montant_TTC) FROM VW_Finances_Clients_Flat WHERE Statut_Reglement = 'Non Soldé' AND Type_Compte = 'C'",
+    "sqlSage100": "SELECT SUM(Montant_TTC) AS Encours_TTC FROM VW_Finances_Clients_Flat WHERE Type_Piece IN ('FA','FD')",
     "mlUsage": "Feature pour scoring de risque client. Modèles de prévision de cash."
   },
   {
@@ -254,7 +254,7 @@
       "G_ECRITUREC",
       "F_REGLECH"
     ],
-    "sqlSage100": "SELECT (COUNT(Factures_Non_Soldées_Echues) / COUNT(Total_Factures)) * 100 AS Taux_Impayes FROM VW_Finances_Clients_Flat",
+    "sqlSage100": "-- Taux impayés non calculable depuis VW_Finances_Clients_Flat -- Utiliser VW_CLIENTS: SELECT (COUNT(CASE WHEN Age_Jours > 0 AND Est_Lettre=0 THEN 1 END) * 100.0 / NULLIF(COUNT(*),0)) AS Taux_Impayes FROM VW_CLIENTS WHERE Solde_Signe > 0",
     "mlUsage": "Variable cible (target) pour modèles de prédiction d'impayés (classification binaire)."
   },
   {
@@ -366,7 +366,7 @@
       "G_ECRITUREC",
       "F_PIECE"
     ],
-    "sqlSage100": "SELECT ((CA_N - CA_N1) / CA_N1) * 100 AS Variation_CA FROM VW_Finances_Clients_Flat",
+    "sqlSage100": "SELECT Exercice, SUM(Montant_HT) AS CA_HT FROM VW_Finances_Clients_Flat WHERE Type_Piece IN ('FA','FD') GROUP BY Exercice ORDER BY Exercice",
     "mlUsage": "Feature pour détection de tendances (trend analysis). Modèles de prévision."
   },
   {
@@ -401,7 +401,7 @@
     "sqlSage100Tables": [
       "F_COMPTET"
     ],
-    "sqlSage100": "SELECT COUNT(DISTINCT Client_ID) AS Nb_Clients_Actifs FROM VW_Finances_Clients_Flat WHERE CA_Periode > 0",
+    "sqlSage100": "SELECT COUNT(DISTINCT Code_Client) AS Nb_Clients_Actifs FROM VW_Finances_Clients_Flat WHERE Type_Piece IN ('FA','FD')",
     "mlUsage": "Feature pour churn prediction et segmentation client."
   },
   {
@@ -436,7 +436,7 @@
       "F_COMPTET",
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT SUM(CA_HT) / COUNT(DISTINCT Client_ID) AS CA_Moyen_Client FROM VW_Finances_Clients_Flat",
+    "sqlSage100": "SELECT SUM(Montant_HT) / NULLIF(COUNT(DISTINCT Code_Client),0) AS CA_Moyen_Client FROM VW_Finances_Clients_Flat WHERE Type_Piece IN ('FA','FD')",
     "mlUsage": "Feature pour scoring client. Recommandation commerciale."
   },
   {
@@ -472,7 +472,7 @@
       "F_COMPTET",
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT TOP 10 Client_ID, SUM(Montant_HT) AS CA, RANK() OVER (ORDER BY SUM(Montant_HT) DESC) AS Rang FROM VW_Finances_Clients_Flat GROUP BY Client_ID ORDER BY Rang",
+    "sqlSage100": "SELECT TOP 10 Code_Client, SUM(Montant_HT) AS CA, RANK() OVER (ORDER BY SUM(Montant_HT) DESC) AS Rang FROM VW_Finances_Clients_Flat WHERE Type_Piece IN ('FA','FD') GROUP BY Code_Client ORDER BY Rang",
     "mlUsage": "Feature pour analyse de concentration et risque de dépendance."
   },
   {
@@ -507,7 +507,7 @@
       "F_COMPTET",
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT (CA_Top20pct_Clients / CA_Total) * 100 AS Taux_Concentration FROM VW_Finances_Clients_Flat",
+    "sqlSage100": "SELECT TOP 1 (SUM(Montant_HT) OVER (ORDER BY SUM(Montant_HT) DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) / NULLIF(SUM(Montant_HT) OVER (),0)) * 100 AS Taux_Concentration_Cumulee, Code_Client FROM VW_Finances_Clients_Flat WHERE Type_Piece IN ('FA','FD') GROUP BY Code_Client ORDER BY SUM(Montant_HT) DESC",
     "mlUsage": "Feature pour évaluation du risque de portefeuille client."
   },
   {
@@ -542,7 +542,7 @@
       "G_ECRITUREC",
       "F_REGLECH"
     ],
-    "sqlSage100": "SELECT AVG(DATEDIFF(day, Date_Facture, Date_Reglement)) AS Delai_Moyen_Paiement FROM VW_Finances_Clients_Flat",
+    "sqlSage100": "-- Délai paiement non calculable depuis VW_Finances_Clients_Flat (pas de date_reglement) -- Utiliser VW_CLIENTS: SELECT AVG(Age_Jours) AS Delai_Moyen FROM VW_CLIENTS WHERE Est_Lettre=1",
     "mlUsage": "Feature pour prédiction de comportement de paiement."
   },
   {
@@ -578,7 +578,7 @@
       "G_ECRITUREC",
       "F_REGLECH"
     ],
-    "sqlSage100": "SELECT SUM(Montant_TTC) AS Factures_Echues FROM VW_Finances_Clients_Flat WHERE Date_Echeance < GETDATE() AND Statut = 'Non Soldé'",
+    "sqlSage100": "-- Echéances non disponibles dans VW_Finances_Clients_Flat -- Utiliser VW_CLIENTS: SELECT SUM(Montant) AS Encours_En_Retard FROM VW_CLIENTS WHERE Age_Jours > 0 AND Est_Lettre=0",
     "mlUsage": "Variable cible pour modèles de recouvrement. Score de risque par client."
   },
   {
@@ -651,7 +651,7 @@
       "F_COMPTET",
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT (COUNT(Clients_N ∩ Clients_N1) / COUNT(Clients_N1)) * 100 AS Taux_Fidelisation FROM VW_Finances_Clients_Flat",
+    "sqlSage100": "SELECT COUNT(DISTINCT CASE WHEN Exercice=YEAR(GETDATE()) THEN Code_Client END) AS Clients_N, COUNT(DISTINCT CASE WHEN Exercice=YEAR(GETDATE())-1 THEN Code_Client END) AS Clients_N1 FROM VW_Finances_Clients_Flat WHERE Type_Piece IN ('FA','FD')",
     "mlUsage": "Variable cible pour modèles de churn prediction."
   },
   {
@@ -681,13 +681,13 @@
       "approvisionnement",
       "budget achats"
     ],
-    "sqlSage100View": "VW_Fournisseurs_Achats_Flat",
+    "sqlSage100View": "VW_FOURNISSEURS",
     "sqlSage100Tables": [
       "F_COMPTET",
       "G_ECRITUREC",
       "F_PIECE"
     ],
-    "sqlSage100": "SELECT SUM(Montant_HT) AS Total_Achats FROM VW_Fournisseurs_Achats_Flat WHERE Type_Piece IN ('FA','FD') AND Type_Compte = 'F'",
+    "sqlSage100": "SELECT SUM(Credit_Fourn) AS Total_Achats FROM VW_FOURNISSEURS",
     "mlUsage": "Feature pour optimisation des achats et prévision de dépenses."
   },
   {
@@ -718,13 +718,13 @@
       "LME",
       "délai fournisseur"
     ],
-    "sqlSage100View": "VW_Fournisseurs_Achats_Flat",
+    "sqlSage100View": "VW_FOURNISSEURS",
     "sqlSage100Tables": [
       "F_COMPTET",
       "G_ECRITUREC",
       "F_REGLEF"
     ],
-    "sqlSage100": "SELECT AVG(DATEDIFF(day, Date_Facture_F, Date_Reglement_F)) AS DPO FROM VW_Fournisseurs_Achats_Flat -- ou (Dettes_Fournisseurs / Achats_HT) * 365",
+    "sqlSage100": "SELECT AVG(Age_Jours_Dette) AS DPO FROM VW_FOURNISSEURS WHERE Est_Lettre=0 AND Dette_Signe > 0",
     "mlUsage": "Feature pour optimisation du cash management."
   },
   {
@@ -755,12 +755,12 @@
       "cash outflow",
       "LME"
     ],
-    "sqlSage100View": "VW_Fournisseurs_Achats_Flat",
+    "sqlSage100View": "VW_FOURNISSEURS",
     "sqlSage100Tables": [
       "F_COMPTET",
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT SUM(Montant_TTC) AS Dettes_Echues FROM VW_Fournisseurs_Achats_Flat WHERE Date_Echeance_F < GETDATE() AND Statut = 'Non Soldé'",
+    "sqlSage100": "SELECT SUM(Montant) AS Dettes_Echues FROM VW_FOURNISSEURS WHERE Age_Jours_Dette > 0 AND Est_Lettre=0",
     "mlUsage": "Feature pour prévision de cash outflow."
   },
   {
@@ -791,12 +791,12 @@
       "concentration achats",
       "supply chain"
     ],
-    "sqlSage100View": "VW_Fournisseurs_Achats_Flat",
+    "sqlSage100View": "VW_FOURNISSEURS",
     "sqlSage100Tables": [
       "F_COMPTET",
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT TOP 10 Fournisseur_ID, SUM(Montant_HT) AS Achats_Total, RANK() OVER (ORDER BY SUM(Montant_HT) DESC) AS Rang FROM VW_Fournisseurs_Achats_Flat GROUP BY Fournisseur_ID ORDER BY Rang",
+    "sqlSage100": "SELECT TOP 10 Code_Fournisseur, Nom_Fournisseur, SUM(Credit_Fourn) AS Achats_Total, RANK() OVER (ORDER BY SUM(Credit_Fourn) DESC) AS Rang FROM VW_FOURNISSEURS GROUP BY Code_Fournisseur, Nom_Fournisseur ORDER BY Rang",
     "mlUsage": "Feature pour analyse de risque supply chain."
   },
   {
@@ -829,12 +829,12 @@
       "inventaire",
       "actif circulant"
     ],
-    "sqlSage100View": "VW_Stock_Articles_Flat",
+    "sqlSage100View": "VW_STOCKS",
     "sqlSage100Tables": [
       "F_ARTSTOCK",
       "F_ARTICLE"
     ],
-    "sqlSage100": "SELECT SUM(Quantite_Stock * PUMP) AS Valeur_Stock FROM VW_Stock_Articles_Flat",
+    "sqlSage100": "SELECT SUM(Valeur_Stock) AS Valeur_Stock_Total FROM VW_STOCKS WHERE Est_Sommeil=0",
     "mlUsage": "Feature pour prévision de besoins en approvisionnement."
   },
   {
@@ -867,13 +867,13 @@
       "CAMV",
       "stock moyen"
     ],
-    "sqlSage100View": "VW_Stock_Articles_Flat",
+    "sqlSage100View": "VW_STOCKS",
     "sqlSage100Tables": [
       "F_ARTSTOCK",
       "F_ARTICLE",
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT CAMV_Periode / ((Stock_Debut + Stock_Fin) / 2) AS Taux_Rotation FROM VW_Stock_Articles_Flat",
+    "sqlSage100": "SELECT Reference_Article, Designation, Quantite_Stock, Valeur_Stock, CASE WHEN Quantite_Stock > 0 THEN Valeur_Stock / Quantite_Stock ELSE 0 END AS Valeur_Unitaire FROM VW_STOCKS WHERE Est_Sommeil=0 ORDER BY Valeur_Stock DESC",
     "mlUsage": "Feature pour modèles de gestion prédictive des stocks (reorder point)."
   },
   {
@@ -906,13 +906,13 @@
       "invendu",
       "sans mouvement"
     ],
-    "sqlSage100View": "VW_Stock_Articles_Flat",
+    "sqlSage100View": "VW_STOCKS",
     "sqlSage100Tables": [
       "F_ARTSTOCK",
       "F_ARTICLE",
       "F_MOUVEMENT"
     ],
-    "sqlSage100": "SELECT Article_Ref, Quantite_Stock, PUMP, Quantite_Stock * PUMP AS Valeur FROM VW_Stock_Articles_Flat WHERE Quantite_Stock > 0 AND DATEDIFF(day, Date_Dernier_Mouvement, GETDATE()) > 180",
+    "sqlSage100": "SELECT Reference_Article, Designation, Libelle_Famille, Quantite_Stock, Valeur_Stock FROM VW_STOCKS WHERE Est_Sommeil=1 AND Quantite_Stock > 0 ORDER BY Valeur_Stock DESC",
     "mlUsage": "Feature pour classification articles et optimisation assortiment."
   },
   {
@@ -945,13 +945,13 @@
       "réappro",
       "out of stock days"
     ],
-    "sqlSage100View": "VW_Stock_Articles_Flat",
+    "sqlSage100View": "VW_STOCKS",
     "sqlSage100Tables": [
       "F_ARTSTOCK",
       "F_ARTICLE",
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT Article_Ref, (Stock_Actuel / Ventes_Moyennes_Journalieres) AS Couverture_Jours FROM VW_Stock_Articles_Flat",
+    "sqlSage100": "SELECT Reference_Article, Designation, Quantite_Stock, Stock_Minimum, Statut_Stock, CASE WHEN Quantite_Stock <= 0 THEN 0 WHEN Quantite_Stock <= Stock_Minimum THEN 1 ELSE 2 END AS Niveau_Stock FROM VW_STOCKS WHERE Est_Sommeil=0 ORDER BY Niveau_Stock",
     "mlUsage": "Feature pour prévision de rupture et modèles de réapprovisionnement automatique."
   },
   {
@@ -984,12 +984,12 @@
       "disponibilité produit",
       "stock minimum"
     ],
-    "sqlSage100View": "VW_Stock_Articles_Flat",
+    "sqlSage100View": "VW_STOCKS",
     "sqlSage100Tables": [
       "F_ARTSTOCK",
       "F_ARTICLE"
     ],
-    "sqlSage100": "SELECT (COUNT(Articles_Qte <= StockMini) / COUNT(Total_Articles_Actifs)) * 100 AS Taux_Rupture FROM VW_Stock_Articles_Flat",
+    "sqlSage100": "SELECT (COUNT(CASE WHEN Statut_Stock='Rupture' OR Quantite_Stock <= Stock_Minimum THEN 1 END) * 100.0 / NULLIF(COUNT(*),0)) AS Taux_Rupture FROM VW_STOCKS WHERE Est_Sommeil=0",
     "mlUsage": "Variable cible pour modèles de prédiction de rupture."
   },
   {
@@ -1022,13 +1022,13 @@
       "pricing",
       "optimisation assortiment"
     ],
-    "sqlSage100View": "VW_Stock_Articles_Flat",
+    "sqlSage100View": "VW_STOCKS",
     "sqlSage100Tables": [
       "F_ARTICLE",
       "F_ARTSTOCK",
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT Article_Ref, (Prix_Vente_HT - PUMP) AS Marge_Unitaire, (Prix_Vente_HT - PUMP) / Prix_Vente_HT * 100 AS Taux_Marge FROM VW_Stock_Articles_Flat",
+    "sqlSage100": "SELECT Reference_Article, Designation, Prix_Vente_HT, Cout_Achat_Article, (Prix_Vente_HT - Cout_Achat_Article) AS Marge_Unitaire, Taux_Marge_Pct FROM VW_STOCKS WHERE Est_Sommeil=0 ORDER BY Taux_Marge_Pct DESC",
     "mlUsage": "Feature pour recommandation de gamme et optimisation pricing dynamique."
   },
   {
@@ -1059,12 +1059,12 @@
       "liasse fiscale",
       "P&L"
     ],
-    "sqlSage100View": "VW_Compta_Grand_Livre_Flat",
+    "sqlSage100View": "VW_GRAND_LIVRE_GENERAL",
     "sqlSage100Tables": [
       "G_ECRITUREC",
       "F_COMPTE"
     ],
-    "sqlSage100": "SELECT SUM(Produits_Classe7) - SUM(Charges_Classe6) AS Resultat_Net FROM VW_Compta_Grand_Livre_Flat",
+    "sqlSage100": "SELECT SUM(CASE WHEN classe_compte='7' THEN montant_credit ELSE 0 END) - SUM(CASE WHEN classe_compte='6' THEN montant_debit ELSE 0 END) AS Resultat_Net FROM VW_GRAND_LIVRE_GENERAL",
     "mlUsage": "Feature pour prévision financière et évaluation de la santé de l'entreprise."
   },
   {
@@ -1100,7 +1100,7 @@
       "F_COMPTET",
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT CASE WHEN DATEDIFF(day, Date_Echeance, GETDATE()) BETWEEN 0 AND 30 THEN '0-30j' WHEN DATEDIFF(day, Date_Echeance, GETDATE()) BETWEEN 31 AND 60 THEN '30-60j' WHEN DATEDIFF(day, Date_Echeance, GETDATE()) BETWEEN 61 AND 90 THEN '60-90j' ELSE '>90j' END AS Tranche, SUM(Montant_TTC) FROM VW_Finances_Clients_Flat WHERE Statut = 'Non Soldé' GROUP BY Tranche",
+    "sqlSage100": "-- Date_Echeance/Statut absents de VW_Finances_Clients_Flat -- Utiliser VW_CLIENTS: SELECT Tranche_Age, SUM(Montant) AS Encours FROM VW_CLIENTS WHERE Est_Lettre=0 GROUP BY Tranche_Age ORDER BY Tranche_Age",
     "mlUsage": "Feature multi-classe pour scoring de recouvrement."
   },
   {
@@ -1131,13 +1131,13 @@
       "section analytique",
       "reporting BU"
     ],
-    "sqlSage100View": "VW_Analytique_Flat",
+    "sqlSage100View": "VW_ANALYTIQUE",
     "sqlSage100Tables": [
       "G_ECRITUREC",
       "G_SECTION",
       "G_AXE"
     ],
-    "sqlSage100": "SELECT Section_Analytique, Axe_Analytique, SUM(Montant_HT) AS CA FROM VW_Analytique_Flat GROUP BY Section_Analytique, Axe_Analytique",
+    "sqlSage100": "SELECT Code_Axe, Libelle_Analytique, SUM(Debit) AS Total_Debit, SUM(Credit) AS Total_Credit, SUM(Montant) AS Solde FROM VW_ANALYTIQUE GROUP BY Code_Axe, Libelle_Analytique ORDER BY Code_Axe",
     "mlUsage": "Features pour modèles de performance par segment/territoire."
   },
   {
@@ -1168,11 +1168,11 @@
       "rapprochement",
       "clôture"
     ],
-    "sqlSage100View": "VW_Compta_Grand_Livre_Flat",
+    "sqlSage100View": "VW_GRAND_LIVRE_GENERAL",
     "sqlSage100Tables": [
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT (COUNT(Ecritures_Lettrées) / COUNT(Total_Ecritures_Lettrables)) * 100 AS Taux_Lettrage FROM VW_Compta_Grand_Livre_Flat",
+    "sqlSage100": "SELECT (COUNT(CASE WHEN est_lettre=1 THEN 1 END) * 100.0 / NULLIF(COUNT(CASE WHEN code_lettrage IS NOT NULL THEN 1 END),0)) AS Taux_Lettrage FROM VW_GRAND_LIVRE_GENERAL",
     "mlUsage": "Feature pour détection d'anomalies comptables (anomaly detection)."
   },
   {
@@ -1203,13 +1203,13 @@
       "contrôle budgétaire",
       "dépassement budget"
     ],
-    "sqlSage100View": "VW_Analytique_Flat",
+    "sqlSage100View": "VW_ANALYTIQUE",
     "sqlSage100Tables": [
       "G_ECRITUREC",
       "G_SECTION",
       "F_COMPTE"
     ],
-    "sqlSage100": "SELECT Section, Nature, SUM(Montant_Debit) AS Charges FROM VW_Analytique_Flat WHERE Classe_Compte = '6' GROUP BY Section, Nature",
+    "sqlSage100": "SELECT Code_Axe, Libelle_Analytique, Compte_General, Libelle_Compte, SUM(Debit) AS Charges FROM VW_ANALYTIQUE WHERE Categorie_BI='Charges' GROUP BY Code_Axe, Libelle_Analytique, Compte_General, Libelle_Compte ORDER BY Code_Axe",
     "mlUsage": "Features pour modèles de prévision budgétaire."
   },
   {
@@ -1240,12 +1240,12 @@
       "reprévision",
       "forecasting adaptatif"
     ],
-    "sqlSage100View": "VW_Analytique_Flat",
+    "sqlSage100View": "VW_ANALYTIQUE",
     "sqlSage100Tables": [
       "G_ECRITUREC",
       "G_SECTION"
     ],
-    "sqlSage100": "SELECT Section_Analytique, Montant_Realise - Montant_Budget AS Ecart, (Montant_Realise - Montant_Budget) / Montant_Budget * 100 AS Taux_Ecart FROM VW_Analytique_Flat",
+    "sqlSage100": "SELECT Code_Axe, Libelle_Analytique, Annee, Mois, SUM(Debit) AS Total_Charges, SUM(Credit) AS Total_Produits, SUM(Montant) AS Solde_Net FROM VW_ANALYTIQUE GROUP BY Code_Axe, Libelle_Analytique, Annee, Mois ORDER BY Annee, Mois",
     "mlUsage": "Feature pour modèles de reprévision automatique (forecasting adaptatif)."
   },
   {
@@ -1281,7 +1281,7 @@
       "G_ECRITUREC",
       "F_PIECE"
     ],
-    "sqlSage100": "SELECT Mois, SUM(Montant_HT) AS CA_Mensuel FROM VW_Finances_Clients_Flat GROUP BY Mois ORDER BY Mois -- Modèle Time-Series (Prophet / SARIMA / LSTM) entraîné sur historique mensuel CA_HT",
+    "sqlSage100": "SELECT CONVERT(varchar(7),Date_Facture,120) AS Mois, SUM(Montant_HT) AS CA_Mensuel FROM VW_Finances_Clients_Flat WHERE Type_Piece IN ('FA','FD') GROUP BY CONVERT(varchar(7),Date_Facture,120) ORDER BY Mois -- Modèle Time-Series (Prophet / SARIMA / LSTM) entraîné sur historique mensuel CA_HT",
     "mlUsage": "Modèle de forecasting. Input: 24 mois d'historique CA, saisonnalité, tendance."
   },
   {
@@ -1350,13 +1350,13 @@
       "lead time",
       "saisonnalité stock"
     ],
-    "sqlSage100View": "VW_Stock_Articles_Flat",
+    "sqlSage100View": "VW_STOCKS",
     "sqlSage100Tables": [
       "F_ARTSTOCK",
       "F_ARTICLE",
       "G_ECRITUREC"
     ],
-    "sqlSage100": "-- Modèle: f(Stock_Actuel, Consommation_Historique, Lead_Time_F, Saisonnalité) FROM VW_Stock_Articles_Flat",
+    "sqlSage100": "-- Modèle: f(Stock_Actuel, Consommation_Historique, Lead_Time_F, Saisonnalité) FROM VW_STOCKS",
     "mlUsage": "Régression / Classification. Features: historique mouvements, délais fournisseurs."
   },
   {
@@ -1387,11 +1387,11 @@
       "autoencoder",
       "contrôle interne ML"
     ],
-    "sqlSage100View": "VW_Compta_Grand_Livre_Flat",
+    "sqlSage100View": "VW_GRAND_LIVRE_GENERAL",
     "sqlSage100Tables": [
       "G_ECRITUREC"
     ],
-    "sqlSage100": "-- Isolation Forest / Autoencoder sur distribution historique des écritures par compte FROM VW_Compta_Grand_Livre_Flat",
+    "sqlSage100": "-- Isolation Forest / Autoencoder sur distribution historique des écritures par compte FROM VW_GRAND_LIVRE_GENERAL",
     "mlUsage": "Anomaly Detection non supervisé. Features: montant, compte, journal, utilisateur, heure."
   },
   {
@@ -1464,7 +1464,7 @@
       "F_PIECE",
       "F_COMPTET"
     ],
-    "sqlSage100": "SELECT SUM(EC_Montant) FROM VW_FINANCE_GENERAL WHERE EC_Sens='C' AND CT_Type=2 AND JO_Type IN (1,2) AND EC_Exercice=@Annee",
+    "sqlSage100": "SELECT SUM(ca_ht) AS CA_HT FROM VW_FINANCE_GENERAL",
     "mlUsage": "Feature #1 pour tout modèle de prévision. Time-series forecasting (Prophet, SARIMA, LSTM)."
   },
   {
@@ -1498,7 +1498,7 @@
       "G_ECRITUREC",
       "F_PIECE"
     ],
-    "sqlSage100": "SELECT SUM(EC_MontantTTC) FROM VW_FINANCE_GENERAL WHERE EC_Sens='C' AND CT_Type=2 AND JO_Type IN (1,2)",
+    "sqlSage100": "SELECT SUM(ca_ttc) AS CA_TTC FROM VW_FINANCE_GENERAL",
     "mlUsage": "Feature pour prévision de flux de trésorerie et modèles cash management."
   },
   {
@@ -1535,7 +1535,7 @@
       "F_ARTICLE",
       "F_ARTSTOCK"
     ],
-    "sqlSage100": "SELECT SUM(CA_HT) - SUM(PUMP * Qte_Vendue) FROM VW_FINANCE_GENERAL GROUP BY periode",
+    "sqlSage100": "SELECT annee_mois, SUM(marge_brute) AS Marge_Brute FROM VW_FINANCE_GENERAL GROUP BY annee_mois ORDER BY annee_mois",
     "mlUsage": "Feature pour classification client high/low value. Optimisation pricing dynamique."
   },
   {
@@ -1569,7 +1569,7 @@
       "G_ECRITUREC",
       "F_ARTICLE"
     ],
-    "sqlSage100": "SELECT (Marge_Brute / CA_HT) * 100 FROM VW_FINANCE_GENERAL",
+    "sqlSage100": "SELECT AVG(taux_marge_brute) AS Taux_Marge_Brute FROM VW_FINANCE_GENERAL",
     "mlUsage": "Feature clustering produits. Détection anomalies pricing."
   },
   {
@@ -1604,7 +1604,7 @@
       "G_ECRITUREC",
       "F_COMPTE"
     ],
-    "sqlSage100": "SELECT SUM(Produits_Exploit) - SUM(Charges_Exploit_Hors_Dotations) FROM VW_FINANCE_GENERAL",
+    "sqlSage100": "SELECT SUM(ebitda) AS EBITDA FROM VW_FINANCE_GENERAL",
     "mlUsage": "Feature pour modèles de valorisation et rating financier."
   },
   {
@@ -1638,7 +1638,7 @@
       "G_ECRITUREC",
       "F_COMPTE"
     ],
-    "sqlSage100": "SELECT SUM(CASE WHEN CP_Classe='7' THEN EC_Montant ELSE 0 END) - SUM(CASE WHEN CP_Classe='6' THEN EC_Montant ELSE 0 END) FROM VW_COMPTA_BILAN WHERE EC_Exercice=@Annee",
+    "sqlSage100": "SELECT SUM(CASE WHEN CP_Classe='7' THEN EC_Montant ELSE 0 END) - SUM(CASE WHEN CP_Classe='6' THEN EC_Montant ELSE 0 END) FROM VW_COMPTA_BILAN",
     "mlUsage": "Feature santé financière entreprise. Modèle crédit scoring."
   },
   {
@@ -1673,7 +1673,7 @@
     "sqlSage100Tables": [
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT ((CA_N - CA_N1) / NULLIF(CA_N1,0)) * 100 FROM VW_FINANCE_GENERAL",
+    "sqlSage100": "SELECT annee_mois, AVG(variation_ca_n_vs_n1) AS Variation_CA FROM VW_FINANCE_GENERAL GROUP BY annee_mois ORDER BY annee_mois",
     "mlUsage": "Feature trend analysis. Détection ruptures de croissance."
   },
   {
@@ -1709,7 +1709,7 @@
       "G_ECRITUREC",
       "G_SECTION"
     ],
-    "sqlSage100": "SELECT CA_YTD_Realise, CA_YTD_Budget, (CA_YTD_Realise - CA_YTD_Budget) AS Ecart, ((CA_YTD_Realise - CA_YTD_Budget)/NULLIF(CA_YTD_Budget,0)*100) AS Taux FROM VW_FINANCE_GENERAL",
+    "sqlSage100": "SELECT SUM(ca_cum_ytd) AS CA_YTD FROM VW_FINANCE_GENERAL",
     "mlUsage": "Feature reprévision automatique. Modèle forecasting adaptatif."
   },
   {
@@ -1743,7 +1743,7 @@
       "G_ECRITUREC",
       "F_COMPTE"
     ],
-    "sqlSage100": "SELECT Charges_Fixes / (1 - (Charges_Variables / CA_HT)) AS Point_Mort FROM VW_FINANCE_GENERAL",
+    "sqlSage100": "SELECT SUM(achats + charges_personnel + charges_financieres + dotations_amort) / NULLIF(1 - SUM(achats) / NULLIF(SUM(ca_ht),0), 0) AS Point_Mort FROM VW_FINANCE_GENERAL",
     "mlUsage": "Feature pour modèles de simulation et stress-testing financier."
   },
   {
@@ -1777,7 +1777,7 @@
       "G_ECRITUREC",
       "F_COMPTE"
     ],
-    "sqlSage100": "SELECT SUM(Charges_Classe6) / SUM(CA_HT) * 100 FROM VW_FINANCE_GENERAL GROUP BY LEFT(CP_Num,2)",
+    "sqlSage100": "SELECT racine_2, AVG(ratio_charges_ca) AS Ratio_Charges_CA FROM VW_FINANCE_GENERAL GROUP BY racine_2 ORDER BY racine_2",
     "mlUsage": "Feature détection dérive budgétaire. Clustering profils d'entreprise."
   },
   {
@@ -1812,7 +1812,7 @@
       "G_ECRITUREC",
       "F_COMPTE"
     ],
-    "sqlSage100": "SELECT SUM(EC_Montant) FROM VW_TRESORERIE WHERE CP_Classe='5' AND EC_Date<=@DateFin",
+    "sqlSage100": "SELECT MAX(Solde_Tresorerie_Net_Global) AS Solde_Net FROM VW_TRESORERIE",
     "mlUsage": "Feature principale pour modèles de prévision de trésorerie à court terme."
   },
   {
@@ -1847,7 +1847,7 @@
       "G_ECRITUREC",
       "F_COMPTE"
     ],
-    "sqlSage100": "SELECT EC_No_Compte, SUM(EC_Montant) FROM VW_TRESORERIE WHERE CP_Classe='5' AND EC_Date<=@DateFin GROUP BY EC_No_Compte",
+    "sqlSage100": "SELECT CG_Num, CG_Intitule, MAX(Solde_Par_Compte) AS Solde FROM VW_TRESORERIE GROUP BY CG_Num, CG_Intitule ORDER BY CG_Num",
     "mlUsage": "Multi-variate forecasting par compte. Détection découvert imminent par banque."
   },
   {
@@ -1882,7 +1882,7 @@
       "G_ECRITUREC",
       "F_COMPTET"
     ],
-    "sqlSage100": "SELECT SUM(EC_Montant) FROM VW_TRESORERIE WHERE CP_Classe='5' AND EC_Sens='C' AND EC_Date BETWEEN @Debut AND @Fin",
+    "sqlSage100": "SELECT SUM(Encaissement) AS Total_Encaissements FROM VW_TRESORERIE",
     "mlUsage": "Feature pour prévision des recettes. Détection d'encaissements anormaux."
   },
   {
@@ -1917,7 +1917,7 @@
       "G_ECRITUREC",
       "F_COMPTET"
     ],
-    "sqlSage100": "SELECT SUM(EC_Montant) FROM VW_TRESORERIE WHERE CP_Classe='5' AND EC_Sens='D' AND EC_Date BETWEEN @Debut AND @Fin",
+    "sqlSage100": "SELECT SUM(Decaissement) AS Total_Decaissements FROM VW_TRESORERIE",
     "mlUsage": "Feature classification dépenses. Détection fraude/anomalie sur paiements."
   },
   {
@@ -1953,7 +1953,7 @@
       "F_REGLECH",
       "F_REGLEF"
     ],
-    "sqlSage100": "SELECT Solde_J0 + SUM(Echeances_Clients_Non_Soldees) - SUM(Echeances_Fourn_Non_Soldees) FROM VW_TRESORERIE GROUP BY Tranche_30j",
+    "sqlSage100": "SELECT MAX(Prevision_30j) AS Treso_J30, MAX(Prevision_60j) AS Treso_J60, MAX(Prevision_90j) AS Treso_J90 FROM VW_TRESORERIE",
     "mlUsage": "Multi-step time-series forecasting. Modèle hybride comptable + prévisionnel. LSTM / Prophet."
   },
   {
@@ -1988,7 +1988,7 @@
       "G_ECRITUREC",
       "F_ARTSTOCK"
     ],
-    "sqlSage100": "SELECT Valeur_Stocks + Encours_Clients - Dettes_Fournisseurs AS BFR FROM VW_TRESORERIE",
+    "sqlSage100": "SELECT MAX(BFR) AS BFR FROM VW_TRESORERIE",
     "mlUsage": "Feature modèles de prévision financière long terme et stress-testing."
   },
   {
@@ -2024,7 +2024,7 @@
       "G_ECRITUREC",
       "F_COMPTE"
     ],
-    "sqlSage100": "SELECT Flux_Exploitation, Flux_Investissement, Flux_Financement FROM VW_TRESORERIE",
+    "sqlSage100": "SELECT EC_Date, Libelle_Operation, Encaissement, Decaissement, Flux_Net, TFT FROM VW_TRESORERIE ORDER BY EC_Date",
     "mlUsage": "Feature santé financière globale. Input modèles d'évaluation d'entreprise."
   },
   {
@@ -2057,7 +2057,7 @@
     "sqlSage100Tables": [
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT Entite_Code, SUM(Solde_Treso) FROM VW_TRESORERIE GROUP BY Entite_Code",
+    "sqlSage100": "SELECT CG_Num, CG_Intitule, MAX(Solde_Tresorerie_Net_Global) AS Solde_Net FROM VW_TRESORERIE GROUP BY CG_Num, CG_Intitule ORDER BY CG_Num",
     "mlUsage": "Feature optimisation cash pooling. Modèles allocation inter-entités."
   },
   {
@@ -2092,7 +2092,7 @@
       "F_COMPTET",
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT SUM(Creances_Groupe) - SUM(Dettes_Groupe) FROM VW_TRESORERIE WHERE Flag_IntraGroupe=1",
+    "sqlSage100": "SELECT CT_Num, Nom_Tiers, SUM(Flux_Net) AS Position_Nette FROM VW_TRESORERIE GROUP BY CT_Num, Nom_Tiers ORDER BY Position_Nette",
     "mlUsage": "Feature modèles de consolidation et optimisation flux interco."
   },
   {
@@ -2127,7 +2127,7 @@
       "G_ECRITUREC",
       "F_COMPTET"
     ],
-    "sqlSage100": "SELECT Mois, Treso_M, Creances_M, Dettes_M FROM VW_TRESORERIE ORDER BY Mois",
+    "sqlSage100": "SELECT CONVERT(varchar(7),EC_Date,120) AS Mois, MAX(Solde_Tresorerie_Net_Global) AS Solde_Treso, MAX(BFR) AS BFR, MAX(Evolution_Dettes_Creances_Treso) AS Evolution_Dettes_Creances FROM VW_TRESORERIE GROUP BY CONVERT(varchar(7),EC_Date,120) ORDER BY Mois",
     "mlUsage": "Multi-variate time-series. Feature modèles de prévision BFR et stress-testing."
   },
   {
@@ -2163,7 +2163,7 @@
       "G_ECRITUREC",
       "F_REGLECH"
     ],
-    "sqlSage100": "SELECT AVG(DATEDIFF(day,EC_DateEcheance,Reglement_Date)) FROM VW_CLIENTS",
+    "sqlSage100": "SELECT AVG(Age_Jours) AS DSO FROM VW_CLIENTS WHERE Est_Lettre=0 AND Solde_Signe > 0",
     "mlUsage": "Feature critique pour modèles de risque crédit et prédiction d'impayés."
   },
   {
@@ -2200,7 +2200,7 @@
       "G_ECRITUREC",
       "G_SECTION"
     ],
-    "sqlSage100": "SELECT Section_Analytique, AVG(DATEDIFF(day,EC_DateEcheance,Reglement_Date)) FROM VW_CLIENTS GROUP BY Section_Analytique",
+    "sqlSage100": "SELECT Periode, AVG(Age_Jours) AS DSO FROM VW_CLIENTS WHERE Est_Lettre=0 AND Solde_Signe > 0 GROUP BY Periode ORDER BY Periode",
     "mlUsage": "Feature multi-dimensionnelle pour scoring risque par segment."
   },
   {
@@ -2235,7 +2235,7 @@
       "F_COMPTET",
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT SUM(EC_Montant) FROM VW_CLIENTS WHERE CP_Classe='41' AND EC_Lettrage='' GROUP BY CT_Num",
+    "sqlSage100": "SELECT Code_Client, Nom_Client, SUM(Montant) AS Encours FROM VW_CLIENTS WHERE Est_Lettre=0 AND Solde_Signe > 0 GROUP BY Code_Client, Nom_Client ORDER BY Encours DESC",
     "mlUsage": "Feature pour scoring risque client et prévision cash flows."
   },
   {
@@ -2270,7 +2270,7 @@
       "F_COMPTET",
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT CASE WHEN DATEDIFF(day,EC_DateEcheance,GETDATE())<0 THEN 'Non échu' WHEN DATEDIFF(day,EC_DateEcheance,GETDATE())<=30 THEN '0-30j' WHEN DATEDIFF(day,EC_DateEcheance,GETDATE())<=60 THEN '30-60j' WHEN DATEDIFF(day,EC_DateEcheance,GETDATE())<=90 THEN '60-90j' ELSE '+90j' END AS Tranche, SUM(EC_Montant) FROM VW_CLIENTS WHERE EC_Lettrage='' GROUP BY Tranche",
+    "sqlSage100": "SELECT Tranche_Age, SUM(Montant) AS Encours FROM VW_CLIENTS WHERE Est_Lettre=0 AND Solde_Signe > 0 GROUP BY Tranche_Age ORDER BY Tranche_Age",
     "mlUsage": "Feature multi-classe pour scoring de recouvrement. Prédiction probabilité de recouvrement par tranche."
   },
   {
@@ -2306,7 +2306,7 @@
       "G_ECRITUREC",
       "F_REGLECH"
     ],
-    "sqlSage100": "SELECT (COUNT(Factures_Non_Soldees_Echues) / COUNT(Total_Factures)) * 100 FROM VW_CLIENTS",
+    "sqlSage100": "SELECT (COUNT(CASE WHEN Age_Jours > 0 AND Est_Lettre=0 THEN 1 END) * 100.0 / NULLIF(COUNT(CASE WHEN Solde_Signe > 0 THEN 1 END),0)) AS Taux_Impayes FROM VW_CLIENTS",
     "mlUsage": "Variable cible (target) pour modèles de prédiction d'impayés (classification binaire)."
   },
   {
@@ -2343,7 +2343,7 @@
       "G_ECRITUREC",
       "F_REGLECH"
     ],
-    "sqlSage100": "SELECT CT_Num, (w1*DSO_Norm + w2*Taux_Retard + w3*(Encours/CA) + w4*Anciennete_Neg + w5*NbImpayesHisto) AS Score FROM VW_CLIENTS",
+    "sqlSage100": "SELECT Code_Client, Nom_Client, AVG(Age_Jours) AS DSO_Moyen, SUM(CASE WHEN Age_Jours > 0 AND Est_Lettre=0 THEN Montant ELSE 0 END) AS Encours_En_Retard, COUNT(CASE WHEN Age_Jours > 30 THEN 1 END) AS Nb_Retards FROM VW_CLIENTS GROUP BY Code_Client, Nom_Client ORDER BY Encours_En_Retard DESC",
     "mlUsage": "Output modèle de scoring ML (XGBoost, RF). Features engineerées depuis l'historique des paiements."
   },
   {
@@ -2377,7 +2377,7 @@
       "F_COMPTET",
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT TOP 10 CT_Num, CT_Nom, SUM(Montant_HT), RANK() OVER(ORDER BY SUM(Montant_HT) DESC) AS Rang FROM VW_CLIENTS GROUP BY CT_Num, CT_Nom ORDER BY Rang",
+    "sqlSage100": "SELECT TOP 10 Code_Client, Nom_Client, SUM(Debit_Client) AS CA_Total, RANK() OVER(ORDER BY SUM(Debit_Client) DESC) AS Rang FROM VW_CLIENTS GROUP BY Code_Client, Nom_Client ORDER BY Rang",
     "mlUsage": "Feature pour segmentation RFM et analyse de concentration."
   },
   {
@@ -2412,7 +2412,7 @@
       "F_COMPTET",
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT (CA_Top20pct_Clients / CA_Total) * 100 AS Taux_Concentration FROM VW_CLIENTS",
+    "sqlSage100": "SELECT Code_Client, Nom_Client, SUM(Debit_Client) AS CA_Client, SUM(Debit_Client) * 100.0 / NULLIF(SUM(SUM(Debit_Client)) OVER (),0) AS Pct_CA FROM VW_CLIENTS GROUP BY Code_Client, Nom_Client ORDER BY CA_Client DESC",
     "mlUsage": "Feature évaluation risque portefeuille. Alerte concentration."
   },
   {
@@ -2445,7 +2445,7 @@
       "F_COMPTET",
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT Flag_Groupe, SUM(Encours) FROM VW_CLIENTS GROUP BY Flag_Groupe",
+    "sqlSage100": "-- Flag_Groupe absent de VW_CLIENTS -- SELECT Classement, SUM(CASE WHEN Est_Lettre=0 THEN Montant ELSE 0 END) AS Encours FROM VW_CLIENTS GROUP BY Classement ORDER BY Encours DESC",
     "mlUsage": "Feature pour modèles de consolidation et gestion trésorerie centralisée."
   },
   {
@@ -2480,7 +2480,7 @@
       "F_COMPTET",
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT (COUNT(Clients_N_et_N1) / COUNT(Clients_N1)) * 100 AS Taux_Retention FROM VW_CLIENTS",
+    "sqlSage100": "SELECT COUNT(DISTINCT CASE WHEN Annee=YEAR(GETDATE()) THEN Code_Client END) AS Clients_N, COUNT(DISTINCT CASE WHEN Annee=YEAR(GETDATE())-1 THEN Code_Client END) AS Clients_N1 FROM VW_CLIENTS WHERE Debit_Client > 0",
     "mlUsage": "Variable cible pour modèles de churn prediction (XGBoost, logistic regression)."
   },
   {
@@ -2515,7 +2515,7 @@
       "G_ECRITUREC",
       "G_SECTION"
     ],
-    "sqlSage100": "SELECT GS_No, (Encours_Reel_BU - Objectif_Balance_BU) AS Gap, ((Encours_Reel_BU - Objectif_Balance_BU)/NULLIF(Objectif_Balance_BU,0)*100) AS Taux_Depassement FROM VW_CLIENTS",
+    "sqlSage100": "SELECT Periode, Code_Client, Nom_Client, SUM(CASE WHEN Est_Lettre=0 THEN Montant ELSE 0 END) AS Encours_Reel FROM VW_CLIENTS WHERE Solde_Signe > 0 GROUP BY Periode, Code_Client, Nom_Client ORDER BY Encours_Reel DESC",
     "mlUsage": "Variable cible pour modèles de prédiction de dépassement d'objectif."
   },
   {
@@ -2761,7 +2761,7 @@
       "F_COMPTET",
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT Type_Depense, SUM(EC_Montant) FROM VW_FOURNISSEURS JOIN Mapping_Tiers_Rubrique ON CT_Num GROUP BY Type_Depense",
+    "sqlSage100": "SELECT Classement AS Type_Depense, SUM(Dette_Signe) AS Total_Dettes FROM VW_FOURNISSEURS GROUP BY Classement ORDER BY Total_Dettes",
     "mlUsage": "Feature prévision budgétaire par rubrique. Clustering profils de dépenses."
   },
   {
@@ -3047,7 +3047,7 @@
       "F_ARTICLE",
       "F_MOUVEMENT"
     ],
-    "sqlSage100": "SELECT AR_Ref, AS_QteSto * AS_PUMP AS Valeur FROM VW_STOCKS WHERE AS_QteSto > 0 AND DATEDIFF(day, DernierMouvement_Date, GETDATE()) > @SeuilJours",
+    "sqlSage100": "SELECT AR_Ref, AS_QteSto * AS_PUMP AS Valeur FROM VW_STOCKS WHERE AS_QteSto > 0 AND DATEDIFF(day, DernierMouvement_Date, GETDATE()) > 180",
     "mlUsage": "Feature classification articles et optimisation assortiment. Prédiction obsolescence."
   },
   {
@@ -3400,7 +3400,7 @@
       "G_ECRITUREC",
       "F_COMPTE"
     ],
-    "sqlSage100": "SELECT SUM(CASE WHEN CP_Classe='7' THEN EC_Montant ELSE 0 END) AS Produits_7, SUM(CASE WHEN CP_Classe='6' THEN EC_Montant ELSE 0 END) AS Charges_6 FROM VW_GRAND_LIVRE WHERE EC_Exercice=@Annee",
+    "sqlSage100": "SELECT SUM(CASE WHEN CP_Classe='7' THEN EC_Montant ELSE 0 END) AS Produits_7, SUM(CASE WHEN CP_Classe='6' THEN EC_Montant ELSE 0 END) AS Charges_6 FROM VW_GRAND_LIVRE",
     "mlUsage": "Feature santé financière globale. Input modèles d'évaluation et notation."
   },
   {
@@ -3651,7 +3651,7 @@
       "F_DOCCLIENT",
       "F_DOCLIGNE"
     ],
-    "sqlSage100": "SELECT (COUNT(CASE WHEN DO_Type=1 THEN 1 END) / NULLIF(COUNT(CASE WHEN DO_Type=3 THEN 1 END),0)) * 100 AS Taux_Transformation FROM VW_COMMANDES GROUP BY periode",
+    "sqlSage100": "SELECT Periode, (COUNT(CASE WHEN Sens_Commercial='V' AND Statut_Code='BL' THEN 1 END) * 100.0 / NULLIF(COUNT(CASE WHEN Sens_Commercial='V' AND Statut_Code='BC' THEN 1 END),0)) AS Taux_Transformation FROM VW_COMMANDES GROUP BY Periode ORDER BY Periode",
     "mlUsage": "Feature pour modèles de prévision de CA pipelines et scoring d'opportunités."
   },
   {
@@ -3687,7 +3687,7 @@
       "F_DOCCLIENT",
       "F_DOCLIGNE"
     ],
-    "sqlSage100": "SELECT SUM(DL_MontantHT) FROM VW_COMMANDES WHERE DO_Type=1 AND DO_Statut<>'Terminé' AND DL_QteLivree<DL_Qte",
+    "sqlSage100": "SELECT SUM(Total_HT) AS Backlog_Commandes FROM VW_COMMANDES WHERE Sens_Commercial='V' AND Statut_Code NOT IN ('BL','FA','AV')",
     "mlUsage": "Feature pour prévision du CA à court terme (1-3 mois). Input modèle de charge."
   },
   {
@@ -3723,7 +3723,7 @@
       "F_DOCCLIENT",
       "F_DOCLIGNE"
     ],
-    "sqlSage100": "SELECT AVG(DATEDIFF(day, DO_DateCmd, DO_DateLivraison)) FROM VW_COMMANDES WHERE DO_Type IN (1,3)",
+    "sqlSage100": "SELECT AVG(Age_Jours) AS Delai_Moyen_Livraison FROM VW_COMMANDES WHERE Date_Livraison_Prevue IS NOT NULL AND Statut_Code IN ('BL','FA')",
     "mlUsage": "Feature pour modèles de prédiction de délai et optimisation logistique."
   },
   {
@@ -3758,7 +3758,7 @@
       "F_DOCCLIENT",
       "F_DOCLIGNE"
     ],
-    "sqlSage100": "SELECT SUM(DO_TotalHT) / COUNT(DISTINCT DO_Piece) AS Ticket_Moyen FROM VW_COMMANDES WHERE DO_Type IN (2,6)",
+    "sqlSage100": "SELECT SUM(Total_HT) / NULLIF(COUNT(DISTINCT N_Piece),0) AS Ticket_Moyen FROM VW_COMMANDES WHERE Sens_Commercial='V' AND Statut_Code='FA'",
     "mlUsage": "Feature segmentation client et optimisation commerciale."
   },
   {
@@ -3795,7 +3795,7 @@
       "F_DOCCLIENT",
       "F_DOCLIGNE"
     ],
-    "sqlSage100": "SELECT (SUM(CASE WHEN DO_Type=5 THEN DO_TotalHT ELSE 0 END) / NULLIF(SUM(CASE WHEN DO_Type=2 THEN DO_TotalHT ELSE 0 END),0)) * 100 AS Taux_Retour FROM VW_COMMANDES",
+    "sqlSage100": "SELECT (SUM(CASE WHEN Type_Code='AV' THEN Total_HT ELSE 0 END) / NULLIF(SUM(CASE WHEN Type_Code='FA' THEN Total_HT ELSE 0 END),0)) * 100 AS Taux_Retour FROM VW_COMMANDES",
     "mlUsage": "Feature pour modèles de prédiction de satisfaction et classification de qualité produit."
   },
   {
@@ -3828,7 +3828,7 @@
     "sqlSage100Tables": [
       "F_IMMOBILI"
     ],
-    "sqlSage100": "SELECT IM_Famille, SUM(IM_ValOrigine) FROM VW_IMMOBILISATIONS WHERE IM_Statut='Actif' GROUP BY IM_Famille",
+    "sqlSage100": "SELECT Libelle_Famille, SUM(Valeur_Acquisition) AS Valeur_Brute FROM VW_IMMOBILISATIONS WHERE Etat_Code='Actif' GROUP BY Libelle_Famille ORDER BY Valeur_Brute DESC",
     "mlUsage": "Feature pour modèles de valorisation d'entreprise et rating financier."
   },
   {
@@ -3861,7 +3861,7 @@
     "sqlSage100Tables": [
       "F_IMMOBILI"
     ],
-    "sqlSage100": "SELECT SUM(IM_ValOrigine - IM_CumulAmort) FROM VW_IMMOBILISATIONS WHERE IM_Statut='Actif'",
+    "sqlSage100": "SELECT SUM(Valeur_Nette_Comptable) AS VNC_Total FROM VW_IMMOBILISATIONS WHERE Etat_Code='Actif'",
     "mlUsage": "Feature évaluation d'entreprise. Modèles de prévision des besoins de renouvellement."
   },
   {
@@ -3896,7 +3896,7 @@
     "sqlSage100Tables": [
       "F_IMMOBILI"
     ],
-    "sqlSage100": "SELECT (SUM(IM_CumulAmort) / NULLIF(SUM(IM_ValOrigine),0)) * 100 AS Taux_Amort FROM VW_IMMOBILISATIONS",
+    "sqlSage100": "SELECT AVG(Taux_Amort_Cumul_Pct) AS Taux_Amort_Moyen, SUM(Dotations_Eco_Cumul) AS Dotations_Cumul, SUM(Valeur_Acquisition) AS Valeur_Brute_Totale FROM VW_IMMOBILISATIONS WHERE Etat_Code='Actif'",
     "mlUsage": "Feature pour modèles de prédiction des besoins d'investissement."
   },
   {
@@ -3930,7 +3930,7 @@
       "F_IMMOBILI",
       "F_IMMOPREV"
     ],
-    "sqlSage100": "SELECT Exercice_Futur, SUM(Annuité_Amort_Prévisionnelle) FROM VW_IMMOBILISATIONS GROUP BY Exercice_Futur",
+    "sqlSage100": "SELECT Annee_Amort, SUM(Valeur_Acquisition * Taux_Amort_Annee / 100) AS Dotation_Previsionnelle FROM VW_IMMOBILISATIONS WHERE Etat_Code='Actif' GROUP BY Annee_Amort ORDER BY Annee_Amort",
     "mlUsage": "Feature pour modèles de prévision financière et budget pluriannuel."
   },
   {
@@ -3966,7 +3966,7 @@
       "G_ECRITUREC",
       "F_COMPTE"
     ],
-    "sqlSage100": "SELECT Mois, Annee, SUM(EC_Montant) FROM VW_PAIE WHERE CP_Classe='64' AND EC_Sens='D' GROUP BY Mois, Annee",
+    "sqlSage100": "SELECT Annee, Mois, Periode, SUM(Cout_Total_Employeur) AS Masse_Salariale, SUM(Salaire_Brut) AS Salaires_Bruts, SUM(Cotisations_Patronales) AS Charges_Patronales FROM VW_PAIE GROUP BY Annee, Mois, Periode ORDER BY Annee, Mois",
     "mlUsage": "Feature pour modèles de prévision budgétaire RH."
   },
   {
@@ -4000,7 +4000,7 @@
     "sqlSage100Tables": [
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT (Masse_Salariale / CA_HT) * 100 AS Ratio_MS_CA FROM VW_PAIE",
+    "sqlSage100": "SELECT Annee, Mois, SUM(Cout_Total_Employeur) AS Masse_Salariale FROM VW_PAIE GROUP BY Annee, Mois ORDER BY Annee, Mois -- Ratio MS/CA : diviser par CA de VW_FINANCE_GENERAL",
     "mlUsage": "Feature pour modèles de performance économique et benchmarking sectoriel."
   },
   {
@@ -4033,7 +4033,7 @@
     "sqlSage100Tables": [
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT Masse_Salariale_Chargee / Nb_Collaborateurs_Actifs AS Cout_Moyen FROM VW_PAIE",
+    "sqlSage100": "SELECT Annee, Mois, SUM(Cout_Total_Employeur) / NULLIF(COUNT(DISTINCT Matricule),0) AS Cout_Moyen_Collaborateur, COUNT(DISTINCT Matricule) AS Nb_Collaborateurs FROM VW_PAIE GROUP BY Annee, Mois ORDER BY Annee, Mois",
     "mlUsage": "Feature pour modèles de planification RH et prévision budgétaire."
   },
   {
@@ -4068,7 +4068,7 @@
       "G_ECRITUREC",
       "G_SECTION"
     ],
-    "sqlSage100": "SELECT GS_No, GS_Intitule, SUM(EA_Montant) FROM VW_PAIE WHERE CP_Classe='64' GROUP BY GS_No, GS_Intitule",
+    "sqlSage100": "SELECT Annee, Mois, Matricule, Nom_Complet, Salaire_Brut, Net_A_Payer, Cotisations_Patronales, Cout_Total_Employeur FROM VW_PAIE ORDER BY Annee DESC, Mois DESC, Nom_Complet",
     "mlUsage": "Feature pour modèles de budgétisation RH par département."
   },
   {

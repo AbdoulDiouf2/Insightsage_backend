@@ -1,0 +1,61 @@
+services:
+  # ─── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    platform: linux/amd64
+    container_name: cockpit_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cockpit
+      POSTGRES_USER: cockpit_user
+      POSTGRES_PASSWORD: cockpit_pass
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U cockpit_user -d cockpit']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Redis ───────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    platform: linux/amd64
+    container_name: cockpit_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass cockpit_redis_pass
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', 'cockpit_redis_pass', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── pgAdmin — Interface web PostgreSQL ─────────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    platform: linux/amd64
+    container_name: cockpit_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@cockpit.io
+      PGADMIN_DEFAULT_PASSWORD: cockpit_admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+    ports:
+      - '5050:80'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
+  pgadmin_data:

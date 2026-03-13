@@ -27,7 +27,7 @@ const TOKEN_EXPIRY_WARNING_DAYS = 7;
 // Timeout pour un job temps réel : 30 secondes
 const JOB_TIMEOUT_MS = 30000;
 // Limite de requêtes par minute par organisation
-const MAX_REQUESTS_PER_MINUTE = 10;
+const MAX_REQUESTS_PER_MINUTE = 500;
 
 @Injectable()
 export class AgentsService implements OnModuleInit {

@@ -11,7 +11,7 @@ import {
   Ip,
   ForbiddenException,
 } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
+import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { AgentsService } from './agents.service';
 import { AgentsGateway } from './agents.gateway';
 import { RegisterAgentDto } from './dto/register-agent.dto';
@@ -193,6 +193,7 @@ export class AgentsController {
   // REAL-TIME & JOB ENDPOINTS
   // ============================================================
 
+  @SkipThrottle()
   @Post('query')
   @UseGuards(PermissionsGuard)
   @RequirePermissions({ action: 'manage', resource: 'dashboards' }) // Execution permission
