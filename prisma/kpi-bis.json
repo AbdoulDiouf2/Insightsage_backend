@@ -687,7 +687,7 @@
       "G_ECRITUREC",
       "F_PIECE"
     ],
-    "sqlSage100": "SELECT SUM(Credit_Fourn) AS Total_Achats FROM VW_FOURNISSEURS",
+    "sqlSage100": "SELECT SUM(total_achats_ht_par_periode) AS Total_Achats FROM VW_FOURNISSEURS",
     "mlUsage": "Feature pour optimisation des achats et prévision de dépenses."
   },
   {
@@ -724,7 +724,7 @@
       "G_ECRITUREC",
       "F_REGLEF"
     ],
-    "sqlSage100": "SELECT AVG(Age_Jours_Dette) AS DPO FROM VW_FOURNISSEURS WHERE Est_Lettre=0 AND Dette_Signe > 0",
+    "sqlSage100": "SELECT AVG(dpo_individuel) AS DPO FROM VW_FOURNISSEURS WHERE encours_fournisseurs > 0",
     "mlUsage": "Feature pour optimisation du cash management."
   },
   {
@@ -760,7 +760,7 @@
       "F_COMPTET",
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT SUM(Montant) AS Dettes_Echues FROM VW_FOURNISSEURS WHERE Age_Jours_Dette > 0 AND Est_Lettre=0",
+    "sqlSage100": "SELECT SUM(dettes_fournisseurs_echues_non_soldees) AS Dettes_Echues FROM VW_FOURNISSEURS",
     "mlUsage": "Feature pour prévision de cash outflow."
   },
   {
@@ -796,7 +796,7 @@
       "F_COMPTET",
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT TOP 10 Code_Fournisseur, Nom_Fournisseur, SUM(Credit_Fourn) AS Achats_Total, RANK() OVER (ORDER BY SUM(Credit_Fourn) DESC) AS Rang FROM VW_FOURNISSEURS GROUP BY Code_Fournisseur, Nom_Fournisseur ORDER BY Rang",
+    "sqlSage100": "SELECT TOP 10 fournisseur, nom_fournisseur, SUM(total_achats_ht_par_periode) AS Achats_Total FROM VW_FOURNISSEURS WHERE top_10_fournisseurs=1 GROUP BY fournisseur, nom_fournisseur ORDER BY Achats_Total DESC",
     "mlUsage": "Feature pour analyse de risque supply chain."
   },
   {
@@ -2761,7 +2761,7 @@
       "F_COMPTET",
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT Classement AS Type_Depense, SUM(Dette_Signe) AS Total_Dettes FROM VW_FOURNISSEURS GROUP BY Classement ORDER BY Total_Dettes",
+    "sqlSage100": "SELECT type_depense, SUM(encours_fournisseurs) AS Total_Dettes FROM VW_FOURNISSEURS GROUP BY type_depense ORDER BY Total_Dettes DESC",
     "mlUsage": "Feature prévision budgétaire par rubrique. Clustering profils de dépenses."
   },
   {

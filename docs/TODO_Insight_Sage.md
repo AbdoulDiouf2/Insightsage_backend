@@ -831,12 +831,12 @@ Le backend ne :
 
 ## 10. Coordination avec équipe (Product / Data / Front)
 
-- [ ] Planifier des points réguliers avec le Product Owner pour valider :  
-  - [ ] Onboarding, UX des cockpits, logique métier.
+- [x] Planifier des points réguliers avec le Product Owner pour valider :  
+  - [x] Onboarding, UX des cockpits, logique métier.
 - [ ] Synchroniser avec le Data Engineer sur :  
   - [ ] Interface entre API et semantic layer / DWH.  
   - [ ] Tests de performance sur requêtes clés NLQ et dashboards.
-- [ ] Partager les specs d’API avec le développeur front (contrat clair, exemples de payloads).
+- [x] Partager les specs d’API avec le développeur front (contrat clair, exemples de payloads).
 ***
 
 ## 11. Roadmap de Déploiement Professionnel (Windows Server)
@@ -895,3 +895,130 @@ Le backend ne :
   - [ ] Configurer les sauvegardes automatiques de la base de données.
   - [ ] Configurer la rotation des logs.
   - [ ] Vérifier le redémarrage automatique des services.
+
+***
+
+## 12. Optimisations et Usages Potentiels de Redis
+
+- [ ] **1. Le vrai Cache Métier (Remplacer le cache Postgres)** :
+  - **Problème actuel :** Le frontend sollicite la base Postgres (`AgentJob`) toutes les X secondes pour vérifier si des KPIs calculés récemment (moins de 5 min) existent déjà.
+  - **Action :** Implémenter le `CacheModule` de NestJS backé par `cache-manager-redis-store`. Mettre en cache JSON le résultat de `executeRealTimeQuery` pendant 300s.
+  - **Avantages :** 
+    - Temps d'accès aux KPIs < 1ms (chargé depuis la RAM) au lieu d'une requête SQL.
+    - Économie massive de CPU sur la base de données principale.
+  - **Où l'utiliser :** Dans `agents.service.ts` lors du traitement et de la vérification de la présence d'un résultat côté client.
+
+- [ ] **2. Scale-out des WebSockets (Adaptateur Pub/Sub)** :
+  - **Problème actuel :** En cas d'augmentation du trafic, si l'on multiplie les pods du Backend (ex: 3 instances), un Agent connecté sur l'Instance A ne pourra pas répondre en temps réel à l'utilisateur connecté en WebSocket sur l'Instance B.
+  - **Action :** Utiliser `@nestjs/platform-socket.io` combiné à `@socket.io/redis-adapter` relié à votre serveur Redis.
+  - **Avantages :** Redis agira comme un bus de messagerie (Pub/Sub) invisible. Peu importe l'instance Backend recevant la réponse de l'Agent Sage, Redis la transférera instantanément à l'instance gérant l'utilisateur.
+
+- [ ] **3. Gestion des tâches asynchrones lourdes (Files d'attente / Queues)** :
+  - **Problème actuel :** Les exports lourds (PDF), les calculs complexes d'IA sur de gros volumes, ou des synchronisations Sage volumineuses bloquent l'Event Loop de Node.js et peuvent déclencher des "Timeout" si elles durent plus de 30 secondes.
+  - **Action :** Installer `@nestjs/bull` ou `bullmq` qui utilise Redis de manière native pour empiler des travaux.
+  - **Avantages :** 
+    - Le contrôleur répond instantanément `{"status": "queued", "jobId": "123"}`.
+    - Des "Workers" NestJS dédiés traitent la queue en arrière-plan sans ralentir l'API.
+
+- [ ] **4. Blacklist de Tokens JWT & Sécurité** :
+  - **Problème actuel :** Les JWT (Json Web Tokens) sont stateless. Si un compte Admin révoque un Utilisateur B, le token du B reste mathématiquement valide jusqu'à son expiration (ex: 7 jours).
+  - **Action :** Lorsqu'un accès est révoqué via `revokeToken()`, injecter le hash du JWT dans Redis avec un TTL correspondant au temps restant de validité du token.
+  - **Avantages :** Dans `JwtStrategy.validate()`, faire un rapide `redis.get(jwtHash)`. Si la clé existe, refuser l'accès. C'est le seul moyen sûr et performant (1ms) d'annuler un accès, sans faire de requêtes Postgres à chaque hit de l'API.
+
+- [ ] **5. Compteurs Temps Réel pour les Dashboards (Billing/Usage)** :
+  - **Action :** Vous utilisez déjà Redis pour le Rate Limiting (`INCR sql_rl:org_123`). Étendre cette utilisation pour les quotas d'abonnement.
+  - **Exemples de métriques à traquer :**
+    - `INCR usage:nlq:org_123:2026-03` → Nombre de requêtes NLP ce mois-ci.
+    - `INCRBY usage:bandwidth:org_123:2026-03 <bytes_size>` → Poids des données renvoyées par l'agent.
+  - **Avantages :** Ces compteurs en mémoire permettent au système de facturation (`billing.service.ts`) ou au Widget Store exclusif de limiter instantanément l'usage d'une Org qui dépasse le forfait PME ou Business, sans jamais peser sur les performances SQL avec des lourds `SELECT COUNT(*) WHERE month = ...`.
+
+- [ ] **6. Cache des Permissions RBAC** *(référencé aussi en §8.1 P2)* :
+  - **Problème actuel :** Le `PermissionsGuard` (`src/auth/guards/permissions.guard.ts`) effectue **2 à 3 requêtes Postgres** à chaque appel d'endpoint protégé : charger l'utilisateur, ses `UserRole`, puis les `Permission` associées. Sur un cockpit actif avec un DAF qui navigue, c'est des dizaines de requêtes DB inutiles par minute.
+  - **Action :**
+    - Lors du chargement des permissions dans `PermissionsGuard`, vérifier d'abord `redis.get('user:permissions:{userId}')`.
+    - Si présent, désérialiser le JSON et utiliser directement.
+    - Si absent, charger depuis Postgres puis stocker avec `redis.setEx('user:permissions:{userId}', 300, JSON.stringify(permissions))`.
+  - **Invalidation :** Appeler `redis.del('user:permissions:{userId}')` dans `RolesService` et `UsersService` à chaque modification de rôle ou de permission.
+  - **Clé Redis :** `user:permissions:{userId}` — TTL 5 minutes
+  - **Avantages :** Réduction de ~70% des requêtes DB liées à la sécurité. Aucune dégradation de la sécurité (TTL court + invalidation explicite).
+
+- [ ] **7. Rate Limiting par Email (Lockout Compte & Reset Password)** *(référencé aussi en §8.1 P3)* :
+  - **Problème actuel :** Le `@Throttle` NestJS rate-limite par IP uniquement. Un attaquant derrière un proxy rotatif peut tenter le brute-force de N comptes différents sans être bloqué. De même, l'endpoint `forgot-password` peut être spammé par email sans limite par adresse.
+  - **Action :**
+    - **Lockout login :** Dans `AuthService.login()`, à chaque échec d'authentification, `redis.incr('login:fail:{email}')` + `redis.expire` à 900 secondes (15 min). Après 10 échecs, retourner `429 Too Many Requests` sans même vérifier le mot de passe.
+    - **Reset password :** Dans `AuthService.forgotPassword()`, vérifier `redis.get('pw_reset:{email}')`. Si présent, retourner immédiatement `429`. Sinon, stocker `redis.setEx('pw_reset:{email}', 3600, '1')` (1 heure de cooldown).
+  - **Clés Redis :**
+    - `login:fail:{email}` — TTL 900s, compteur d'échecs
+    - `pw_reset:{email}` — TTL 3600s, verrou reset password
+  - **Avantages :** Protection ciblée par identité, complémentaire au throttle IP. Mitigation des attaques par credential stuffing et du spam d'emails de reset.
+
+- [ ] **8. Socket.io Redis Adapter (Multi-Instance / Scale-Out WebSocket)** *(référencé aussi au §12.2 ci-dessus)* :
+  - **Problème actuel :** `@nestjs/event-emitter` est in-process uniquement. Si le backend est déployé en plusieurs instances (plusieurs pods PM2 ou Docker), un Agent connecté à l'Instance A ne pourra pas envoyer ses résultats à un utilisateur DAF connecté en WebSocket sur l'Instance B.
+  - **Action :**
+    - Installer `@socket.io/redis-adapter` et `socket.io` (déjà présent).
+    - Dans le bootstrap NestJS, après `app.listen()`, configurer l'adapter : `io.adapter(createAdapter(pubClient, subClient))`.
+    - Créer deux clients Redis dédiés (pub + sub) depuis le `REDIS_URL` existant.
+  - **Avantages :** Redis agit comme bus de messagerie Pub/Sub transparent entre instances. Les namespaces `/agents` et `/cockpit` fonctionnent correctement en multi-instance sans modifier une ligne de logique métier. Indispensable avant tout déploiement multi-pod.
+  - **Dépendance NPM :** `npm install @socket.io/redis-adapter --legacy-peer-deps`
+
+- [ ] **9. Queue Bull pour les Emails Transactionnels & Tâches Asynchrones** :
+  - **Problème actuel :** `MailerService` envoie les emails de manière **synchrone** dans le fil de la requête HTTP (invitation, reset-password, welcome-setup). Si le serveur SMTP est lent ou indisponible, la requête API bloque et peut timeout. Il n'y a pas de mécanisme de retry.
+  - **Action :** Utiliser `@nestjs/bull` (déjà installé, non utilisé) :
+    - Créer une `email-queue` dans un `EmailModule` dédié.
+    - Dans `AuthService.inviteUser()`, `forgotPassword()`, `AdminService.createClientAccount()` : remplacer l'appel direct `mailerService.send*()` par `emailQueue.add('send-email', { type, to, payload })`.
+    - Créer un `EmailProcessor` (`@Processor('email-queue')`) avec `@Process('send-email')` qui appelle `MailerService` en background.
+    - Configurer les retries : `{ attempts: 3, backoff: { type: 'exponential', delay: 5000 } }`.
+  - **Autres tâches à queuer :** exports PDF de dashboards, rapports NLQ volumineux, nettoyage périodique des `AgentJob` expirés.
+  - **Avantages :** Les endpoints répondent immédiatement. Retry automatique en cas d'échec SMTP. Monitoring de la queue via Bull Dashboard (optionnel). Aucun risque de saturation de l'Event Loop Node.js.
+  - **Dépendances :** `@nestjs/bull` + `bull` sont déjà dans `package.json`. Ajouter `bull-board` pour le monitoring si besoin.
+
+- [ ] **10. Health Check Redis dans `/health`** :
+  - **Problème actuel :** L'endpoint `GET /health` vérifie la DB Postgres mais pas Redis. Si Redis tombe silencieusement, le rate limiter SQL passe en fail-open (warning loggé, mais aucune alerte remontée).
+  - **Action :**
+    - Dans `src/health/health.controller.ts`, ajouter un check Redis via `redis.ping()`.
+    - Retourner `{ redis: 'up', latency_ms: X }` ou `{ redis: 'down', error: '...' }`.
+    - Si Redis est critique (blacklist JWT activée), marquer le statut global `503`.
+  - **Avantages :** Visibilité complète de l'infrastructure sur un seul endpoint. Monitoring externe (UptimeRobot, Sentry Crons) peut surveiller Redis via `/health`.
+
+- [ ] **11. Remplacer `console.error` par le logger Winston dans Redis** *(référencé aussi en §8.1 P3)* :
+  - **Problème actuel :** `src/redis/redis.module.ts` utilise `console.error()` pour les erreurs de connexion Redis. Ces erreurs n'apparaissent pas dans Winston et ne sont pas capturées par Sentry.
+  - **Action :** Injecter le `Logger` NestJS dans `RedisModule` et remplacer `console.error(...)` par `this.logger.error(...)`.
+  - **Avantages :** Toutes les erreurs Redis apparaissent dans les logs Winston structurés, et sont remontées dans Sentry si `SENTRY_DSN` est configuré.
+
+***
+
+## 13. Guide de Configuration de Sentry (Monitoring des Crashs)
+
+Pour que Sentry joue parfaitement son rôle de "boîte noire" (capture des erreurs 500, alertes email immédiates, stack traces complètes) en production, voici les actions à réaliser côté Système / Infrastructure :
+
+- [ ] **Étape 1 : Créer le projet côté Sentry**
+  - Se rendre sur [sentry.io](https://sentry.io/) et créer ou se connecter à son compte.
+  - Cliquer sur "Create Project", sélectionner la plateforme **Node.js** (ou **NestJS** si disponible).
+  - Nommer le projet (ex: `insightsage-backend`).
+  - Sentry génère alors une clé de routage **DSN** (Data Source Name) qui ressemble à `https://xyz123@o12345.ingest.sentry.io/45678`. Copier cette clé.
+
+- [ ] **Étape 2 : Configurer les Variables d'Environnement**
+  - Sur le serveur de production (là où tourne InsightSage), éditer le fichier `.env` à la racine.
+  - Ajouter (ou modifier) les variables suivantes :
+    ```env
+    # Mettre ici l'URL DSN copiée à l'étape 1 (Active Sentry)
+    SENTRY_DSN="https://xyz123@o12345.ingest.sentry.io/45678"
+    
+    # Préciser l'environnement pour trier les logs dans le Dashboard Sentry
+    SENTRY_ENVIRONMENT="production"
+    ```
+  - Si le `SENTRY_DSN` est laissé vide, Sentry reste désactivé (comportement normal en développement local).
+
+- [ ] **Étape 3 : Validation (Tester un crash d'API)**
+  - Redémarrer le service Node.js sur le serveur (ex: `pm2 restart insightsage-backend`) pour qu'il prenne en compte le `.env`.
+  - Le code applicatif gère déjà l'initialisation (`Sentry.init()`) grâce à l'intégration dans `src/main.ts`.
+  - Pour vérifier le bon fonctionnement, ajouter temporairement un crash volontaire dans un contrôleur (ex: `app.controller.ts`) :
+    ```typescript
+    @Get('test-sentry-crash')
+    crashTest() {
+      throw new Error('Test Sentry : le serveur est en feu !');
+    }
+    ```
+  - Appeler l'URL (ex: `https://api.mondomaine.com/test-sentry-crash`). L'API doit renvoyer une erreur 500.
+  - Se rendre sur le Dashboard Sentry : l'erreur doit apparaître quasi-instantanément avec la ligne de code exacte (`app.controller.ts`). Un email d'alerte devrait également être envoyé.
+  - Penser à retirer la route `test-sentry-crash` une fois la validation terminée !

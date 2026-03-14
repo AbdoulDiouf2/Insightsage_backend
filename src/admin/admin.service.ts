@@ -536,6 +536,29 @@ export class AdminService {
       value
     }));
 
+    // --- NEW: Onboarding Funnel (orgs bloquées par étape) ---
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const onboardingRecords = await this.prisma.onboardingStatus.findMany({
+      select: { currentStep: true, isComplete: true },
+    });
+    const onboardingFunnel = [1, 2, 3, 4, 5].map(step => ({
+      step: `Étape ${step}`,
+      bloquées: onboardingRecords.filter(o => !o.isComplete && o.currentStep === step).length,
+      complétées: onboardingRecords.filter(o => o.isComplete || o.currentStep > step).length,
+    }));
+
+    // --- NEW: Agent Jobs santé (7 derniers jours) ---
+    const [jobsCompleted, jobsFailed, jobsPending] = await Promise.all([
+      this.prisma.agentJob.count({ where: { status: 'COMPLETED', createdAt: { gte: sevenDaysAgo } } }),
+      this.prisma.agentJob.count({ where: { status: 'FAILED', createdAt: { gte: sevenDaysAgo } } }),
+      this.prisma.agentJob.count({ where: { status: 'PENDING', createdAt: { gte: sevenDaysAgo } } }),
+    ]);
+    const agentJobsStats = [
+      { name: 'Complétés', value: jobsCompleted, color: '#22c55e' },
+      { name: 'Échoués', value: jobsFailed, color: '#ef4444' },
+      { name: 'En attente', value: jobsPending, color: '#f59e0b' },
+    ];
+
     // --- NEW: Recent Audit Logs ---
     const recentAuditLogs = await this.prisma.auditLog.findMany({
       take: 10,
@@ -573,6 +596,8 @@ export class AdminService {
       },
       plansDistribution,
       sectorDistribution,
+      onboardingFunnel,
+      agentJobsStats,
       recentAuditLogs,
     };
   }
