@@ -4,10 +4,10 @@ import { IsIn, IsString } from 'class-validator';
 export class Step1Dto {
   @ApiProperty({
     description: 'Plan d\'abonnement choisi',
-    enum: ['startup', 'pme', 'business', 'enterprise'],
+    enum: ['essentiel', 'pme', 'premium', 'enterprise'],
     example: 'pme',
   })
   @IsString()
-  @IsIn(['startup', 'pme', 'business', 'enterprise'])
+  @IsIn(['essentiel', 'pme', 'premium', 'enterprise', 'startup', 'business'])
   plan: string;
 }

@@ -25,11 +25,13 @@ import { BillingModule } from './billing/billing.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { TenantGuard } from './auth/guards/tenant.guard';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
 import { RedisModule } from './redis/redis.module';
 
 @Module({
   imports: [
     EventEmitterModule.forRoot(),
+    ScheduleModule.forRoot(),
     RedisModule,
     ConfigModule.forRoot({
       isGlobal: true,

@@ -132,6 +132,9 @@ export class FlutterwaveWebhookService {
       });
 
       // Upsert BillingSubscription
+      // Premier paiement → TRIALING + trialEndsAt = J+14
+      // Renouvellements suivants → ACTIVE
+      const trialEndsAt = new Date(periodStart.getTime() + 14 * 24 * 60 * 60 * 1000);
       await tx.billingSubscription.upsert({
         where: { organizationId },
         create: {
@@ -139,9 +142,10 @@ export class FlutterwaveWebhookService {
           customerId: customer.id,
           fwSubscriptionId: fwSubscriptionId ?? null,
           planId,
-          status: BillingStatus.ACTIVE,
+          status: BillingStatus.TRIALING,
           currentPeriodStart: periodStart,
           currentPeriodEnd: periodEnd,
+          trialEndsAt,
         },
         update: {
           fwSubscriptionId: fwSubscriptionId ?? undefined,

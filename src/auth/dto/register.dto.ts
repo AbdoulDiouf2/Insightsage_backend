@@ -17,10 +17,10 @@ export class RegisterDto {
   @MinLength(8)
   password!: string;
 
-  @ApiProperty({ example: 'My Company' })
+  @ApiPropertyOptional({ example: 'My Company', description: 'Ignoré si invitationToken est fourni (org déduite de l\'invitation)' })
   @IsString()
-  @IsNotEmpty()
-  organizationName!: string;
+  @IsOptional()
+  organizationName?: string;
 
   @ApiPropertyOptional({ example: 'John' })
   @IsString()

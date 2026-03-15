@@ -14,7 +14,7 @@ export class CreateCheckoutDto {
     example: 'https://app.cockpit.io/billing?success=true',
     description: 'URL de redirection apres paiement reussi (defaut : FRONTEND_URL/billing/success)',
   })
-  @IsUrl()
+  @IsUrl({ require_tld: false })
   @IsOptional()
   successUrl?: string;
 
@@ -22,7 +22,7 @@ export class CreateCheckoutDto {
     example: 'https://app.cockpit.io/billing?cancelled=true',
     description: 'URL de redirection si le client abandonne le paiement (defaut : FRONTEND_URL/billing/cancel)',
   })
-  @IsUrl()
+  @IsUrl({ require_tld: false })
   @IsOptional()
   cancelUrl?: string;
 }

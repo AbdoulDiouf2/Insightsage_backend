@@ -1,6 +1,8 @@
 import {
   Controller,
   Post,
+  Get,
+  Query,
   Body,
   UseGuards,
   HttpCode,
@@ -10,6 +12,7 @@ import {
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
+import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
@@ -30,6 +33,18 @@ export class AuthController {
   constructor(private readonly authService: AuthService) { }
 
   @Public()
+  @SkipThrottle()
+  @Get('invitation-info')
+  @ApiOperation({
+    summary: 'Récupère les infos d\'une invitation par token (email, org) pour pré-remplir le formulaire',
+  })
+  @ApiResponse({ status: 200, description: 'Invitation info returned' })
+  @ApiResponse({ status: 400, description: 'Token invalide ou expiré' })
+  async getInvitationInfo(@Query('token') token: string) {
+    return this.authService.getInvitationInfo(token);
+  }
+
+  @Public()
   @Throttle({ default: { ttl: 60000, limit: 10 } }) // 10 inscriptions/min par IP
   @Post('register')
   @ApiOperation({
@@ -47,6 +62,16 @@ export class AuthController {
       );
     }
     return this.authService.register(dto);
+  }
+
+  @Public()
+  @Throttle({ default: { ttl: 3600000, limit: 5 } }) // 5 inscriptions/heure par IP
+  @Post('signup')
+  @ApiOperation({ summary: 'Créer un compte et une organisation (auto-inscription)' })
+  @ApiResponse({ status: 201, description: 'Compte et organisation créés' })
+  @ApiResponse({ status: 400, description: 'Email déjà utilisé ou données invalides' })
+  async signup(@Body() dto: SignupDto) {
+    return this.authService.signup(dto);
   }
 
   @Public()

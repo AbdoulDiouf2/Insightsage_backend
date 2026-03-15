@@ -33,7 +33,7 @@ model Organization {
 
   // Relations
   ownerId     String?      @unique
-  owner       User?        @relation("OrganizationOwner", fields: [ownerId], references: [id])
+  owner       User?        @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   users       User[]       @relation("UserOrganization")
   dashboards  Dashboard[]
   widgets     Widget[]
@@ -182,7 +182,7 @@ model Dashboard {
   organization   Organization @relation(fields: [organizationId], references: [id])
 
   userId String
-  user   User   @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   widgets Widget[]
 
@@ -208,7 +208,7 @@ model Widget {
   organization   Organization @relation(fields: [organizationId], references: [id])
 
   userId String?
-  user   User?   @relation(fields: [userId], references: [id])
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   dashboardId String?
   dashboard   Dashboard? @relation(fields: [dashboardId], references: [id])
@@ -232,7 +232,7 @@ model AuditLog {
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
   userId String?
-  user   User?   @relation(fields: [userId], references: [id])
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([organizationId])
   @@index([userId])
@@ -290,7 +290,7 @@ model NlqSession {
   organization   Organization @relation(fields: [organizationId], references: [id])
   
   userId         String
-  user           User         @relation(fields: [userId], references: [id])
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   jobId          String?  // Relation vers AgentJob pour récupérer le résultat
   
@@ -346,7 +346,7 @@ model AgentJob {
   agentId        String
   agent          Agent     @relation(fields: [agentId], references: [id])
   userId         String?
-  user           User?     @relation(fields: [userId], references: [id])
+  user           User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   sql            String    @db.Text
   status         JobStatus @default(PENDING)

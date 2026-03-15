@@ -116,7 +116,16 @@ export class AdminService {
     return this.prisma.organization.findMany({
       include: {
         _count: {
-          select: { users: true, dashboards: true, invitations: true },
+          select: { 
+            users: true, 
+            dashboards: true, 
+            invitations: {
+              where: {
+                isAccepted: false,
+                expiresAt: { gt: new Date() }
+              }
+            } 
+          },
         },
         owner: {
           select: { email: true, firstName: true, lastName: true },
@@ -143,7 +152,16 @@ export class AdminService {
       where: { id },
       include: {
         _count: {
-          select: { users: true, dashboards: true, invitations: true },
+          select: { 
+            users: true, 
+            dashboards: true, 
+            invitations: {
+              where: {
+                isAccepted: false,
+                expiresAt: { gt: new Date() }
+              }
+            } 
+          },
         },
         owner: {
           select: { email: true, firstName: true, lastName: true },

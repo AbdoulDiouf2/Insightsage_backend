@@ -110,6 +110,65 @@ export class MailerService implements OnModuleInit {
     });
   }
 
+  async sendTrialEndingEmail(
+    email: string,
+    firstName: string,
+    orgName: string,
+    trialEndsAt: Date,
+    daysLeft: number,
+  ): Promise<void> {
+    const frontendUrl = this.config.get<string>('FRONTEND_URL');
+    const billingUrl = `${frontendUrl}/onboarding`;
+    const formattedDate = trialEndsAt.toLocaleDateString('fr-FR');
+
+    if (!this.smtpConfigured) {
+      this.logger.log(
+        `[DEV] Trial ending email for ${email} (${orgName}) — J-${daysLeft}, fin le ${formattedDate}`,
+      );
+      return;
+    }
+
+    const html = this.loadTemplate('trial-ending.html', {
+      firstName,
+      orgName,
+      daysLeft: String(daysLeft),
+      trialEndsAt: formattedDate,
+      billingUrl,
+    });
+
+    await this.send({
+      to: email,
+      subject: `Cockpit — Votre essai se termine dans ${daysLeft} jour(s)`,
+      html,
+    });
+  }
+
+  async sendWelcomeEmail(
+    email: string,
+    firstName: string,
+    orgName: string,
+  ): Promise<void> {
+    const frontendUrl = this.config.get<string>('FRONTEND_URL');
+    const dashboardUrl = `${frontendUrl}/onboarding`;
+
+    if (!this.smtpConfigured) {
+      this.logger.log(`[DEV] Welcome email for ${email} (${orgName}): ${dashboardUrl}`);
+      return;
+    }
+
+    const html = this.loadTemplate('welcome.html', {
+      firstName,
+      orgName,
+      dashboardUrl,
+    });
+
+    await this.send({
+      to: email,
+      subject: `Bienvenue sur Cockpit — Votre espace ${orgName} est prêt`,
+      html,
+    });
+  }
+
   async sendPaymentFailedAlert(
     email: string,
     recipientName: string,
@@ -173,7 +232,26 @@ export class MailerService implements OnModuleInit {
   }
 
   private loadTemplate(filename: string, variables: Record<string, string>): string {
-    const templatePath = path.join(__dirname, 'templates', filename);
+    // Essayer d'abord dans le dossier dist (production), sinon dans src (dev basique)
+    const possiblePaths = [
+      path.join(process.cwd(), 'dist', 'src', 'mailer', 'templates', filename),
+      path.join(process.cwd(), 'src', 'mailer', 'templates', filename),
+      path.join(__dirname, 'templates', filename)
+    ];
+
+    let templatePath = '';
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) {
+        templatePath = p;
+        break;
+      }
+    }
+
+    if (!templatePath) {
+      this.logger.error(`Template email introuvable: ${filename}`);
+      throw new Error(`Template email introuvable: ${filename}. Avez-vous recompilé le projet ?`);
+    }
+
     let html = fs.readFileSync(templatePath, 'utf-8');
     for (const [key, value] of Object.entries(variables)) {
       html = html.replace(new RegExp(`{{${key}}}`, 'g'), value);

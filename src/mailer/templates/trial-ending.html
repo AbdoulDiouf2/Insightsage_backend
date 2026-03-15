@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Votre période d'essai se termine bientôt</title>
+  <style>
+    body { margin: 0; padding: 0; background: #f4f6f9; font-family: Arial, sans-serif; color: #333; }
+    .wrapper { max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .header { background: #1a1a2e; padding: 32px 40px; text-align: center; }
+    .header h1 { margin: 0; color: #ffffff; font-size: 22px; letter-spacing: 1px; }
+    .banner { background: #fffbeb; border-top: 4px solid #f59e0b; padding: 20px 40px; display: flex; align-items: center; gap: 12px; }
+    .banner-icon { font-size: 28px; }
+    .banner-text { font-size: 15px; font-weight: bold; color: #92400e; }
+    .banner-sub { font-size: 13px; color: #b45309; margin-top: 2px; }
+    .body { padding: 40px; }
+    .body p { line-height: 1.7; margin: 0 0 16px; }
+    .highlight { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px 20px; border-radius: 4px; margin: 20px 0; font-weight: bold; color: #92400e; }
+    .btn { display: inline-block; margin: 24px 0; padding: 14px 32px; background: #6c63ff; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 15px; }
+    .note { font-size: 13px; color: #888; margin-top: 24px; }
+    .footer { background: #f4f6f9; padding: 20px 40px; text-align: center; font-size: 12px; color: #aaa; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>Cockpit</h1>
+    </div>
+    <div class="banner">
+      <div class="banner-icon">⏳</div>
+      <div>
+        <div class="banner-text">Votre période d'essai se termine dans {{daysLeft}} jour(s)</div>
+        <div class="banner-sub">Date de fin : {{trialEndsAt}}</div>
+      </div>
+    </div>
+    <div class="body">
+      <p>Bonjour {{firstName}},</p>
+      <p>
+        Votre période d'essai gratuite pour <strong>{{orgName}}</strong> se termine dans
+        <strong>{{daysLeft}} jour(s)</strong>, le <strong>{{trialEndsAt}}</strong>.
+      </p>
+      <div class="highlight">
+        Après cette date, l'accès à votre tableau de bord sera suspendu si aucun abonnement n'est actif.
+      </div>
+      <p>Pour continuer à profiter de Cockpit sans interruption, activez votre abonnement dès maintenant :</p>
+      <a href="{{billingUrl}}" class="btn">Activer mon abonnement</a>
+      <p class="note">
+        Si vous avez déjà souscrit un abonnement, ignorez cet email.
+        Pour toute question, contactez notre support Nafaka Tech.
+      </p>
+    </div>
+    <div class="footer">
+      &copy; Cockpit by Nafaka Tech — Tous droits réservés
+    </div>
+  </div>
+</body>
+</html>
