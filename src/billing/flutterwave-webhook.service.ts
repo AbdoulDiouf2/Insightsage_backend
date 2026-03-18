@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../logs/audit-log.service';
 import { MailerService } from '../mailer/mailer.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { BillingStatus } from '@prisma/client';
 
 @Injectable()
@@ -16,6 +17,7 @@ export class FlutterwaveWebhookService {
     private readonly config: ConfigService,
     private readonly auditLog: AuditLogService,
     private readonly mailer: MailerService,
+    private readonly notifications: NotificationsService,
   ) {
     this.secretHash = this.config.get<string>('FLW_SECRET_HASH') ?? '';
     if (!this.secretHash) {
@@ -211,6 +213,9 @@ export class FlutterwaveWebhookService {
       },
     });
 
+    // Notifier les admins (fire-and-forget — on résout le nom via organizationId)
+    this.notifications.notifyPaymentSuccess(organizationId, amountPaid, currency).catch(() => {});
+
     this.logger.log(`Paiement FW reussi pour org ${organizationId} (plan ${planId})`);
   }
 
@@ -232,6 +237,13 @@ export class FlutterwaveWebhookService {
         failureReason: data?.processor_response ?? data?.narration ?? null,
       },
     });
+
+    // Notifier les admins (fire-and-forget)
+    this.notifications.notifyPaymentFailed(
+      organizationId,
+      data?.amount ?? undefined,
+      data?.currency ?? undefined,
+    ).catch(() => {});
 
     this.logger.warn(`Paiement FW échoué pour org ${organizationId}`);
   }

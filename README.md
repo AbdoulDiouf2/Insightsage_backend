@@ -51,7 +51,7 @@ Sections couvertes : Architecture · API Reference · Sécurité · Base de donn
 | Cache / Rate Limiting | Redis (`node-redis` v5) — rate limiting distribué SQL + ThrottlerGuard |
 | Validation | `class-validator` + `class-transformer` |
 | Sécurité | Helmet (CSP) + bcrypt ×12 + SHA-256 token hashing + `timingSafeEqual` |
-| Logs | AuditLogService global — masquage PII automatique |
+| Logs | AuditLogService global — masquage PII automatique + alertes admin `ERROR_ALERT_EVENTS` |
 | Monitoring | Sentry (conditionnel via `SENTRY_DSN`) |
 | Tests | Jest + couverture Istanbul |
 | Docs | MkDocs Material 9.x |
@@ -68,17 +68,34 @@ src/
 ├── agents/         # Tokens on-premise, heartbeat, révocation
 ├── onboarding/     # Wizard 5 étapes avec machine à états
 ├── roles/          # RBAC granulaire — rôles & permissions
-├── logs/           # Audit logs paginés + masquage PII
+├── logs/           # Audit logs paginés + masquage PII + alertes erreur
+├── notifications/  # Alertes email admin — newOrg, agentOffline, paiements, erreurs
 ├── dashboards/     # Cockpits CFO personnalisés
 ├── widgets/        # Widget Store + KPI Packs
 ├── nlq/            # Natural Language Querying → SQL sécurisé
 ├── subscriptions/  # Plans Startup / PME / Business / Enterprise
-├── admin/          # SuperAdmin — CRUD clients, users, plans, NLQ Store
+├── admin/          # SuperAdmin — CRUD clients, users, plans, NLQ Store, SystemConfig
 ├── health/         # Endpoint de disponibilité
 └── prisma/         # PrismaService singleton
 ```
 
 Guards globaux : `JwtAuthGuard` → `TenantGuard` (isolation multi-tenant stricte par `organizationId`).
+
+---
+
+## Notifications admin
+
+Le `NotificationsModule` envoie des alertes email aux administrateurs désignés lors d'événements système critiques :
+
+| Événement | Déclencheur |
+|-----------|-------------|
+| Nouvelle organisation | Signup public ou création via SuperAdmin |
+| Agent hors ligne | Absence de heartbeat > 2 minutes |
+| Paiement échoué | Webhook Flutterwave `charge.failed` |
+| Paiement réussi | Webhook Flutterwave `charge.completed` |
+| Erreur système | Tout événement `agent_error`, `agent_job_timeout`, `agent_token_expired` |
+
+Les préférences (activation par type + liste de destinataires) se configurent depuis **Paramètres → Général → Notifications** dans l'Admin Cockpit et sont persistées dans le singleton `SystemConfig` (`GET/PATCH /admin/system-config`).
 
 ---
 

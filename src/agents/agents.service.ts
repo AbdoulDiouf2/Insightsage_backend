@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../logs/audit-log.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { RegisterAgentDto } from './dto/register-agent.dto';
 import { HeartbeatDto } from './dto/heartbeat.dto';
 import { GenerateTokenDto } from './dto/generate-token.dto';
@@ -37,6 +38,7 @@ export class AgentsService implements OnModuleInit {
   constructor(
     private prisma: PrismaService,
     private auditLog: AuditLogService,
+    private notifications: NotificationsService,
     private sqlSecurity: SqlSecurityService,
     private licenseGuardian: LicenseGuardianService,
     private eventEmitter: EventEmitter2,
@@ -411,6 +413,7 @@ export class AgentsService implements OnModuleInit {
         event: 'agent_error',
         payload: { agentId: agent.id, errorCount, lastError },
       });
+      // L'alerte admin est déclenchée automatiquement par AuditLogService sur agent_error
     }
 
     // Le heartbeat (toutes les 30s) n'est PAS loggué en DB pour éviter l'explosion du volume.
@@ -530,13 +533,25 @@ export class AgentsService implements OnModuleInit {
   async markStaleAgentsOffline() {
     const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
 
+    // Trouver d'abord les agents concernés (updateMany ne retourne pas les enregistrements)
+    const staleAgents = await this.prisma.agent.findMany({
+      where: { status: 'online', lastSeen: { lt: twoMinutesAgo } },
+      select: { id: true, name: true, organization: { select: { name: true } } },
+    });
+
+    if (staleAgents.length === 0) return { markedOffline: 0 };
+
     const result = await this.prisma.agent.updateMany({
-      where: {
-        status: 'online',
-        lastSeen: { lt: twoMinutesAgo },
-      },
+      where: { id: { in: staleAgents.map((a) => a.id) } },
       data: { status: 'offline' },
     });
+
+    // Notifier les admins (fire-and-forget)
+    for (const agent of staleAgents) {
+      this.notifications
+        .notifyAgentOffline(agent.name, agent.organization?.name ?? agent.id)
+        .catch(() => {});
+    }
 
     return { markedOffline: result.count };
   }

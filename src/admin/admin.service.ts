@@ -18,6 +18,7 @@ import * as bcrypt from 'bcrypt';
 
 import { AuditLogService } from '../logs/audit-log.service';
 import { MailerService } from '../mailer/mailer.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateUserDto } from './dto/create-user.dto';
 
 @Injectable()
@@ -26,6 +27,7 @@ export class AdminService {
     private prisma: PrismaService,
     private auditLog: AuditLogService,
     private mailer: MailerService,
+    private notifications: NotificationsService,
   ) { }
 
   async createClientAccount(dto: CreateClientDto) {
@@ -101,6 +103,9 @@ export class AdminService {
           organizationName: organization.name,
         },
       });
+
+      // Notifier les admins configurés (fire-and-forget)
+      this.notifications.notifyNewOrg(organization.name, dto.adminEmail).catch(() => {});
 
       return {
         message: 'Client organization and root user created successfully.',
@@ -1063,5 +1068,27 @@ export class AdminService {
     });
 
     return deleted;
+  }
+
+  // ── System config (singleton) ────────────────────────────────────────────────
+
+  async getSystemConfig() {
+    const config = await this.prisma.systemConfig.findUnique({
+      where: { id: 'default' },
+    });
+    return config ?? { id: 'default', notificationPreferences: null };
+  }
+
+  async updateSystemConfig(data: { notificationPreferences?: Record<string, unknown> }) {
+    return this.prisma.systemConfig.upsert({
+      where: { id: 'default' },
+      create: {
+        id: 'default',
+        notificationPreferences: data.notificationPreferences as Prisma.InputJsonValue ?? Prisma.JsonNull,
+      },
+      update: {
+        notificationPreferences: data.notificationPreferences as Prisma.InputJsonValue ?? Prisma.JsonNull,
+      },
+    });
   }
 }

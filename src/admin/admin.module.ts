@@ -5,9 +5,10 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { UsersModule } from '../users/users.module';
 import { CockpitGateway } from './cockpit.gateway';
 import { AuthModule } from '../auth/auth.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [PrismaModule, UsersModule, AuthModule],
+  imports: [PrismaModule, UsersModule, AuthModule, NotificationsModule],
   controllers: [AdminController],
   providers: [AdminService, CockpitGateway],
 })

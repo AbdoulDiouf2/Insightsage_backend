@@ -19,6 +19,7 @@ import { HealthModule } from './health/health.module';
 import { AgentsModule } from './agents/agents.module';
 import { AuditLogModule } from './logs/audit-log.module';
 import { MailerModule } from './mailer/mailer.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { TargetsModule } from './targets/targets.module';
 import { BillingModule } from './billing/billing.module';
 // import { AdminPanelModule } from './admin-panel/admin-panel.module'; // Désactivé (AdminJS)
@@ -66,6 +67,7 @@ import { RedisModule } from './redis/redis.module';
     AgentsModule,
     AuditLogModule,
     MailerModule,
+    NotificationsModule,
     TargetsModule,
     BillingModule,
     // AdminPanelModule, // Désactivé (AdminJS)

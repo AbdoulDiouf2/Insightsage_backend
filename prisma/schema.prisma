@@ -631,3 +631,13 @@ model BillingInvoice {
   @@index([subscriptionId])
   @@map("billing_invoices")
 }
+
+// ─── Configuration système (singleton) ────────────────────────────────────────
+
+model SystemConfig {
+  id                      String   @id @default("default")
+  notificationPreferences Json?    // { notif: {...}, recipients: [...] }
+  updatedAt               DateTime @updatedAt
+
+  @@map("system_config")
+}

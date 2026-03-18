@@ -2,7 +2,6 @@ import {
   Injectable,
   UnauthorizedException,
   BadRequestException,
-  NotFoundException,
 } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
@@ -13,10 +12,12 @@ import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { InviteUserDto } from './dto/invite-user.dto';
 import { AuditLogService } from '../logs/audit-log.service';
 import { LicenseGuardianService } from '../subscriptions/license-guardian.service';
 import { MailerService } from '../mailer/mailer.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
@@ -30,6 +31,7 @@ export class AuthService {
     private auditLog: AuditLogService,
     private licenseGuardian: LicenseGuardianService,
     private mailer: MailerService,
+    private notifications: NotificationsService,
   ) { }
 
   // GET /auth/invitation-info?token=xxx
@@ -210,6 +212,9 @@ export class AuthService {
       console.warn(`[AuthService] Échec envoi email de bienvenue pour ${user.email}: ${err.message}`);
     });
 
+    // 7. Notifier les admins configurés
+    this.notifications.notifyNewOrg(organization.name, dto.email).catch(() => {});
+
     return {
       ...tokens,
       user: {
@@ -340,6 +345,26 @@ export class AuthService {
     });
 
     return { message: 'Password reset successfully' };
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    const user = await this.usersService.findById(userId);
+    if (!user) throw new UnauthorizedException('Utilisateur introuvable.');
+
+    const isValid = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    if (!isValid) throw new BadRequestException('Mot de passe actuel incorrect.');
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, 12);
+    await this.usersService.update(userId, { passwordHash });
+
+    await this.auditLog.log({
+      organizationId: user.organizationId,
+      userId: user.id,
+      event: 'password_reset_completed',
+      payload: { method: 'self_change' },
+    });
+
+    return { message: 'Mot de passe modifié avec succès.' };
   }
 
   async inviteUser(dto: InviteUserDto, invitedById?: string) {

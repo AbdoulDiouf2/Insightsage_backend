@@ -463,4 +463,19 @@ export class AdminController {
   ) {
     return this.adminService.deleteAgent(id, adminUserId);
   }
+
+  // ── System config ────────────────────────────────────────────────────────────
+
+  @Get('system-config')
+  @ApiOperation({ summary: 'Récupérer la configuration système globale' })
+  async getSystemConfig() {
+    return this.adminService.getSystemConfig();
+  }
+
+  @Patch('system-config')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Mettre à jour la configuration système globale' })
+  async updateSystemConfig(@Body() body: Record<string, unknown>) {
+    return this.adminService.updateSystemConfig(body as any);
+  }
 }

@@ -13,12 +13,14 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { TenantGuard } from './guards/tenant.guard';
 import { PermissionsGuard } from './guards/permissions.guard';
 import { RolesGuard } from './guards/roles.guard';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
     PrismaModule,
     UsersModule,
     SubscriptionsModule,
+    NotificationsModule,
     PassportModule,
     JwtModule.registerAsync({
       inject: [ConfigService],

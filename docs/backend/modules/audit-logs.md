@@ -58,6 +58,36 @@ Enregistre plusieurs événements en une seule transaction Prisma `createMany`.
 
 ---
 
+## Alertes admin automatiques (ERROR_ALERT_EVENTS)
+
+L'`AuditLogService` déclenche automatiquement une alerte email aux administrateurs pour les événements critiques, sans qu'aucun autre service n'ait à le faire explicitement :
+
+```typescript
+const ERROR_ALERT_EVENTS = new Set<AuditEventType>([
+  'agent_error',
+  'agent_job_timeout',
+  'agent_token_expired',
+]);
+```
+
+Dès qu'un événement de cet ensemble est loggué via `log()`, l'`AuditLogService` appelle `NotificationsService.notifyErrorLog()` en fire-and-forget :
+
+```typescript
+if (ERROR_ALERT_EVENTS.has(data.event) && this.notifications) {
+  const details = data.payload
+    ? JSON.stringify(data.payload).slice(0, 200)
+    : undefined;
+  this.notifications
+    .notifyErrorLog(data.event, data.organizationId ?? undefined, details)
+    .catch(() => {});
+}
+```
+
+!!! info "Condition d'envoi"
+    L'alerte n'est envoyée que si la clé `errorLogs` est activée dans `SystemConfig.notificationPreferences` et qu'au moins un destinataire est configuré.
+
+---
+
 ## Masquage PII (Données Personnelles)
 
 Avant toute insertion, `sanitizePayload()` transforme récursivement le payload :

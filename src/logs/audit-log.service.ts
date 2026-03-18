@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 export type AuditEventType =
   // ── Auth ───────────────────────────────────────────────────────────────────
@@ -85,6 +86,13 @@ export type AuditEventType =
   | 'admin_users_listed'
   | 'admin_organizations_listed';
 
+/** Événements qui déclenchent une alerte admin (toggle errorLogs) */
+const ERROR_ALERT_EVENTS = new Set<AuditEventType>([
+  'agent_error',
+  'agent_job_timeout',
+  'agent_token_expired',
+]);
+
 export interface AuditLogPayload {
   organizationId?: string | null;
   userId?: string;
@@ -102,7 +110,10 @@ export interface AuditLogPayload {
  */
 @Injectable()
 export class AuditLogService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    @Optional() private notifications?: NotificationsService,
+  ) { }
 
   /**
    * Masque un email : jean.dupont@acme.com → j***@acme.com
@@ -150,6 +161,15 @@ export class AuditLogService {
           userAgent: data.userAgent,
         },
       });
+      // Déclencher une alerte admin si l'événement est de type erreur
+      if (ERROR_ALERT_EVENTS.has(data.event) && this.notifications) {
+        const details = data.payload
+          ? JSON.stringify(data.payload).slice(0, 200)
+          : undefined;
+        this.notifications
+          .notifyErrorLog(data.event, data.organizationId ?? undefined, details)
+          .catch(() => {});
+      }
     } catch (error) {
       // Ne pas laisser un échec de log casser le flux principal
       console.error('Failed to write audit log:', error);

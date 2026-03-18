@@ -16,7 +16,8 @@ description: Toutes les pages du dashboard et leur structure fonctionnelle
 ├── 📋 Plans d'abonnement   → /subscription-plans
 ├── 🤖 Agents               → /agents
 ├── 📜 Logs d'audit         → /audit-logs
-└── ❤️ État du système      → /health
+├── ❤️ État du système      → /health
+└── ⚙️ Paramètres           → /settings
 ```
 
 ---
@@ -287,3 +288,52 @@ setError(errorMessage || t('auth.invalidCredentials'));
 - Liens de navigation avec icônes Lucide
 - Collapser sur mobile (overlay)
 - Badge de version en bas
+
+---
+
+## Page : Paramètres (`/settings`)
+
+**Composant :** `SettingsPage.tsx`
+
+Page de configuration organisée en deux groupes de navigation :
+
+### Mon compte
+
+| Section | Description |
+|---------|-------------|
+| **Profil** | Modifier prénom, nom, photo |
+| **Sécurité** | Changer le mot de passe |
+| **Apparence** | Thème clair/sombre, langue |
+
+### Général
+
+| Section | Description |
+|---------|-------------|
+| **Notifications** | Activer/désactiver les alertes email + gérer les destinataires |
+
+---
+
+### Onglet Notifications
+
+**Données :** `GET /admin/system-config` → `notificationPreferences`
+
+**Sauvegarde :** `PATCH /admin/system-config` avec `{ notificationPreferences: { notif, recipients } }`
+
+**State management :** TanStack Query `useQuery(['system-config'])` + `useMutation`
+
+```typescript
+// Structure des préférences
+{
+  notif: {
+    newOrg:        boolean,  // Nouvelle organisation créée
+    agentOffline:  boolean,  // Agent hors ligne
+    paymentFailed: boolean,  // Paiement échoué
+    paymentSuccess: boolean, // Paiement réussi
+    errorLogs:     boolean,  // Erreurs système (agent_error, timeout, token expiré)
+  },
+  recipients: string[],      // IDs d'utilisateurs admin destinataires
+}
+```
+
+!!! info "Accès restreint"
+    Les préférences de notification sont des **paramètres globaux** visibles uniquement pour les utilisateurs avec la permission `manage:all` (SuperAdmin). Elles s'appliquent à toute la plateforme.
