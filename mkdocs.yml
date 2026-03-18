@@ -153,6 +153,7 @@ nav:
     - Modules:
       - Authentification: backend/modules/auth.md
       - Emails transactionnels: backend/modules/mailer.md
+      - Notifications admin: backend/modules/notifications.md
       - Organisations: backend/modules/organizations.md
       - Utilisateurs: backend/modules/users.md
       - Agents: backend/modules/agents.md

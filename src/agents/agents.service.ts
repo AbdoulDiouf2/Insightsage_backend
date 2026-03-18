@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../logs/audit-log.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { RegisterAgentDto } from './dto/register-agent.dto';
 import { HeartbeatDto } from './dto/heartbeat.dto';
 import { GenerateTokenDto } from './dto/generate-token.dto';
@@ -27,7 +28,7 @@ const TOKEN_EXPIRY_WARNING_DAYS = 7;
 // Timeout pour un job temps réel : 30 secondes
 const JOB_TIMEOUT_MS = 30000;
 // Limite de requêtes par minute par organisation
-const MAX_REQUESTS_PER_MINUTE = 10;
+const MAX_REQUESTS_PER_MINUTE = 500;
 
 @Injectable()
 export class AgentsService implements OnModuleInit {
@@ -37,6 +38,7 @@ export class AgentsService implements OnModuleInit {
   constructor(
     private prisma: PrismaService,
     private auditLog: AuditLogService,
+    private notifications: NotificationsService,
     private sqlSecurity: SqlSecurityService,
     private licenseGuardian: LicenseGuardianService,
     private eventEmitter: EventEmitter2,
@@ -173,7 +175,7 @@ export class AgentsService implements OnModuleInit {
   /**
    * Génère un nouveau token agent pour une organisation (Section 2.4)
    */
-  async generateAgentToken(organizationId: string, dto: GenerateTokenDto) {
+  async generateAgentToken(organizationId: string, userId: string, dto: GenerateTokenDto) {
     const existingAgent = await this.prisma.agent.findFirst({
       where: { organizationId },
     });
@@ -199,6 +201,7 @@ export class AgentsService implements OnModuleInit {
 
     await this.auditLog.log({
       organizationId,
+      userId,
       event: 'agent_token_generated',
       payload: { agentId: agent.id, agentName: agent.name },
     });
@@ -222,7 +225,7 @@ export class AgentsService implements OnModuleInit {
   /**
    * Révoque explicitement le token d'un agent (Section 2.4)
    */
-  async revokeToken(agentId: string, organizationId: string) {
+  async revokeToken(agentId: string, organizationId: string, userId?: string) {
     const agent = await this.prisma.agent.findUnique({ where: { id: agentId } });
 
     if (!agent) {
@@ -246,6 +249,7 @@ export class AgentsService implements OnModuleInit {
 
     await this.auditLog.log({
       organizationId,
+      userId,
       event: 'agent_token_revoked',
       payload: { agentId, agentName: agent.name },
     });
@@ -263,7 +267,7 @@ export class AgentsService implements OnModuleInit {
   /**
    * Régénère le token d'un agent (remet le compteur d'expiration à zéro)
    */
-  async regenerateToken(agentId: string, organizationId: string) {
+  async regenerateToken(agentId: string, organizationId: string, userId?: string) {
     const agent = await this.prisma.agent.findUnique({ where: { id: agentId } });
 
     if (!agent) {
@@ -290,6 +294,7 @@ export class AgentsService implements OnModuleInit {
 
     await this.auditLog.log({
       organizationId,
+      userId,
       event: 'agent_token_regenerated',
       payload: { agentId, agentName: agent.name },
     });
@@ -408,7 +413,11 @@ export class AgentsService implements OnModuleInit {
         event: 'agent_error',
         payload: { agentId: agent.id, errorCount, lastError },
       });
+      // L'alerte admin est déclenchée automatiquement par AuditLogService sur agent_error
     }
+
+    // Le heartbeat (toutes les 30s) n'est PAS loggué en DB pour éviter l'explosion du volume.
+    // L'info de présence est déjà dans Agent.lastSeen + Agent.status.
 
     const daysUntilExpiry = this.getDaysUntilExpiry(agent.tokenExpiresAt);
     const isExpiringSoon =
@@ -524,13 +533,25 @@ export class AgentsService implements OnModuleInit {
   async markStaleAgentsOffline() {
     const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
 
+    // Trouver d'abord les agents concernés (updateMany ne retourne pas les enregistrements)
+    const staleAgents = await this.prisma.agent.findMany({
+      where: { status: 'online', lastSeen: { lt: twoMinutesAgo } },
+      select: { id: true, name: true, organization: { select: { name: true } } },
+    });
+
+    if (staleAgents.length === 0) return { markedOffline: 0 };
+
     const result = await this.prisma.agent.updateMany({
-      where: {
-        status: 'online',
-        lastSeen: { lt: twoMinutesAgo },
-      },
+      where: { id: { in: staleAgents.map((a) => a.id) } },
       data: { status: 'offline' },
     });
+
+    // Notifier les admins (fire-and-forget)
+    for (const agent of staleAgents) {
+      this.notifications
+        .notifyAgentOffline(agent.name, agent.organization?.name ?? agent.id)
+        .catch(() => {});
+    }
 
     return { markedOffline: result.count };
   }
@@ -716,13 +737,7 @@ export class AgentsService implements OnModuleInit {
     });
 
     if (result.count > 0) {
-      this.auditLog
-        .log({
-          organizationId: 'system',
-          event: 'agent_job_timeout',
-          payload: { count: result.count },
-        })
-        .catch(() => { });
+      this.logger.warn(`agent_job_timeout : ${result.count} job(s) marqué(s) FAILED (timeout 30s)`);
     }
 
     return { timedOutJobs: result.count };

@@ -112,6 +112,8 @@ SMTP_FROM="Cockpit <noreply@client.com>"
 
 ## API du MailerService
 
+### Emails transactionnels utilisateurs
+
 ```typescript
 // Réinitialisation de mot de passe
 sendResetPasswordEmail(email: string, token: string): Promise<void>
@@ -131,6 +133,58 @@ sendWelcomeSetupEmail(
   orgName: string,
 ): Promise<void>
 ```
+
+### Alertes admin {#alertes-admin}
+
+Cinq méthodes d'alerte déclenchées via `NotificationsService` — HTML inline sans template fichier séparé :
+
+```typescript
+// Nouvelle organisation créée (header bleu #3b82f6)
+sendAdminNewOrgAlert(
+  email: string,
+  firstName: string | null | undefined,
+  orgName: string,
+  createdByEmail?: string,
+): Promise<void>
+
+// Agent hors ligne (header orange #f97316)
+sendAdminAgentOfflineAlert(
+  email: string,
+  firstName: string | null | undefined,
+  agentName: string,
+  orgName: string,
+): Promise<void>
+
+// Paiement échoué (header rouge #ef4444)
+sendAdminPaymentFailedAlert(
+  email: string,
+  firstName: string | null | undefined,
+  orgName: string,
+  amount?: number,
+  currency?: string,
+): Promise<void>
+
+// Paiement réussi (header vert #22c55e)
+sendAdminPaymentSuccessAlert(
+  email: string,
+  firstName: string | null | undefined,
+  orgName: string,
+  amount: number,
+  currency: string,
+): Promise<void>
+
+// Événement d'erreur système (header rouge foncé #dc2626)
+sendAdminErrorLogAlert(
+  email: string,
+  firstName: string | null | undefined,
+  eventType: string,
+  orgName?: string,
+  details?: string,
+): Promise<void>
+```
+
+!!! info "Mode développement"
+    En l'absence de `SMTP_HOST`, toutes les alertes admin sont loggées en console avec le préfixe `[MailerService]` — aucun SMTP requis pour tester.
 
 ---
 
@@ -156,3 +210,4 @@ Le `MailerService` est injecté directement dans :
 | `auth` | `AuthService` | `forgotPassword()` | Reset mot de passe |
 | `auth` | `AuthService` | `inviteUser()` | Invitation |
 | `admin` | `AdminService` | `createClientAccount()` | Welcome setup |
+| `notifications` | `NotificationsService` | `notify*()` | Alertes admin (5 types) |

@@ -38,7 +38,7 @@ export class RolesService {
     });
   }
 
-  async create(organizationId: string, dto: CreateRoleDto) {
+  async create(organizationId: string, userId: string, dto: CreateRoleDto) {
     // Basic validation to prevent duplicate names in the same organization
     const existingRole = await this.prisma.role.findFirst({
       where: { name: dto.name, organizationId },
@@ -63,6 +63,7 @@ export class RolesService {
 
     await this.auditLog.log({
       organizationId,
+      userId,
       event: 'role_created',
       payload: { roleId: role.id, name: role.name },
     });
@@ -70,7 +71,7 @@ export class RolesService {
     return role;
   }
 
-  async update(id: string, organizationId: string, dto: UpdateRoleDto) {
+  async update(id: string, organizationId: string, userId: string, dto: UpdateRoleDto) {
     const role = await this.prisma.role.findUnique({ where: { id } });
     if (!role) throw new NotFoundException('Role not found.');
 
@@ -105,6 +106,7 @@ export class RolesService {
 
     await this.auditLog.log({
       organizationId,
+      userId,
       event: 'role_updated',
       payload: { roleId: id, name: updatedRole.name },
     });
@@ -134,7 +136,7 @@ export class RolesService {
     return role;
   }
 
-  async remove(id: string, organizationId: string) {
+  async remove(id: string, organizationId: string, userId: string) {
     const role = await this.prisma.role.findUnique({ where: { id } });
     if (!role) throw new NotFoundException('Role not found.');
 
@@ -149,6 +151,7 @@ export class RolesService {
 
     await this.auditLog.log({
       organizationId,
+      userId,
       event: 'role_deleted',
       payload: { roleId: id, name: role.name },
     });

@@ -18,6 +18,7 @@ import * as bcrypt from 'bcrypt';
 
 import { AuditLogService } from '../logs/audit-log.service';
 import { MailerService } from '../mailer/mailer.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateUserDto } from './dto/create-user.dto';
 
 @Injectable()
@@ -26,6 +27,7 @@ export class AdminService {
     private prisma: PrismaService,
     private auditLog: AuditLogService,
     private mailer: MailerService,
+    private notifications: NotificationsService,
   ) { }
 
   async createClientAccount(dto: CreateClientDto) {
@@ -102,6 +104,9 @@ export class AdminService {
         },
       });
 
+      // Notifier les admins configurés (fire-and-forget)
+      this.notifications.notifyNewOrg(organization.name, dto.adminEmail).catch(() => {});
+
       return {
         message: 'Client organization and root user created successfully.',
         organizationId: organization.id,
@@ -116,7 +121,16 @@ export class AdminService {
     return this.prisma.organization.findMany({
       include: {
         _count: {
-          select: { users: true, dashboards: true, invitations: true },
+          select: { 
+            users: true, 
+            dashboards: true, 
+            invitations: {
+              where: {
+                isAccepted: false,
+                expiresAt: { gt: new Date() }
+              }
+            } 
+          },
         },
         owner: {
           select: { email: true, firstName: true, lastName: true },
@@ -143,7 +157,16 @@ export class AdminService {
       where: { id },
       include: {
         _count: {
-          select: { users: true, dashboards: true, invitations: true },
+          select: { 
+            users: true, 
+            dashboards: true, 
+            invitations: {
+              where: {
+                isAccepted: false,
+                expiresAt: { gt: new Date() }
+              }
+            } 
+          },
         },
         owner: {
           select: { email: true, firstName: true, lastName: true },
@@ -189,7 +212,7 @@ export class AdminService {
     return organization;
   }
 
-  async updateOrganization(id: string, dto: AdminUpdateOrganizationDto) {
+  async updateOrganization(id: string, dto: AdminUpdateOrganizationDto, adminUserId?: string) {
     const organization = await this.prisma.organization.update({
       where: { id },
       data: dto,
@@ -197,6 +220,7 @@ export class AdminService {
 
     await this.auditLog.log({
       organizationId: id,
+      userId: adminUserId,
       event: 'organization_updated',
       payload: { changes: dto },
     });
@@ -204,7 +228,7 @@ export class AdminService {
     return organization;
   }
 
-  async deleteOrganization(id: string) {
+  async deleteOrganization(id: string, adminUserId?: string) {
     const organization = await this.prisma.organization.findUnique({
       where: { id },
       select: { id: true, name: true },
@@ -214,13 +238,38 @@ export class AdminService {
     if (organization) {
       await this.auditLog.log({
         organizationId: id,
+        userId: adminUserId,
         event: 'organization_deleted',
         payload: { organizationName: organization.name },
       });
     }
 
-    return this.prisma.organization.delete({
-      where: { id },
+    // Suppression en cascade dans le bon ordre
+    // (seuls Agent/AgentJob/AgentLog/Dashboard n'ont pas onDelete:Cascade dans le schéma)
+    return this.prisma.$transaction(async (tx) => {
+      // 1. AgentLog + AgentJob → Agent (pas de cascade DB)
+      const agents = await tx.agent.findMany({ where: { organizationId: id }, select: { id: true } });
+      const agentIds = agents.map((a) => a.id);
+      if (agentIds.length > 0) {
+        await tx.agentLog.deleteMany({ where: { agentId: { in: agentIds } } });
+        await tx.agentJob.deleteMany({ where: { agentId: { in: agentIds } } });
+        await tx.agent.deleteMany({ where: { organizationId: id } });
+      }
+
+      // 2. Widget → Dashboard (pas de cascade DB sur Dashboard)
+      const dashboards = await tx.dashboard.findMany({ where: { organizationId: id }, select: { id: true } });
+      const dashboardIds = dashboards.map((d) => d.id);
+      if (dashboardIds.length > 0) {
+        await tx.widget.deleteMany({ where: { dashboardId: { in: dashboardIds } } });
+        await tx.dashboard.deleteMany({ where: { organizationId: id } });
+      }
+
+      // 3. Dissocier l'owner pour éviter la contrainte circulaire Organization ↔ User
+      await tx.organization.update({ where: { id }, data: { ownerId: null } });
+
+      // 4. Supprimer l'organisation — le reste cascade (User, Invitation, AuditLog,
+      //    OnboardingStatus, BillingCustomer, BillingSubscription, BillingInvoice…)
+      return tx.organization.delete({ where: { id } });
     });
   }
 
@@ -284,7 +333,7 @@ export class AdminService {
     return user;
   }
 
-  async deleteUser(id: string) {
+  async deleteUser(id: string, adminUserId?: string) {
     // Fetch before delete to capture organizationId for the audit log
     const user = await this.prisma.user.findUnique({
       where: { id },
@@ -298,6 +347,7 @@ export class AdminService {
     if (user) {
       await this.auditLog.log({
         organizationId: user.organizationId,
+        userId: adminUserId,
         event: 'user_deleted',
         payload: { deletedUserId: user.id, email: user.email },
       });
@@ -536,6 +586,29 @@ export class AdminService {
       value
     }));
 
+    // --- NEW: Onboarding Funnel (orgs bloquées par étape) ---
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const onboardingRecords = await this.prisma.onboardingStatus.findMany({
+      select: { currentStep: true, isComplete: true },
+    });
+    const onboardingFunnel = [1, 2, 3, 4, 5].map(step => ({
+      step: `Étape ${step}`,
+      bloquées: onboardingRecords.filter(o => !o.isComplete && o.currentStep === step).length,
+      complétées: onboardingRecords.filter(o => o.isComplete || o.currentStep > step).length,
+    }));
+
+    // --- NEW: Agent Jobs santé (7 derniers jours) ---
+    const [jobsCompleted, jobsFailed, jobsPending] = await Promise.all([
+      this.prisma.agentJob.count({ where: { status: 'COMPLETED', createdAt: { gte: sevenDaysAgo } } }),
+      this.prisma.agentJob.count({ where: { status: 'FAILED', createdAt: { gte: sevenDaysAgo } } }),
+      this.prisma.agentJob.count({ where: { status: 'PENDING', createdAt: { gte: sevenDaysAgo } } }),
+    ]);
+    const agentJobsStats = [
+      { name: 'Complétés', value: jobsCompleted, color: '#22c55e' },
+      { name: 'Échoués', value: jobsFailed, color: '#ef4444' },
+      { name: 'En attente', value: jobsPending, color: '#f59e0b' },
+    ];
+
     // --- NEW: Recent Audit Logs ---
     const recentAuditLogs = await this.prisma.auditLog.findMany({
       take: 10,
@@ -573,6 +646,8 @@ export class AdminService {
       },
       plansDistribution,
       sectorDistribution,
+      onboardingFunnel,
+      agentJobsStats,
       recentAuditLogs,
     };
   }
@@ -768,7 +843,7 @@ export class AdminService {
     return dashboard;
   }
 
-  async deleteDashboard(id: string) {
+  async deleteDashboard(id: string, adminUserId?: string) {
     const dashboard = await this.prisma.dashboard.findUnique({
       where: { id },
       select: { id: true, name: true, organizationId: true },
@@ -784,6 +859,7 @@ export class AdminService {
 
     await this.auditLog.log({
       organizationId: dashboard.organizationId,
+      userId: adminUserId,
       event: 'dashboard_deleted',
       payload: { dashboardId: id, name: dashboard.name, method: 'admin_action' },
     });
@@ -927,6 +1003,15 @@ export class AdminService {
     return template;
   }
 
+  async toggleNlqTemplate(id: string) {
+    const template = await (this.prisma as any).nlqTemplate.findUnique({ where: { id } });
+    if (!template) throw new NotFoundException(`NLQ Template introuvable : ${id}`);
+    return (this.prisma as any).nlqTemplate.update({
+      where: { id },
+      data: { isActive: !template.isActive },
+    });
+  }
+
   async findAllNlqSessions() {
     return this.prisma.nlqSession.findMany({
       orderBy: { createdAt: 'desc' },
@@ -956,7 +1041,7 @@ export class AdminService {
     return session;
   }
 
-  async deleteAgent(id: string) {
+  async deleteAgent(id: string, adminUserId?: string) {
     const agent = await this.prisma.agent.findUnique({
       where: { id },
       select: { id: true, name: true, organizationId: true },
@@ -977,10 +1062,33 @@ export class AdminService {
 
     await this.auditLog.log({
       organizationId: agent.organizationId,
+      userId: adminUserId,
       event: 'agent_deleted',
       payload: { agentId: id, name: agent.name, method: 'admin_action' },
     });
 
     return deleted;
+  }
+
+  // ── System config (singleton) ────────────────────────────────────────────────
+
+  async getSystemConfig() {
+    const config = await this.prisma.systemConfig.findUnique({
+      where: { id: 'default' },
+    });
+    return config ?? { id: 'default', notificationPreferences: null };
+  }
+
+  async updateSystemConfig(data: { notificationPreferences?: Record<string, unknown> }) {
+    return this.prisma.systemConfig.upsert({
+      where: { id: 'default' },
+      create: {
+        id: 'default',
+        notificationPreferences: data.notificationPreferences as Prisma.InputJsonValue ?? Prisma.JsonNull,
+      },
+      update: {
+        notificationPreferences: data.notificationPreferences as Prisma.InputJsonValue ?? Prisma.JsonNull,
+      },
+    });
   }
 }

@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../logs/audit-log.service';
 import { MailerService } from '../mailer/mailer.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { BillingStatus } from '@prisma/client';
 
 @Injectable()
@@ -16,6 +17,7 @@ export class FlutterwaveWebhookService {
     private readonly config: ConfigService,
     private readonly auditLog: AuditLogService,
     private readonly mailer: MailerService,
+    private readonly notifications: NotificationsService,
   ) {
     this.secretHash = this.config.get<string>('FLW_SECRET_HASH') ?? '';
     if (!this.secretHash) {
@@ -64,6 +66,10 @@ export class FlutterwaveWebhookService {
     switch (event) {
       case 'charge.completed':
         await this.handleChargeCompleted(payload.data);
+        break;
+
+      case 'charge.failed':
+        await this.handleChargeFailed(payload.data);
         break;
 
       case 'subscription.cancelled':
@@ -132,6 +138,9 @@ export class FlutterwaveWebhookService {
       });
 
       // Upsert BillingSubscription
+      // Premier paiement → TRIALING + trialEndsAt = J+14
+      // Renouvellements suivants → ACTIVE
+      const trialEndsAt = new Date(periodStart.getTime() + 14 * 24 * 60 * 60 * 1000);
       await tx.billingSubscription.upsert({
         where: { organizationId },
         create: {
@@ -139,9 +148,10 @@ export class FlutterwaveWebhookService {
           customerId: customer.id,
           fwSubscriptionId: fwSubscriptionId ?? null,
           planId,
-          status: BillingStatus.ACTIVE,
+          status: BillingStatus.TRIALING,
           currentPeriodStart: periodStart,
           currentPeriodEnd: periodEnd,
+          trialEndsAt,
         },
         update: {
           fwSubscriptionId: fwSubscriptionId ?? undefined,
@@ -181,6 +191,17 @@ export class FlutterwaveWebhookService {
       });
     });
 
+    // Distinguer création vs renouvellement d'abonnement
+    const isNewSubscription = await this.prisma.billingSubscription
+      .findUnique({ where: { organizationId }, select: { status: true } })
+      .then((sub) => sub?.status === BillingStatus.TRIALING);
+
+    await this.auditLog.log({
+      organizationId,
+      event: isNewSubscription ? 'subscription_created' : 'subscription_updated',
+      payload: { planId, fwSubscriptionId, fwTransactionId },
+    });
+
     await this.auditLog.log({
       organizationId,
       event: 'payment_succeeded',
@@ -192,7 +213,39 @@ export class FlutterwaveWebhookService {
       },
     });
 
+    // Notifier les admins (fire-and-forget — on résout le nom via organizationId)
+    this.notifications.notifyPaymentSuccess(organizationId, amountPaid, currency).catch(() => {});
+
     this.logger.log(`Paiement FW reussi pour org ${organizationId} (plan ${planId})`);
+  }
+
+  /**
+   * charge.failed
+   * Paiement échoué (carte refusée, fonds insuffisants, etc.)
+   */
+  private async handleChargeFailed(data: any) {
+    const organizationId: string | undefined = data?.meta?.organizationId;
+    if (!organizationId) return;
+
+    await this.auditLog.log({
+      organizationId,
+      event: 'payment_failed',
+      payload: {
+        fwTransactionId: data?.id ? String(data.id) : undefined,
+        amountRequested: data?.amount ?? null,
+        currency: data?.currency ?? null,
+        failureReason: data?.processor_response ?? data?.narration ?? null,
+      },
+    });
+
+    // Notifier les admins (fire-and-forget)
+    this.notifications.notifyPaymentFailed(
+      organizationId,
+      data?.amount ?? undefined,
+      data?.currency ?? undefined,
+    ).catch(() => {});
+
+    this.logger.warn(`Paiement FW échoué pour org ${organizationId}`);
   }
 
   /**

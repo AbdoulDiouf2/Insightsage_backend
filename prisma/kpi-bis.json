@@ -9,15 +9,31 @@
     "description": "Total des ventes nettes hors taxes sur une période donnée.",
     "usage": "Mesurer la performance commerciale globale. Comparer par période (mensuel, trimestriel, annuel). Base de tous les KPIs de rentabilité.",
     "unit": "€",
-    "defaultVizType": "bar",
+    "defaultVizType": "card",
     "frequency": "Mensuel / Annuel",
     "risk": "Faible",
-    "profiles": ["DAF", "CFO", "DG"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["ca ht", "chiffre affaires ht", "ventes nettes", "revenus ht", "facturation"],
+    "profiles": [
+      "DAF",
+      "CFO",
+      "DG"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "ca ht",
+      "chiffre affaires ht",
+      "ventes nettes",
+      "revenus ht",
+      "facturation"
+    ],
     "sqlSage100View": "VW_Finances_Clients_Flat",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC", "F_PIECE"],
-    "sqlSage100": "SELECT SUM(Montant_HT) FROM VW_Finances_Clients_Flat WHERE Type_Piece IN ('FA','FD') AND Exercice = @Annee",
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC",
+      "F_PIECE"
+    ],
+    "sqlSage100": "SELECT SUM(Montant_HT) FROM VW_Finances_Clients_Flat WHERE Type_Piece IN ('FA','FD')",
     "mlUsage": "Feature principale pour prévision de revenus (time-series forecasting). Détection d'anomalies de CA."
   },
   {
@@ -30,15 +46,30 @@
     "description": "Total des ventes toutes taxes comprises.",
     "usage": "Analyse de trésorerie réelle encaissée. Comparaison avec soldes bancaires.",
     "unit": "€",
-    "defaultVizType": "bar",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["DAF", "Comptable", "Trésorier"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["ca ttc", "ventes ttc", "encaissements", "total ttc", "chiffre affaires ttc"],
+    "profiles": [
+      "DAF",
+      "Comptable",
+      "Trésorier"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "ca ttc",
+      "ventes ttc",
+      "encaissements",
+      "total ttc",
+      "chiffre affaires ttc"
+    ],
     "sqlSage100View": "VW_Finances_Clients_Flat",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_PIECE"],
-    "sqlSage100": "SELECT SUM(Montant_TTC) FROM VW_Finances_Clients_Flat WHERE Type_Piece IN ('FA','FD') AND Exercice = @Annee",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_PIECE"
+    ],
+    "sqlSage100": "SELECT SUM(Montant_TTC) FROM VW_Finances_Clients_Flat WHERE Type_Piece IN ('FA','FD')",
     "mlUsage": "Feature pour modèles de prévision de flux de trésorerie."
   },
   {
@@ -51,14 +82,32 @@
     "description": "Différence entre le CA HT et le coût d'achat des marchandises vendues (CAMV).",
     "usage": "Évaluer la rentabilité intrinsèque des ventes. Identifier les produits/clients les plus profitables.",
     "unit": "€",
-    "defaultVizType": "bar",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["DAF", "Contrôleur de gestion", "Direction"],
-    "sectors": ["Commerce", "Distribution", "Industrie"],
-    "keywords": ["marge brute", "marge commerciale", "CAMV", "coût achat", "profit brut"],
+    "profiles": [
+      "DAF",
+      "Contrôleur de gestion",
+      "Direction"
+    ],
+    "sectors": [
+      "Commerce",
+      "Distribution",
+      "Industrie"
+    ],
+    "keywords": [
+      "marge brute",
+      "marge commerciale",
+      "CAMV",
+      "coût achat",
+      "profit brut"
+    ],
     "sqlSage100View": "VW_Finances_Clients_Flat / VW_Stock_Articles_Flat",
-    "sqlSage100Tables": ["F_ARTICLE", "G_ECRITUREC", "F_ARTSTOCK"],
+    "sqlSage100Tables": [
+      "F_ARTICLE",
+      "G_ECRITUREC",
+      "F_ARTSTOCK"
+    ],
     "sqlSage100": "SELECT SUM(Montant_HT) - SUM(PUMP * Quantite_Vendue) AS Marge_Brute FROM VW_Finances_Clients_Flat",
     "mlUsage": "Feature pour classification client (high-value vs low-value). Optimisation pricing."
   },
@@ -72,15 +121,30 @@
     "description": "Pourcentage de marge brute par rapport au CA HT.",
     "usage": "Benchmark sectoriel. Suivi de l'érosion de marge. Alertes sur produits déficitaires.",
     "unit": "%",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["DAF", "Direction", "Contrôleur de gestion"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["taux marge brute", "marge pct", "taux marge", "margin rate", "rentabilité produit"],
+    "profiles": [
+      "DAF",
+      "Direction",
+      "Contrôleur de gestion"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "taux marge brute",
+      "marge pct",
+      "taux marge",
+      "margin rate",
+      "rentabilité produit"
+    ],
     "sqlSage100View": "VW_Finances_Clients_Flat",
-    "sqlSage100Tables": ["F_ARTICLE", "G_ECRITUREC"],
-    "sqlSage100": "SELECT (Marge_Brute / CA_HT) * 100 AS Taux_Marge FROM VW_Finances_Clients_Flat",
+    "sqlSage100Tables": [
+      "F_ARTICLE",
+      "G_ECRITUREC"
+    ],
+    "sqlSage100": "SELECT SUM(Montant_HT) AS CA_HT, COUNT(DISTINCT Code_Client) AS Nb_Clients FROM VW_Finances_Clients_Flat WHERE Type_Piece IN ('FA','FD')",
     "mlUsage": "Feature pour clustering produits. Détection d'anomalies de pricing."
   },
   {
@@ -93,15 +157,31 @@
     "description": "Nombre moyen de jours nécessaires pour encaisser les créances clients après facturation.",
     "usage": "Mesurer l'efficacité du recouvrement. Identifier les clients à risque. Piloter le BFR.",
     "unit": "jours",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Hebdomadaire / Mensuel",
     "risk": "Élevé",
-    "profiles": ["DAF", "CFO", "Recouvrement"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["DSO", "days sales outstanding", "délai encaissement", "délai client", "jours créances"],
+    "profiles": [
+      "DAF",
+      "CFO",
+      "Recouvrement"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "DSO",
+      "days sales outstanding",
+      "délai encaissement",
+      "délai client",
+      "jours créances"
+    ],
     "sqlSage100View": "VW_Finances_Clients_Flat",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC", "F_REGLECH"],
-    "sqlSage100": "SELECT AVG(DATEDIFF(day, Date_Facture, Date_Reglement)) AS DSO FROM VW_Finances_Clients_Flat -- ou (Encours_Client / CA_HT) * 365",
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC",
+      "F_REGLECH"
+    ],
+    "sqlSage100": "-- DSO non calculable depuis VW_Finances_Clients_Flat (pas de date_reglement) -- Utiliser VW_CLIENTS: SELECT AVG(Age_Jours) AS DSO FROM VW_CLIENTS WHERE Est_Lettre=0",
     "mlUsage": "Feature critique pour modèles de risque crédit et prédiction d'impayés."
   },
   {
@@ -114,15 +194,30 @@
     "description": "Montant total des créances clients non encore encaissées à date.",
     "usage": "Pilotage du BFR. Suivi des relances. Base de calcul du DSO.",
     "unit": "€",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Quotidien",
     "risk": "Moyen",
-    "profiles": ["DAF", "Recouvrement", "Comptable"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["encours clients", "créances clients", "solde clients", "poste client", "balance clients"],
+    "profiles": [
+      "DAF",
+      "Recouvrement",
+      "Comptable"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "encours clients",
+      "créances clients",
+      "solde clients",
+      "poste client",
+      "balance clients"
+    ],
     "sqlSage100View": "VW_Finances_Clients_Flat",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC"],
-    "sqlSage100": "SELECT SUM(Montant_TTC) FROM VW_Finances_Clients_Flat WHERE Statut_Reglement = 'Non Soldé' AND Type_Compte = 'C'",
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC"
+    ],
+    "sqlSage100": "SELECT SUM(Montant_TTC) AS Encours_TTC FROM VW_Finances_Clients_Flat WHERE Type_Piece IN ('FA','FD')",
     "mlUsage": "Feature pour scoring de risque client. Modèles de prévision de cash."
   },
   {
@@ -135,15 +230,31 @@
     "description": "Pourcentage des factures non réglées après leur date d'échéance.",
     "usage": "Évaluer le risque de crédit global. Déclencher des relances automatiques. Provisionner les créances douteuses.",
     "unit": "%",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Hebdomadaire",
     "risk": "Élevé",
-    "profiles": ["DAF", "Direction", "Recouvrement"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["taux impayés", "impayés", "créances douteuses", "bad debt rate", "factures échues"],
+    "profiles": [
+      "DAF",
+      "Direction",
+      "Recouvrement"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "taux impayés",
+      "impayés",
+      "créances douteuses",
+      "bad debt rate",
+      "factures échues"
+    ],
     "sqlSage100View": "VW_Finances_Clients_Flat",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC", "F_REGLECH"],
-    "sqlSage100": "SELECT (COUNT(Factures_Non_Soldées_Echues) / COUNT(Total_Factures)) * 100 AS Taux_Impayes FROM VW_Finances_Clients_Flat",
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC",
+      "F_REGLECH"
+    ],
+    "sqlSage100": "-- Taux impayés non calculable depuis VW_Finances_Clients_Flat -- Utiliser VW_CLIENTS: SELECT (COUNT(CASE WHEN Age_Jours > 0 AND Est_Lettre=0 THEN 1 END) * 100.0 / NULLIF(COUNT(*),0)) AS Taux_Impayes FROM VW_CLIENTS WHERE Solde_Signe > 0",
     "mlUsage": "Variable cible (target) pour modèles de prédiction d'impayés (classification binaire)."
   },
   {
@@ -156,14 +267,29 @@
     "description": "Disponibilités nettes en banque et caisse à une date donnée.",
     "usage": "Pilotage de la liquidité. Anticipation des besoins de financement. Tableau de bord DAF.",
     "unit": "€",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Quotidien",
     "risk": "Élevé",
-    "profiles": ["DAF", "CFO", "Trésorier"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["solde trésorerie", "cash", "disponibilités", "banque", "liquidités"],
+    "profiles": [
+      "DAF",
+      "CFO",
+      "Trésorier"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "solde trésorerie",
+      "cash",
+      "disponibilités",
+      "banque",
+      "liquidités"
+    ],
     "sqlSage100View": "VW_Tresorerie_Flux_Flat",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_COMPTE"],
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_COMPTE"
+    ],
     "sqlSage100": "SELECT SUM(Montant_Debit) - SUM(Montant_Credit) AS Solde_Net FROM VW_Tresorerie_Flux_Flat WHERE Classe_Compte = '5'",
     "mlUsage": "Feature pour prévision de trésorerie à 30/60/90 jours (time-series)."
   },
@@ -177,14 +303,32 @@
     "description": "Besoin de financement généré par le cycle d'exploitation (stocks + créances - dettes fournisseurs).",
     "usage": "Mesurer l'efficience du cycle d'exploitation. Anticiper les tensions de trésorerie.",
     "unit": "€",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["DAF", "CFO", "Contrôleur de gestion"],
-    "sectors": ["Commerce", "Industrie", "Distribution"],
-    "keywords": ["BFR", "besoin fonds roulement", "working capital", "cycle exploitation", "trésorerie cycle"],
+    "profiles": [
+      "DAF",
+      "CFO",
+      "Contrôleur de gestion"
+    ],
+    "sectors": [
+      "Commerce",
+      "Industrie",
+      "Distribution"
+    ],
+    "keywords": [
+      "BFR",
+      "besoin fonds roulement",
+      "working capital",
+      "cycle exploitation",
+      "trésorerie cycle"
+    ],
     "sqlSage100View": "VW_Finances_Clients_Flat + VW_Fournisseurs_Achats_Flat",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC", "F_ARTSTOCK"],
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC",
+      "F_ARTSTOCK"
+    ],
     "sqlSage100": "SELECT Stocks + Créances_Clients - Dettes_Fournisseurs AS BFR FROM VW_Finances_Clients_Flat",
     "mlUsage": "Feature pour modèles de prévision financière long terme."
   },
@@ -198,15 +342,31 @@
     "description": "Évolution du chiffre d'affaires par rapport à la même période de l'année précédente.",
     "usage": "Mesurer la croissance. Benchmark performance commerciale. Déclencher des alertes.",
     "unit": "%",
-    "defaultVizType": "line",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["DG", "DAF", "Direction Commerciale"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["variation ca", "croissance ca", "n-1", "évolution ca", "growth rate", "tendance CA"],
+    "profiles": [
+      "DG",
+      "DAF",
+      "Direction Commerciale"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "variation ca",
+      "croissance ca",
+      "n-1",
+      "évolution ca",
+      "growth rate",
+      "tendance CA"
+    ],
     "sqlSage100View": "VW_Finances_Clients_Flat",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_PIECE"],
-    "sqlSage100": "SELECT ((CA_N - CA_N1) / CA_N1) * 100 AS Variation_CA FROM VW_Finances_Clients_Flat",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_PIECE"
+    ],
+    "sqlSage100": "SELECT Exercice, SUM(Montant_HT) AS CA_HT FROM VW_Finances_Clients_Flat WHERE Type_Piece IN ('FA','FD') GROUP BY Exercice ORDER BY Exercice",
     "mlUsage": "Feature pour détection de tendances (trend analysis). Modèles de prévision."
   },
   {
@@ -219,15 +379,29 @@
     "description": "Nombre de clients ayant généré au moins une facture sur la période.",
     "usage": "Mesurer la base client active. Segmentation RFM (Récence, Fréquence, Montant).",
     "unit": "nb",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["DAF", "Direction Commerciale", "CRM"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["clients actifs", "nombre clients", "base client", "RFM", "clients facturés"],
+    "profiles": [
+      "DAF",
+      "Direction Commerciale",
+      "CRM"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "clients actifs",
+      "nombre clients",
+      "base client",
+      "RFM",
+      "clients facturés"
+    ],
     "sqlSage100View": "VW_Finances_Clients_Flat",
-    "sqlSage100Tables": ["F_COMPTET"],
-    "sqlSage100": "SELECT COUNT(DISTINCT Client_ID) AS Nb_Clients_Actifs FROM VW_Finances_Clients_Flat WHERE CA_Periode > 0",
+    "sqlSage100Tables": [
+      "F_COMPTET"
+    ],
+    "sqlSage100": "SELECT COUNT(DISTINCT Code_Client) AS Nb_Clients_Actifs FROM VW_Finances_Clients_Flat WHERE Type_Piece IN ('FA','FD')",
     "mlUsage": "Feature pour churn prediction et segmentation client."
   },
   {
@@ -240,15 +414,29 @@
     "description": "Chiffre d'affaires moyen généré par client actif sur la période.",
     "usage": "Identifier la valeur moyenne d'un client. Base pour stratégie upsell/cross-sell.",
     "unit": "€",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["DAF", "Direction Commerciale"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["ca moyen client", "valeur client", "average revenue per client", "upsell", "ARPU"],
+    "profiles": [
+      "DAF",
+      "Direction Commerciale"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "ca moyen client",
+      "valeur client",
+      "average revenue per client",
+      "upsell",
+      "ARPU"
+    ],
     "sqlSage100View": "VW_Finances_Clients_Flat",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC"],
-    "sqlSage100": "SELECT SUM(CA_HT) / COUNT(DISTINCT Client_ID) AS CA_Moyen_Client FROM VW_Finances_Clients_Flat",
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC"
+    ],
+    "sqlSage100": "SELECT SUM(Montant_HT) / NULLIF(COUNT(DISTINCT Code_Client),0) AS CA_Moyen_Client FROM VW_Finances_Clients_Flat WHERE Type_Piece IN ('FA','FD')",
     "mlUsage": "Feature pour scoring client. Recommandation commerciale."
   },
   {
@@ -264,12 +452,27 @@
     "defaultVizType": "table",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["DAF", "Direction Commerciale", "DG"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["top clients", "clients stratégiques", "classement clients", "meilleurs clients", "pareto clients"],
+    "profiles": [
+      "DAF",
+      "Direction Commerciale",
+      "DG"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "top clients",
+      "clients stratégiques",
+      "classement clients",
+      "meilleurs clients",
+      "pareto clients"
+    ],
     "sqlSage100View": "VW_Finances_Clients_Flat",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC"],
-    "sqlSage100": "SELECT TOP 10 Client_ID, SUM(Montant_HT) AS CA, RANK() OVER (ORDER BY SUM(Montant_HT) DESC) AS Rang FROM VW_Finances_Clients_Flat GROUP BY Client_ID ORDER BY Rang",
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC"
+    ],
+    "sqlSage100": "SELECT TOP 10 Code_Client, SUM(Montant_HT) AS CA, RANK() OVER (ORDER BY SUM(Montant_HT) DESC) AS Rang FROM VW_Finances_Clients_Flat WHERE Type_Piece IN ('FA','FD') GROUP BY Code_Client ORDER BY Rang",
     "mlUsage": "Feature pour analyse de concentration et risque de dépendance."
   },
   {
@@ -282,15 +485,29 @@
     "description": "Part du CA total générée par les 20% des meilleurs clients. Un taux > 80% signale une vulnérabilité.",
     "usage": "Mesurer le risque de dépendance. Décision de diversification. Évaluation risque de portefeuille.",
     "unit": "%",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Trimestriel",
     "risk": "Élevé",
-    "profiles": ["DG", "DAF", "Banquier"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["concentration client", "pareto 20 80", "risque dépendance", "vulnérabilité client"],
+    "profiles": [
+      "DG",
+      "DAF",
+      "Banquier"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "concentration client",
+      "pareto 20 80",
+      "risque dépendance",
+      "vulnérabilité client"
+    ],
     "sqlSage100View": "VW_Finances_Clients_Flat",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC"],
-    "sqlSage100": "SELECT (CA_Top20pct_Clients / CA_Total) * 100 AS Taux_Concentration FROM VW_Finances_Clients_Flat",
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC"
+    ],
+    "sqlSage100": "SELECT TOP 1 (SUM(Montant_HT) OVER (ORDER BY SUM(Montant_HT) DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) / NULLIF(SUM(Montant_HT) OVER (),0)) * 100 AS Taux_Concentration_Cumulee, Code_Client FROM VW_Finances_Clients_Flat WHERE Type_Piece IN ('FA','FD') GROUP BY Code_Client ORDER BY SUM(Montant_HT) DESC",
     "mlUsage": "Feature pour évaluation du risque de portefeuille client."
   },
   {
@@ -303,15 +520,29 @@
     "description": "Nombre moyen de jours entre la date de facture et la date de règlement effectif.",
     "usage": "Identifier les retards de paiement systématiques. Optimiser la politique de crédit.",
     "unit": "jours",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["DAF", "Recouvrement"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["délai paiement client", "retard paiement", "comportement paiement", "crédit client", "DMP"],
+    "profiles": [
+      "DAF",
+      "Recouvrement"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "délai paiement client",
+      "retard paiement",
+      "comportement paiement",
+      "crédit client",
+      "DMP"
+    ],
     "sqlSage100View": "VW_Finances_Clients_Flat",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_REGLECH"],
-    "sqlSage100": "SELECT AVG(DATEDIFF(day, Date_Facture, Date_Reglement)) AS Delai_Moyen_Paiement FROM VW_Finances_Clients_Flat",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_REGLECH"
+    ],
+    "sqlSage100": "-- Délai paiement non calculable depuis VW_Finances_Clients_Flat (pas de date_reglement) -- Utiliser VW_CLIENTS: SELECT AVG(Age_Jours) AS Delai_Moyen FROM VW_CLIENTS WHERE Est_Lettre=1",
     "mlUsage": "Feature pour prédiction de comportement de paiement."
   },
   {
@@ -324,15 +555,30 @@
     "description": "Montant total des factures dont la date d'échéance est dépassée et non encore réglées.",
     "usage": "Piloter les relances. Évaluer le risque de créances irrécouvrables. Calcul de provisions.",
     "unit": "€",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Quotidien",
     "risk": "Élevé",
-    "profiles": ["DAF", "Recouvrement", "Comptable"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["factures échues", "impayés clients", "créances en retard", "relances", "provisions créances"],
+    "profiles": [
+      "DAF",
+      "Recouvrement",
+      "Comptable"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "factures échues",
+      "impayés clients",
+      "créances en retard",
+      "relances",
+      "provisions créances"
+    ],
     "sqlSage100View": "VW_Finances_Clients_Flat",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_REGLECH"],
-    "sqlSage100": "SELECT SUM(Montant_TTC) AS Factures_Echues FROM VW_Finances_Clients_Flat WHERE Date_Echeance < GETDATE() AND Statut = 'Non Soldé'",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_REGLECH"
+    ],
+    "sqlSage100": "-- Echéances non disponibles dans VW_Finances_Clients_Flat -- Utiliser VW_CLIENTS: SELECT SUM(Montant) AS Encours_En_Retard FROM VW_CLIENTS WHERE Age_Jours > 0 AND Est_Lettre=0",
     "mlUsage": "Variable cible pour modèles de recouvrement. Score de risque par client."
   },
   {
@@ -348,11 +594,27 @@
     "defaultVizType": "table",
     "frequency": "Hebdomadaire",
     "risk": "Élevé",
-    "profiles": ["DAF", "Recouvrement", "Direction Commerciale"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["score risque client", "credit score", "scoring ML client", "solvabilité", "random forest logistic"],
+    "profiles": [
+      "DAF",
+      "Recouvrement",
+      "Direction Commerciale"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "score risque client",
+      "credit score",
+      "scoring ML client",
+      "solvabilité",
+      "random forest logistic"
+    ],
     "sqlSage100View": "VW_Finances_Clients_Flat",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC", "F_REGLECH"],
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC",
+      "F_REGLECH"
+    ],
     "sqlSage100": "-- Modèle composite: f(DSO, Taux_Impayés, Historique_Retards, Encours/CA_Ratio, Ancienneté) FROM VW_Finances_Clients_Flat",
     "mlUsage": "Output d'un modèle de scoring ML (régression logistique, Random Forest). Feature engineering depuis l'historique."
   },
@@ -366,15 +628,30 @@
     "description": "Pourcentage de clients actifs sur la période N également actifs sur la période N-1.",
     "usage": "Mesurer la rétention client. Détecter le churn. Évaluer l'efficacité CRM.",
     "unit": "%",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Trimestriel",
     "risk": "Moyen",
-    "profiles": ["DAF", "Direction Commerciale", "DG"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["fidélisation client", "rétention", "churn", "attrition", "CRM efficacité"],
+    "profiles": [
+      "DAF",
+      "Direction Commerciale",
+      "DG"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "fidélisation client",
+      "rétention",
+      "churn",
+      "attrition",
+      "CRM efficacité"
+    ],
     "sqlSage100View": "VW_Finances_Clients_Flat",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC"],
-    "sqlSage100": "SELECT (COUNT(Clients_N ∩ Clients_N1) / COUNT(Clients_N1)) * 100 AS Taux_Fidelisation FROM VW_Finances_Clients_Flat",
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC"
+    ],
+    "sqlSage100": "SELECT COUNT(DISTINCT CASE WHEN Exercice=YEAR(GETDATE()) THEN Code_Client END) AS Clients_N, COUNT(DISTINCT CASE WHEN Exercice=YEAR(GETDATE())-1 THEN Code_Client END) AS Clients_N1 FROM VW_Finances_Clients_Flat WHERE Type_Piece IN ('FA','FD')",
     "mlUsage": "Variable cible pour modèles de churn prediction."
   },
   {
@@ -387,15 +664,30 @@
     "description": "Total des achats fournisseurs hors taxes sur la période.",
     "usage": "Suivre les dépenses d'approvisionnement. Comparer avec budget achats. Analyser par fournisseur.",
     "unit": "€",
-    "defaultVizType": "bar",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["DAF", "Responsable Achats"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["total achats", "dépenses fournisseurs", "achats HT", "approvisionnement", "budget achats"],
-    "sqlSage100View": "VW_Fournisseurs_Achats_Flat",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC", "F_PIECE"],
-    "sqlSage100": "SELECT SUM(Montant_HT) AS Total_Achats FROM VW_Fournisseurs_Achats_Flat WHERE Type_Piece IN ('FA','FD') AND Type_Compte = 'F'",
+    "profiles": [
+      "DAF",
+      "Responsable Achats"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "total achats",
+      "dépenses fournisseurs",
+      "achats HT",
+      "approvisionnement",
+      "budget achats"
+    ],
+    "sqlSage100View": "VW_FOURNISSEURS",
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC",
+      "F_PIECE"
+    ],
+    "sqlSage100": "SELECT SUM(total_achats_ht_par_periode) AS Total_Achats FROM VW_FOURNISSEURS",
     "mlUsage": "Feature pour optimisation des achats et prévision de dépenses."
   },
   {
@@ -408,15 +700,31 @@
     "description": "Nombre moyen de jours mis pour régler les factures fournisseurs.",
     "usage": "Optimiser la gestion du BFR côté fournisseurs. Évaluer le respect des délais légaux (LME).",
     "unit": "jours",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["DAF", "Responsable Achats", "Juridique"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["DPO", "days payable outstanding", "délai paiement fournisseur", "LME", "délai fournisseur"],
-    "sqlSage100View": "VW_Fournisseurs_Achats_Flat",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC", "F_REGLEF"],
-    "sqlSage100": "SELECT AVG(DATEDIFF(day, Date_Facture_F, Date_Reglement_F)) AS DPO FROM VW_Fournisseurs_Achats_Flat -- ou (Dettes_Fournisseurs / Achats_HT) * 365",
+    "profiles": [
+      "DAF",
+      "Responsable Achats",
+      "Juridique"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "DPO",
+      "days payable outstanding",
+      "délai paiement fournisseur",
+      "LME",
+      "délai fournisseur"
+    ],
+    "sqlSage100View": "VW_FOURNISSEURS",
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC",
+      "F_REGLEF"
+    ],
+    "sqlSage100": "SELECT AVG(dpo_individuel) AS DPO FROM VW_FOURNISSEURS WHERE encours_fournisseurs > 0",
     "mlUsage": "Feature pour optimisation du cash management."
   },
   {
@@ -429,15 +737,30 @@
     "description": "Montant total des factures fournisseurs échues non encore réglées.",
     "usage": "Anticiper les tensions de trésorerie. Éviter les pénalités de retard. Prioriser les paiements.",
     "unit": "€",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Quotidien",
     "risk": "Moyen",
-    "profiles": ["DAF", "Trésorier", "Comptable"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["dettes fournisseurs échues", "retard paiement fournisseur", "pénalités", "cash outflow", "LME"],
-    "sqlSage100View": "VW_Fournisseurs_Achats_Flat",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC"],
-    "sqlSage100": "SELECT SUM(Montant_TTC) AS Dettes_Echues FROM VW_Fournisseurs_Achats_Flat WHERE Date_Echeance_F < GETDATE() AND Statut = 'Non Soldé'",
+    "profiles": [
+      "DAF",
+      "Trésorier",
+      "Comptable"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "dettes fournisseurs échues",
+      "retard paiement fournisseur",
+      "pénalités",
+      "cash outflow",
+      "LME"
+    ],
+    "sqlSage100View": "VW_FOURNISSEURS",
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC"
+    ],
+    "sqlSage100": "SELECT SUM(dettes_fournisseurs_echues_non_soldees) AS Dettes_Echues FROM VW_FOURNISSEURS",
     "mlUsage": "Feature pour prévision de cash outflow."
   },
   {
@@ -453,12 +776,27 @@
     "defaultVizType": "table",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["DAF", "Responsable Achats", "DG"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["top fournisseurs", "fournisseurs stratégiques", "classement fournisseurs", "concentration achats", "supply chain"],
-    "sqlSage100View": "VW_Fournisseurs_Achats_Flat",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC"],
-    "sqlSage100": "SELECT TOP 10 Fournisseur_ID, SUM(Montant_HT) AS Achats_Total, RANK() OVER (ORDER BY SUM(Montant_HT) DESC) AS Rang FROM VW_Fournisseurs_Achats_Flat GROUP BY Fournisseur_ID ORDER BY Rang",
+    "profiles": [
+      "DAF",
+      "Responsable Achats",
+      "DG"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "top fournisseurs",
+      "fournisseurs stratégiques",
+      "classement fournisseurs",
+      "concentration achats",
+      "supply chain"
+    ],
+    "sqlSage100View": "VW_FOURNISSEURS",
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC"
+    ],
+    "sqlSage100": "SELECT TOP 10 fournisseur, nom_fournisseur, SUM(total_achats_ht_par_periode) AS Achats_Total FROM VW_FOURNISSEURS WHERE top_10_fournisseurs=1 GROUP BY fournisseur, nom_fournisseur ORDER BY Achats_Total DESC",
     "mlUsage": "Feature pour analyse de risque supply chain."
   },
   {
@@ -471,15 +809,32 @@
     "description": "Valorisation totale du stock au Prix Unitaire Moyen Pondéré (PUMP).",
     "usage": "Évaluation du patrimoine. Calcul du BFR. Base pour analyse de rotation.",
     "unit": "€",
-    "defaultVizType": "bar",
+    "defaultVizType": "card",
     "frequency": "Quotidien",
     "risk": "Faible",
-    "profiles": ["DAF", "Logistique", "Contrôleur de gestion"],
-    "sectors": ["Commerce", "Industrie", "Distribution"],
-    "keywords": ["valeur stock", "PUMP", "valorisation stock", "inventaire", "actif circulant"],
-    "sqlSage100View": "VW_Stock_Articles_Flat",
-    "sqlSage100Tables": ["F_ARTSTOCK", "F_ARTICLE"],
-    "sqlSage100": "SELECT SUM(Quantite_Stock * PUMP) AS Valeur_Stock FROM VW_Stock_Articles_Flat",
+    "profiles": [
+      "DAF",
+      "Logistique",
+      "Contrôleur de gestion"
+    ],
+    "sectors": [
+      "Commerce",
+      "Industrie",
+      "Distribution"
+    ],
+    "keywords": [
+      "valeur stock",
+      "PUMP",
+      "valorisation stock",
+      "inventaire",
+      "actif circulant"
+    ],
+    "sqlSage100View": "VW_STOCKS",
+    "sqlSage100Tables": [
+      "F_ARTSTOCK",
+      "F_ARTICLE"
+    ],
+    "sqlSage100": "SELECT SUM(Valeur_Stock) AS Valeur_Stock_Total FROM VW_STOCKS WHERE Est_Sommeil=0",
     "mlUsage": "Feature pour prévision de besoins en approvisionnement."
   },
   {
@@ -492,15 +847,33 @@
     "description": "Nombre de fois où le stock est renouvelé sur la période (CAMV / Stock moyen).",
     "usage": "Identifier les stocks dormants. Optimiser les niveaux de réapprovisionnement. Réduire le BFR.",
     "unit": "x",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["DAF", "Logistique", "Responsable Achats"],
-    "sectors": ["Commerce", "Industrie", "Distribution"],
-    "keywords": ["rotation stock", "stock turnover", "renouvellement stock", "CAMV", "stock moyen"],
-    "sqlSage100View": "VW_Stock_Articles_Flat",
-    "sqlSage100Tables": ["F_ARTSTOCK", "F_ARTICLE", "G_ECRITUREC"],
-    "sqlSage100": "SELECT CAMV_Periode / ((Stock_Debut + Stock_Fin) / 2) AS Taux_Rotation FROM VW_Stock_Articles_Flat",
+    "profiles": [
+      "DAF",
+      "Logistique",
+      "Responsable Achats"
+    ],
+    "sectors": [
+      "Commerce",
+      "Industrie",
+      "Distribution"
+    ],
+    "keywords": [
+      "rotation stock",
+      "stock turnover",
+      "renouvellement stock",
+      "CAMV",
+      "stock moyen"
+    ],
+    "sqlSage100View": "VW_STOCKS",
+    "sqlSage100Tables": [
+      "F_ARTSTOCK",
+      "F_ARTICLE",
+      "G_ECRITUREC"
+    ],
+    "sqlSage100": "SELECT Reference_Article, Designation, Quantite_Stock, Valeur_Stock, CASE WHEN Quantite_Stock > 0 THEN Valeur_Stock / Quantite_Stock ELSE 0 END AS Valeur_Unitaire FROM VW_STOCKS WHERE Est_Sommeil=0 ORDER BY Valeur_Stock DESC",
     "mlUsage": "Feature pour modèles de gestion prédictive des stocks (reorder point)."
   },
   {
@@ -516,12 +889,30 @@
     "defaultVizType": "table",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["DAF", "Logistique", "Direction Commerciale"],
-    "sectors": ["Commerce", "Industrie", "Distribution"],
-    "keywords": ["stock dormant", "stock obsolète", "dépréciation stock", "invendu", "sans mouvement"],
-    "sqlSage100View": "VW_Stock_Articles_Flat",
-    "sqlSage100Tables": ["F_ARTSTOCK", "F_ARTICLE", "F_MOUVEMENT"],
-    "sqlSage100": "SELECT Article_Ref, Quantite_Stock, PUMP, Quantite_Stock * PUMP AS Valeur FROM VW_Stock_Articles_Flat WHERE Quantite_Stock > 0 AND DATEDIFF(day, Date_Dernier_Mouvement, GETDATE()) > 180",
+    "profiles": [
+      "DAF",
+      "Logistique",
+      "Direction Commerciale"
+    ],
+    "sectors": [
+      "Commerce",
+      "Industrie",
+      "Distribution"
+    ],
+    "keywords": [
+      "stock dormant",
+      "stock obsolète",
+      "dépréciation stock",
+      "invendu",
+      "sans mouvement"
+    ],
+    "sqlSage100View": "VW_STOCKS",
+    "sqlSage100Tables": [
+      "F_ARTSTOCK",
+      "F_ARTICLE",
+      "F_MOUVEMENT"
+    ],
+    "sqlSage100": "SELECT Reference_Article, Designation, Libelle_Famille, Quantite_Stock, Valeur_Stock FROM VW_STOCKS WHERE Est_Sommeil=1 AND Quantite_Stock > 0 ORDER BY Valeur_Stock DESC",
     "mlUsage": "Feature pour classification articles et optimisation assortiment."
   },
   {
@@ -534,15 +925,33 @@
     "description": "Nombre de jours de ventes que le stock actuel peut couvrir.",
     "usage": "Prévenir les ruptures de stock. Optimiser les commandes fournisseurs.",
     "unit": "jours",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Quotidien",
     "risk": "Moyen",
-    "profiles": ["Logistique", "Responsable Achats", "DAF"],
-    "sectors": ["Commerce", "Industrie", "Distribution"],
-    "keywords": ["couverture stock", "jours de stock", "stock sécurité", "réappro", "out of stock days"],
-    "sqlSage100View": "VW_Stock_Articles_Flat",
-    "sqlSage100Tables": ["F_ARTSTOCK", "F_ARTICLE", "G_ECRITUREC"],
-    "sqlSage100": "SELECT Article_Ref, (Stock_Actuel / Ventes_Moyennes_Journalieres) AS Couverture_Jours FROM VW_Stock_Articles_Flat",
+    "profiles": [
+      "Logistique",
+      "Responsable Achats",
+      "DAF"
+    ],
+    "sectors": [
+      "Commerce",
+      "Industrie",
+      "Distribution"
+    ],
+    "keywords": [
+      "couverture stock",
+      "jours de stock",
+      "stock sécurité",
+      "réappro",
+      "out of stock days"
+    ],
+    "sqlSage100View": "VW_STOCKS",
+    "sqlSage100Tables": [
+      "F_ARTSTOCK",
+      "F_ARTICLE",
+      "G_ECRITUREC"
+    ],
+    "sqlSage100": "SELECT Reference_Article, Designation, Quantite_Stock, Stock_Minimum, Statut_Stock, CASE WHEN Quantite_Stock <= 0 THEN 0 WHEN Quantite_Stock <= Stock_Minimum THEN 1 ELSE 2 END AS Niveau_Stock FROM VW_STOCKS WHERE Est_Sommeil=0 ORDER BY Niveau_Stock",
     "mlUsage": "Feature pour prévision de rupture et modèles de réapprovisionnement automatique."
   },
   {
@@ -555,15 +964,32 @@
     "description": "Pourcentage de références avec un stock nul ou inférieur au stock minimum.",
     "usage": "Mesurer la disponibilité produit. Évaluer l'impact commercial des ruptures.",
     "unit": "%",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Quotidien",
     "risk": "Élevé",
-    "profiles": ["Logistique", "Direction Commerciale", "DAF"],
-    "sectors": ["Commerce", "Industrie", "Distribution"],
-    "keywords": ["taux rupture", "rupture stock", "out of stock", "disponibilité produit", "stock minimum"],
-    "sqlSage100View": "VW_Stock_Articles_Flat",
-    "sqlSage100Tables": ["F_ARTSTOCK", "F_ARTICLE"],
-    "sqlSage100": "SELECT (COUNT(Articles_Qte <= StockMini) / COUNT(Total_Articles_Actifs)) * 100 AS Taux_Rupture FROM VW_Stock_Articles_Flat",
+    "profiles": [
+      "Logistique",
+      "Direction Commerciale",
+      "DAF"
+    ],
+    "sectors": [
+      "Commerce",
+      "Industrie",
+      "Distribution"
+    ],
+    "keywords": [
+      "taux rupture",
+      "rupture stock",
+      "out of stock",
+      "disponibilité produit",
+      "stock minimum"
+    ],
+    "sqlSage100View": "VW_STOCKS",
+    "sqlSage100Tables": [
+      "F_ARTSTOCK",
+      "F_ARTICLE"
+    ],
+    "sqlSage100": "SELECT (COUNT(CASE WHEN Statut_Stock='Rupture' OR Quantite_Stock <= Stock_Minimum THEN 1 END) * 100.0 / NULLIF(COUNT(*),0)) AS Taux_Rupture FROM VW_STOCKS WHERE Est_Sommeil=0",
     "mlUsage": "Variable cible pour modèles de prédiction de rupture."
   },
   {
@@ -576,15 +1002,33 @@
     "description": "Marge brute unitaire et totale par référence article.",
     "usage": "Identifier les articles les plus profitables. Optimiser l'assortiment. Politique de prix.",
     "unit": "€",
-    "defaultVizType": "bar",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["DAF", "Direction Commerciale", "Contrôleur de gestion"],
-    "sectors": ["Commerce", "Industrie", "Distribution"],
-    "keywords": ["marge article", "rentabilité article", "prix vente PUMP", "pricing", "optimisation assortiment"],
-    "sqlSage100View": "VW_Stock_Articles_Flat",
-    "sqlSage100Tables": ["F_ARTICLE", "F_ARTSTOCK", "G_ECRITUREC"],
-    "sqlSage100": "SELECT Article_Ref, (Prix_Vente_HT - PUMP) AS Marge_Unitaire, (Prix_Vente_HT - PUMP) / Prix_Vente_HT * 100 AS Taux_Marge FROM VW_Stock_Articles_Flat",
+    "profiles": [
+      "DAF",
+      "Direction Commerciale",
+      "Contrôleur de gestion"
+    ],
+    "sectors": [
+      "Commerce",
+      "Industrie",
+      "Distribution"
+    ],
+    "keywords": [
+      "marge article",
+      "rentabilité article",
+      "prix vente PUMP",
+      "pricing",
+      "optimisation assortiment"
+    ],
+    "sqlSage100View": "VW_STOCKS",
+    "sqlSage100Tables": [
+      "F_ARTICLE",
+      "F_ARTSTOCK",
+      "G_ECRITUREC"
+    ],
+    "sqlSage100": "SELECT Reference_Article, Designation, Prix_Vente_HT, Cout_Achat_Article, (Prix_Vente_HT - Cout_Achat_Article) AS Marge_Unitaire, Taux_Marge_Pct FROM VW_STOCKS WHERE Est_Sommeil=0 ORDER BY Taux_Marge_Pct DESC",
     "mlUsage": "Feature pour recommandation de gamme et optimisation pricing dynamique."
   },
   {
@@ -597,15 +1041,30 @@
     "description": "Bénéfice ou perte net(te) après toutes charges et produits sur l'exercice.",
     "usage": "Évaluer la performance financière globale de l'entreprise. Obligations légales (liasses fiscales).",
     "unit": "€",
-    "defaultVizType": "bar",
+    "defaultVizType": "card",
     "frequency": "Mensuel / Annuel",
     "risk": "Faible",
-    "profiles": ["DAF", "Expert-Comptable", "DG"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["résultat net", "bénéfice net", "résultat comptable", "liasse fiscale", "P&L"],
-    "sqlSage100View": "VW_Compta_Grand_Livre_Flat",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_COMPTE"],
-    "sqlSage100": "SELECT SUM(Produits_Classe7) - SUM(Charges_Classe6) AS Resultat_Net FROM VW_Compta_Grand_Livre_Flat",
+    "profiles": [
+      "DAF",
+      "Expert-Comptable",
+      "DG"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "résultat net",
+      "bénéfice net",
+      "résultat comptable",
+      "liasse fiscale",
+      "P&L"
+    ],
+    "sqlSage100View": "VW_GRAND_LIVRE_GENERAL",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_COMPTE"
+    ],
+    "sqlSage100": "SELECT SUM(CASE WHEN classe_compte='7' THEN montant_credit ELSE 0 END) - SUM(CASE WHEN classe_compte='6' THEN montant_debit ELSE 0 END) AS Resultat_Net FROM VW_GRAND_LIVRE_GENERAL",
     "mlUsage": "Feature pour prévision financière et évaluation de la santé de l'entreprise."
   },
   {
@@ -621,12 +1080,27 @@
     "defaultVizType": "bar",
     "frequency": "Hebdomadaire",
     "risk": "Élevé",
-    "profiles": ["DAF", "Recouvrement", "Expert-Comptable"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["balance âgée", "créances tranches", "ancienneté créances", "recouvrement priorité", "provisions"],
+    "profiles": [
+      "DAF",
+      "Recouvrement",
+      "Expert-Comptable"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "balance âgée",
+      "créances tranches",
+      "ancienneté créances",
+      "recouvrement priorité",
+      "provisions"
+    ],
     "sqlSage100View": "VW_Finances_Clients_Flat",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC"],
-    "sqlSage100": "SELECT CASE WHEN DATEDIFF(day, Date_Echeance, GETDATE()) BETWEEN 0 AND 30 THEN '0-30j' WHEN DATEDIFF(day, Date_Echeance, GETDATE()) BETWEEN 31 AND 60 THEN '30-60j' WHEN DATEDIFF(day, Date_Echeance, GETDATE()) BETWEEN 61 AND 90 THEN '60-90j' ELSE '>90j' END AS Tranche, SUM(Montant_TTC) FROM VW_Finances_Clients_Flat WHERE Statut = 'Non Soldé' GROUP BY Tranche",
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC"
+    ],
+    "sqlSage100": "-- Date_Echeance/Statut absents de VW_Finances_Clients_Flat -- Utiliser VW_CLIENTS: SELECT Tranche_Age, SUM(Montant) AS Encours FROM VW_CLIENTS WHERE Est_Lettre=0 GROUP BY Tranche_Age ORDER BY Tranche_Age",
     "mlUsage": "Feature multi-classe pour scoring de recouvrement."
   },
   {
@@ -639,15 +1113,31 @@
     "description": "Répartition du chiffre d'affaires par centres d'analyse (département, projet, région, commercial).",
     "usage": "Analyse multidimensionnelle de la performance. Allocation des coûts. Reporting par centre de profit.",
     "unit": "€",
-    "defaultVizType": "bar",
+    "defaultVizType": "table",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["Contrôleur de gestion", "DAF", "Responsables BU"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["ca analytique", "axe analytique", "centre de profit", "section analytique", "reporting BU"],
-    "sqlSage100View": "VW_Analytique_Flat",
-    "sqlSage100Tables": ["G_ECRITUREC", "G_SECTION", "G_AXE"],
-    "sqlSage100": "SELECT Section_Analytique, Axe_Analytique, SUM(Montant_HT) AS CA FROM VW_Analytique_Flat GROUP BY Section_Analytique, Axe_Analytique",
+    "profiles": [
+      "Contrôleur de gestion",
+      "DAF",
+      "Responsables BU"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "ca analytique",
+      "axe analytique",
+      "centre de profit",
+      "section analytique",
+      "reporting BU"
+    ],
+    "sqlSage100View": "VW_ANALYTIQUE",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "G_SECTION",
+      "G_AXE"
+    ],
+    "sqlSage100": "SELECT Code_Axe, Libelle_Analytique, SUM(Debit) AS Total_Debit, SUM(Credit) AS Total_Credit, SUM(Montant) AS Solde FROM VW_ANALYTIQUE GROUP BY Code_Axe, Libelle_Analytique ORDER BY Code_Axe",
     "mlUsage": "Features pour modèles de performance par segment/territoire."
   },
   {
@@ -660,15 +1150,29 @@
     "description": "Pourcentage d'écritures comptables correctement lettrées (rapprochées).",
     "usage": "Évaluer la qualité comptable. Détecter les anomalies de saisie. Préparer la clôture.",
     "unit": "%",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["Comptable", "Expert-Comptable", "DAF"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["taux lettrage", "lettrage comptable", "qualité saisie", "rapprochement", "clôture"],
-    "sqlSage100View": "VW_Compta_Grand_Livre_Flat",
-    "sqlSage100Tables": ["G_ECRITUREC"],
-    "sqlSage100": "SELECT (COUNT(Ecritures_Lettrées) / COUNT(Total_Ecritures_Lettrables)) * 100 AS Taux_Lettrage FROM VW_Compta_Grand_Livre_Flat",
+    "profiles": [
+      "Comptable",
+      "Expert-Comptable",
+      "DAF"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "taux lettrage",
+      "lettrage comptable",
+      "qualité saisie",
+      "rapprochement",
+      "clôture"
+    ],
+    "sqlSage100View": "VW_GRAND_LIVRE_GENERAL",
+    "sqlSage100Tables": [
+      "G_ECRITUREC"
+    ],
+    "sqlSage100": "SELECT (COUNT(CASE WHEN est_lettre=1 THEN 1 END) * 100.0 / NULLIF(COUNT(CASE WHEN code_lettrage IS NOT NULL THEN 1 END),0)) AS Taux_Lettrage FROM VW_GRAND_LIVRE_GENERAL",
     "mlUsage": "Feature pour détection d'anomalies comptables (anomaly detection)."
   },
   {
@@ -681,15 +1185,31 @@
     "description": "Décomposition des charges d'exploitation par nature (classe 6) et par axe analytique.",
     "usage": "Contrôle budgétaire. Identification des dépassements. Reporting de gestion.",
     "unit": "€",
-    "defaultVizType": "bar",
+    "defaultVizType": "table",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["Contrôleur de gestion", "DAF", "Responsables BU"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["charges nature", "charges centre", "classe 6", "contrôle budgétaire", "dépassement budget"],
-    "sqlSage100View": "VW_Analytique_Flat",
-    "sqlSage100Tables": ["G_ECRITUREC", "G_SECTION", "F_COMPTE"],
-    "sqlSage100": "SELECT Section, Nature, SUM(Montant_Debit) AS Charges FROM VW_Analytique_Flat WHERE Classe_Compte = '6' GROUP BY Section, Nature",
+    "profiles": [
+      "Contrôleur de gestion",
+      "DAF",
+      "Responsables BU"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "charges nature",
+      "charges centre",
+      "classe 6",
+      "contrôle budgétaire",
+      "dépassement budget"
+    ],
+    "sqlSage100View": "VW_ANALYTIQUE",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "G_SECTION",
+      "F_COMPTE"
+    ],
+    "sqlSage100": "SELECT Code_Axe, Libelle_Analytique, Compte_General, Libelle_Compte, SUM(Debit) AS Charges FROM VW_ANALYTIQUE WHERE Categorie_BI='Charges' GROUP BY Code_Axe, Libelle_Analytique, Compte_General, Libelle_Compte ORDER BY Code_Axe",
     "mlUsage": "Features pour modèles de prévision budgétaire."
   },
   {
@@ -702,15 +1222,30 @@
     "description": "Différence entre le montant budgété et le montant réellement comptabilisé.",
     "usage": "Contrôle budgétaire en temps réel. Alertes sur dépassements. Reprévision.",
     "unit": "€",
-    "defaultVizType": "bar",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["DAF", "Contrôleur de gestion", "DG"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["écart budget réalisé", "vs budget", "dépassement", "reprévision", "forecasting adaptatif"],
-    "sqlSage100View": "VW_Analytique_Flat",
-    "sqlSage100Tables": ["G_ECRITUREC", "G_SECTION"],
-    "sqlSage100": "SELECT Section_Analytique, Montant_Realise - Montant_Budget AS Ecart, (Montant_Realise - Montant_Budget) / Montant_Budget * 100 AS Taux_Ecart FROM VW_Analytique_Flat",
+    "profiles": [
+      "DAF",
+      "Contrôleur de gestion",
+      "DG"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "écart budget réalisé",
+      "vs budget",
+      "dépassement",
+      "reprévision",
+      "forecasting adaptatif"
+    ],
+    "sqlSage100View": "VW_ANALYTIQUE",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "G_SECTION"
+    ],
+    "sqlSage100": "SELECT Code_Axe, Libelle_Analytique, Annee, Mois, SUM(Debit) AS Total_Charges, SUM(Credit) AS Total_Produits, SUM(Montant) AS Solde_Net FROM VW_ANALYTIQUE GROUP BY Code_Axe, Libelle_Analytique, Annee, Mois ORDER BY Annee, Mois",
     "mlUsage": "Feature pour modèles de reprévision automatique (forecasting adaptatif)."
   },
   {
@@ -726,12 +1261,27 @@
     "defaultVizType": "line",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["DAF", "CFO", "DG"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["prévision CA", "forecasting CA", "time-series", "Prophet SARIMA LSTM", "CA prévisionnel"],
+    "profiles": [
+      "DAF",
+      "CFO",
+      "DG"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "prévision CA",
+      "forecasting CA",
+      "time-series",
+      "Prophet SARIMA LSTM",
+      "CA prévisionnel"
+    ],
     "sqlSage100View": "VW_Finances_Clients_Flat (historique 24 mois)",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_PIECE"],
-    "sqlSage100": "SELECT Mois, SUM(Montant_HT) AS CA_Mensuel FROM VW_Finances_Clients_Flat GROUP BY Mois ORDER BY Mois -- Modèle Time-Series (Prophet / SARIMA / LSTM) entraîné sur historique mensuel CA_HT",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_PIECE"
+    ],
+    "sqlSage100": "SELECT CONVERT(varchar(7),Date_Facture,120) AS Mois, SUM(Montant_HT) AS CA_Mensuel FROM VW_Finances_Clients_Flat WHERE Type_Piece IN ('FA','FD') GROUP BY CONVERT(varchar(7),Date_Facture,120) ORDER BY Mois -- Modèle Time-Series (Prophet / SARIMA / LSTM) entraîné sur historique mensuel CA_HT",
     "mlUsage": "Modèle de forecasting. Input: 24 mois d'historique CA, saisonnalité, tendance."
   },
   {
@@ -747,11 +1297,26 @@
     "defaultVizType": "table",
     "frequency": "Hebdomadaire",
     "risk": "Élevé",
-    "profiles": ["Direction Commerciale", "DAF", "CRM"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["churn score", "probabilité abandon client", "XGBoost churn", "RFM ML", "rétention prédictive"],
+    "profiles": [
+      "Direction Commerciale",
+      "DAF",
+      "CRM"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "churn score",
+      "probabilité abandon client",
+      "XGBoost churn",
+      "RFM ML",
+      "rétention prédictive"
+    ],
     "sqlSage100View": "VW_Finances_Clients_Flat",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC"],
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC"
+    ],
     "sqlSage100": "-- Modèle binaire (0/1): f(Recence, Frequence, Montant, Variation_CA, Nb_Lignes_Commandes, DSO) FROM VW_Finances_Clients_Flat",
     "mlUsage": "Classification binaire. Features: RFM + historique comportemental. Algo: XGBoost / RF."
   },
@@ -768,12 +1333,30 @@
     "defaultVizType": "table",
     "frequency": "Quotidien",
     "risk": "Élevé",
-    "profiles": ["Logistique", "DAF", "Responsable Achats"],
-    "sectors": ["Commerce", "Industrie", "Distribution"],
-    "keywords": ["prévision rupture stock", "stockout prediction", "réappro automatique", "lead time", "saisonnalité stock"],
-    "sqlSage100View": "VW_Stock_Articles_Flat",
-    "sqlSage100Tables": ["F_ARTSTOCK", "F_ARTICLE", "G_ECRITUREC"],
-    "sqlSage100": "-- Modèle: f(Stock_Actuel, Consommation_Historique, Lead_Time_F, Saisonnalité) FROM VW_Stock_Articles_Flat",
+    "profiles": [
+      "Logistique",
+      "DAF",
+      "Responsable Achats"
+    ],
+    "sectors": [
+      "Commerce",
+      "Industrie",
+      "Distribution"
+    ],
+    "keywords": [
+      "prévision rupture stock",
+      "stockout prediction",
+      "réappro automatique",
+      "lead time",
+      "saisonnalité stock"
+    ],
+    "sqlSage100View": "VW_STOCKS",
+    "sqlSage100Tables": [
+      "F_ARTSTOCK",
+      "F_ARTICLE",
+      "G_ECRITUREC"
+    ],
+    "sqlSage100": "-- Modèle: f(Stock_Actuel, Consommation_Historique, Lead_Time_F, Saisonnalité) FROM VW_STOCKS",
     "mlUsage": "Régression / Classification. Features: historique mouvements, délais fournisseurs."
   },
   {
@@ -789,12 +1372,26 @@
     "defaultVizType": "table",
     "frequency": "Quotidien",
     "risk": "Élevé",
-    "profiles": ["Audit Interne", "DAF", "DSI"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["anomalie comptable", "détection fraude", "isolation forest", "autoencoder", "contrôle interne ML"],
-    "sqlSage100View": "VW_Compta_Grand_Livre_Flat",
-    "sqlSage100Tables": ["G_ECRITUREC"],
-    "sqlSage100": "-- Isolation Forest / Autoencoder sur distribution historique des écritures par compte FROM VW_Compta_Grand_Livre_Flat",
+    "profiles": [
+      "Audit Interne",
+      "DAF",
+      "DSI"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "anomalie comptable",
+      "détection fraude",
+      "isolation forest",
+      "autoencoder",
+      "contrôle interne ML"
+    ],
+    "sqlSage100View": "VW_GRAND_LIVRE_GENERAL",
+    "sqlSage100Tables": [
+      "G_ECRITUREC"
+    ],
+    "sqlSage100": "-- Isolation Forest / Autoencoder sur distribution historique des écritures par compte FROM VW_GRAND_LIVRE_GENERAL",
     "mlUsage": "Anomaly Detection non supervisé. Features: montant, compte, journal, utilisateur, heure."
   },
   {
@@ -810,15 +1407,30 @@
     "defaultVizType": "line",
     "frequency": "Hebdomadaire",
     "risk": "Moyen",
-    "profiles": ["DAF", "CFO", "Trésorier"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["prévision trésorerie 90j", "cash forecast", "flux prévisionnels", "multi-step forecasting", "échéancier"],
+    "profiles": [
+      "DAF",
+      "CFO",
+      "Trésorier"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "prévision trésorerie 90j",
+      "cash forecast",
+      "flux prévisionnels",
+      "multi-step forecasting",
+      "échéancier"
+    ],
     "sqlSage100View": "VW_Tresorerie_Flux_Flat + VW_Finances_Clients_Flat + VW_Fournisseurs_Achats_Flat",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_REGLECH", "F_REGLEF"],
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_REGLECH",
+      "F_REGLEF"
+    ],
     "sqlSage100": "SELECT Semaine, Solde_Initial + SUM(Encaissements_Prevus) - SUM(Decaissements_Prevus) AS Solde_Previsionnel FROM VW_Tresorerie_Flux_Flat GROUP BY Semaine ORDER BY Semaine",
     "mlUsage": "Multi-step time-series forecasting. Features: échéanciers clients + fournisseurs + historique."
   },
-
   {
     "key": "f01_ca_ht",
     "name": "Chiffre d'Affaires HT",
@@ -829,15 +1441,30 @@
     "description": "Total des ventes nettes hors taxes sur une période paramétrée. Agrégable par exercice, mois, trimestre, entité.",
     "usage": "Mesure de performance commerciale globale. Base de tous les ratios de rentabilité. Comparaison N/N-1/Budget.",
     "unit": "€",
-    "defaultVizType": "bar",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["DAF", "CFO", "DG"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["ca ht", "chiffre affaires ht", "ventes nettes", "revenus ht"],
+    "profiles": [
+      "DAF",
+      "CFO",
+      "DG"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "ca ht",
+      "chiffre affaires ht",
+      "ventes nettes",
+      "revenus ht"
+    ],
     "sqlSage100View": "VW_FINANCE_GENERAL",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_PIECE", "F_COMPTET"],
-    "sqlSage100": "SELECT SUM(EC_Montant) FROM VW_FINANCE_GENERAL WHERE EC_Sens='C' AND CT_Type=2 AND JO_Type IN (1,2) AND EC_Exercice=@Annee",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_PIECE",
+      "F_COMPTET"
+    ],
+    "sqlSage100": "SELECT SUM(ca_ht) AS CA_HT FROM VW_FINANCE_GENERAL",
     "mlUsage": "Feature #1 pour tout modèle de prévision. Time-series forecasting (Prophet, SARIMA, LSTM)."
   },
   {
@@ -850,15 +1477,28 @@
     "description": "Total ventes toutes taxes comprises. Correspond aux flux de trésorerie réels attendus des clients.",
     "usage": "Projection de trésorerie client. Rapprochement avec relevés bancaires. Calcul de TVA collectée.",
     "unit": "€",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["DAF", "Comptable"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["ca ttc", "ventes ttc", "encaissements", "total ttc"],
+    "profiles": [
+      "DAF",
+      "Comptable"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "ca ttc",
+      "ventes ttc",
+      "encaissements",
+      "total ttc"
+    ],
     "sqlSage100View": "VW_FINANCE_GENERAL",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_PIECE"],
-    "sqlSage100": "SELECT SUM(EC_MontantTTC) FROM VW_FINANCE_GENERAL WHERE EC_Sens='C' AND CT_Type=2 AND JO_Type IN (1,2)",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_PIECE"
+    ],
+    "sqlSage100": "SELECT SUM(ca_ttc) AS CA_TTC FROM VW_FINANCE_GENERAL",
     "mlUsage": "Feature pour prévision de flux de trésorerie et modèles cash management."
   },
   {
@@ -874,12 +1514,28 @@
     "defaultVizType": "bar",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["DAF", "Contrôleur"],
-    "sectors": ["Commerce", "Industrie", "Distribution"],
-    "keywords": ["marge brute", "marge commerciale", "CAMV", "profit brut"],
+    "profiles": [
+      "DAF",
+      "Contrôleur"
+    ],
+    "sectors": [
+      "Commerce",
+      "Industrie",
+      "Distribution"
+    ],
+    "keywords": [
+      "marge brute",
+      "marge commerciale",
+      "CAMV",
+      "profit brut"
+    ],
     "sqlSage100View": "VW_FINANCE_GENERAL",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_ARTICLE", "F_ARTSTOCK"],
-    "sqlSage100": "SELECT SUM(CA_HT) - SUM(PUMP * Qte_Vendue) FROM VW_FINANCE_GENERAL GROUP BY periode",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_ARTICLE",
+      "F_ARTSTOCK"
+    ],
+    "sqlSage100": "SELECT annee_mois, SUM(marge_brute) AS Marge_Brute FROM VW_FINANCE_GENERAL GROUP BY annee_mois ORDER BY annee_mois",
     "mlUsage": "Feature pour classification client high/low value. Optimisation pricing dynamique."
   },
   {
@@ -892,15 +1548,28 @@
     "description": "Pourcentage de marge brute par rapport au CA HT. Benchmark sectoriel clé.",
     "usage": "Comparer la performance tarifaire dans le temps. Alertes sur érosion de marge. Benchmark sectoriel.",
     "unit": "%",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["DAF", "Direction"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["taux marge", "marge brute pct", "taux marge brute", "margin rate"],
+    "profiles": [
+      "DAF",
+      "Direction"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "taux marge",
+      "marge brute pct",
+      "taux marge brute",
+      "margin rate"
+    ],
     "sqlSage100View": "VW_FINANCE_GENERAL",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_ARTICLE"],
-    "sqlSage100": "SELECT (Marge_Brute / CA_HT) * 100 FROM VW_FINANCE_GENERAL",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_ARTICLE"
+    ],
+    "sqlSage100": "SELECT AVG(taux_marge_brute) AS Taux_Marge_Brute FROM VW_FINANCE_GENERAL",
     "mlUsage": "Feature clustering produits. Détection anomalies pricing."
   },
   {
@@ -913,15 +1582,29 @@
     "description": "Résultat avant intérêts, impôts, dotations aux amortissements. Proxy de la capacité opérationnelle à générer du cash.",
     "usage": "Valorisation de l'entreprise (multiple d'EBITDA). Comparaison avec concurrents. Indicateur banquier.",
     "unit": "€",
-    "defaultVizType": "bar",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["DAF", "CFO", "Banquier"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["ebitda", "résultat brut exploitation", "excédent brut", "EBE"],
+    "profiles": [
+      "DAF",
+      "CFO",
+      "Banquier"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "ebitda",
+      "résultat brut exploitation",
+      "excédent brut",
+      "EBE"
+    ],
     "sqlSage100View": "VW_FINANCE_GENERAL",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_COMPTE"],
-    "sqlSage100": "SELECT SUM(Produits_Exploit) - SUM(Charges_Exploit_Hors_Dotations) FROM VW_FINANCE_GENERAL",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_COMPTE"
+    ],
+    "sqlSage100": "SELECT SUM(ebitda) AS EBITDA FROM VW_FINANCE_GENERAL",
     "mlUsage": "Feature pour modèles de valorisation et rating financier."
   },
   {
@@ -934,15 +1617,28 @@
     "description": "Bénéfice ou perte après toutes charges et produits (exploitation + financier + exceptionnel - IS).",
     "usage": "Performance financière définitive de l'exercice. Base liasses fiscales. Publication légale.",
     "unit": "€",
-    "defaultVizType": "bar",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["DAF", "Expert-Comptable"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["résultat net", "bénéfice net", "résultat comptable", "profit net"],
+    "profiles": [
+      "DAF",
+      "Expert-Comptable"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "résultat net",
+      "bénéfice net",
+      "résultat comptable",
+      "profit net"
+    ],
     "sqlSage100View": "VW_COMPTA_BILAN",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_COMPTE"],
-    "sqlSage100": "SELECT SUM(CASE WHEN CP_Classe='7' THEN EC_Montant ELSE 0 END) - SUM(CASE WHEN CP_Classe='6' THEN EC_Montant ELSE 0 END) FROM VW_COMPTA_BILAN WHERE EC_Exercice=@Annee",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_COMPTE"
+    ],
+    "sqlSage100": "SELECT SUM(CASE WHEN CP_Classe='7' THEN EC_Montant ELSE 0 END) - SUM(CASE WHEN CP_Classe='6' THEN EC_Montant ELSE 0 END) FROM VW_COMPTA_BILAN",
     "mlUsage": "Feature santé financière entreprise. Modèle crédit scoring."
   },
   {
@@ -955,15 +1651,29 @@
     "description": "Taux de croissance du CA par rapport à la même période de l'année précédente. Par mois, trimestre, YTD.",
     "usage": "Mesure de croissance. Alertes sur décélération. Benchmark objectifs commerciaux.",
     "unit": "%",
-    "defaultVizType": "line",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["DG", "DAF", "Commercial"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["variation ca", "croissance ca", "ca n n-1", "évolution ca", "growth rate"],
+    "profiles": [
+      "DG",
+      "DAF",
+      "Commercial"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "variation ca",
+      "croissance ca",
+      "ca n n-1",
+      "évolution ca",
+      "growth rate"
+    ],
     "sqlSage100View": "VW_FINANCE_GENERAL",
-    "sqlSage100Tables": ["G_ECRITUREC"],
-    "sqlSage100": "SELECT ((CA_N - CA_N1) / NULLIF(CA_N1,0)) * 100 FROM VW_FINANCE_GENERAL",
+    "sqlSage100Tables": [
+      "G_ECRITUREC"
+    ],
+    "sqlSage100": "SELECT annee_mois, AVG(variation_ca_n_vs_n1) AS Variation_CA FROM VW_FINANCE_GENERAL GROUP BY annee_mois ORDER BY annee_mois",
     "mlUsage": "Feature trend analysis. Détection ruptures de croissance."
   },
   {
@@ -979,12 +1689,27 @@
     "defaultVizType": "bar",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["DAF", "Contrôleur", "DG"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["ca ytd", "ca budget", "réalisé budget", "écart budget ca", "year to date"],
+    "profiles": [
+      "DAF",
+      "Contrôleur",
+      "DG"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "ca ytd",
+      "ca budget",
+      "réalisé budget",
+      "écart budget ca",
+      "year to date"
+    ],
     "sqlSage100View": "VW_FINANCE_GENERAL",
-    "sqlSage100Tables": ["G_ECRITUREC", "G_SECTION"],
-    "sqlSage100": "SELECT CA_YTD_Realise, CA_YTD_Budget, (CA_YTD_Realise - CA_YTD_Budget) AS Ecart, ((CA_YTD_Realise - CA_YTD_Budget)/NULLIF(CA_YTD_Budget,0)*100) AS Taux FROM VW_FINANCE_GENERAL",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "G_SECTION"
+    ],
+    "sqlSage100": "SELECT SUM(ca_cum_ytd) AS CA_YTD FROM VW_FINANCE_GENERAL",
     "mlUsage": "Feature reprévision automatique. Modèle forecasting adaptatif."
   },
   {
@@ -997,15 +1722,28 @@
     "description": "CA minimum à atteindre pour couvrir l'ensemble des charges fixes et variables. Exprimé en € et en % de réalisation.",
     "usage": "Piloter la viabilité de l'entreprise. Fixer des objectifs commerciaux minimaux. Aide décision expansion.",
     "unit": "€",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Trimestriel",
     "risk": "Moyen",
-    "profiles": ["DAF", "DG"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["point mort", "seuil rentabilité", "break even", "charges fixes"],
+    "profiles": [
+      "DAF",
+      "DG"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "point mort",
+      "seuil rentabilité",
+      "break even",
+      "charges fixes"
+    ],
     "sqlSage100View": "VW_FINANCE_GENERAL",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_COMPTE"],
-    "sqlSage100": "SELECT Charges_Fixes / (1 - (Charges_Variables / CA_HT)) AS Point_Mort FROM VW_FINANCE_GENERAL",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_COMPTE"
+    ],
+    "sqlSage100": "SELECT SUM(achats + charges_personnel + charges_financieres + dotations_amort) / NULLIF(1 - SUM(achats) / NULLIF(SUM(ca_ht),0), 0) AS Point_Mort FROM VW_FINANCE_GENERAL",
     "mlUsage": "Feature pour modèles de simulation et stress-testing financier."
   },
   {
@@ -1018,15 +1756,28 @@
     "description": "Part des charges d'exploitation (personnel, externes, financières) dans le CA. Décomposable par nature.",
     "usage": "Identifier les postes de charges excessifs. Benchmark sectoriel. Pilotage des économies.",
     "unit": "%",
-    "defaultVizType": "gauge",
+    "defaultVizType": "bar",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["DAF", "Contrôleur"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["ratio charges ca", "charges exploitation", "taux charges", "cost ratio"],
+    "profiles": [
+      "DAF",
+      "Contrôleur"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "ratio charges ca",
+      "charges exploitation",
+      "taux charges",
+      "cost ratio"
+    ],
     "sqlSage100View": "VW_FINANCE_GENERAL",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_COMPTE"],
-    "sqlSage100": "SELECT SUM(Charges_Classe6) / SUM(CA_HT) * 100 FROM VW_FINANCE_GENERAL GROUP BY LEFT(CP_Num,2)",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_COMPTE"
+    ],
+    "sqlSage100": "SELECT racine_2, AVG(ratio_charges_ca) AS Ratio_Charges_CA FROM VW_FINANCE_GENERAL GROUP BY racine_2 ORDER BY racine_2",
     "mlUsage": "Feature détection dérive budgétaire. Clustering profils d'entreprise."
   },
   {
@@ -1039,15 +1790,29 @@
     "description": "Disponibilités nettes totales (banques + caisse) à une date donnée. Agrégation de tous les comptes de classe 5.",
     "usage": "Vision immédiate de la liquidité. Tableau de bord DAF quotidien. Alerte découvert.",
     "unit": "€",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Quotidien",
     "risk": "Élevé",
-    "profiles": ["DAF", "Trésorier"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["solde trésorerie", "disponibilités", "cash", "liquidités", "banque"],
+    "profiles": [
+      "DAF",
+      "Trésorier"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "solde trésorerie",
+      "disponibilités",
+      "cash",
+      "liquidités",
+      "banque"
+    ],
     "sqlSage100View": "VW_TRESORERIE",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_COMPTE"],
-    "sqlSage100": "SELECT SUM(EC_Montant) FROM VW_TRESORERIE WHERE CP_Classe='5' AND EC_Date<=@DateFin",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_COMPTE"
+    ],
+    "sqlSage100": "SELECT MAX(Solde_Tresorerie_Net_Global) AS Solde_Net FROM VW_TRESORERIE",
     "mlUsage": "Feature principale pour modèles de prévision de trésorerie à court terme."
   },
   {
@@ -1060,15 +1825,29 @@
     "description": "Solde individuel de chaque compte bancaire (512xxx) et caisse (531xxx) à date. Vue compte par compte.",
     "usage": "Éviter les découverts par compte. Optimiser les virements inter-comptes. Gestion multi-banques.",
     "unit": "€",
-    "defaultVizType": "table",
+    "defaultVizType": "bar",
     "frequency": "Quotidien",
     "risk": "Élevé",
-    "profiles": ["Trésorier", "DAF"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["solde compte bancaire", "multi-banques", "caisse", "compte 512", "compte courant"],
+    "profiles": [
+      "Trésorier",
+      "DAF"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "solde compte bancaire",
+      "multi-banques",
+      "caisse",
+      "compte 512",
+      "compte courant"
+    ],
     "sqlSage100View": "VW_TRESORERIE",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_COMPTE"],
-    "sqlSage100": "SELECT EC_No_Compte, SUM(EC_Montant) FROM VW_TRESORERIE WHERE CP_Classe='5' AND EC_Date<=@DateFin GROUP BY EC_No_Compte",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_COMPTE"
+    ],
+    "sqlSage100": "SELECT CG_Num, CG_Intitule, MAX(Solde_Par_Compte) AS Solde FROM VW_TRESORERIE GROUP BY CG_Num, CG_Intitule ORDER BY CG_Num",
     "mlUsage": "Multi-variate forecasting par compte. Détection découvert imminent par banque."
   },
   {
@@ -1081,15 +1860,29 @@
     "description": "Total des flux entrants (crédits) sur les comptes de trésorerie sur la période. Détail par tiers, type, banque.",
     "usage": "Analyser les sources d'entrées de cash. Top encaissements. Suivi des remises client.",
     "unit": "€",
-    "defaultVizType": "bar",
+    "defaultVizType": "card",
     "frequency": "Hebdomadaire",
     "risk": "Faible",
-    "profiles": ["Trésorier", "Comptable"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["encaissements", "flux entrants", "recettes", "cash in", "rentrées"],
+    "profiles": [
+      "Trésorier",
+      "Comptable"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "encaissements",
+      "flux entrants",
+      "recettes",
+      "cash in",
+      "rentrées"
+    ],
     "sqlSage100View": "VW_TRESORERIE",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_COMPTET"],
-    "sqlSage100": "SELECT SUM(EC_Montant) FROM VW_TRESORERIE WHERE CP_Classe='5' AND EC_Sens='C' AND EC_Date BETWEEN @Debut AND @Fin",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_COMPTET"
+    ],
+    "sqlSage100": "SELECT SUM(Encaissement) AS Total_Encaissements FROM VW_TRESORERIE",
     "mlUsage": "Feature pour prévision des recettes. Détection d'encaissements anormaux."
   },
   {
@@ -1102,15 +1895,29 @@
     "description": "Total des flux sortants (débits) sur les comptes de trésorerie. Détail par fournisseur, type de dépense, banque.",
     "usage": "Contrôle des sorties de cash. Top décaissements. Détection de paiements non autorisés.",
     "unit": "€",
-    "defaultVizType": "bar",
+    "defaultVizType": "card",
     "frequency": "Hebdomadaire",
     "risk": "Moyen",
-    "profiles": ["Trésorier", "DAF"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["décaissements", "flux sortants", "paiements", "cash out", "sorties"],
+    "profiles": [
+      "Trésorier",
+      "DAF"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "décaissements",
+      "flux sortants",
+      "paiements",
+      "cash out",
+      "sorties"
+    ],
     "sqlSage100View": "VW_TRESORERIE",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_COMPTET"],
-    "sqlSage100": "SELECT SUM(EC_Montant) FROM VW_TRESORERIE WHERE CP_Classe='5' AND EC_Sens='D' AND EC_Date BETWEEN @Debut AND @Fin",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_COMPTET"
+    ],
+    "sqlSage100": "SELECT SUM(Decaissement) AS Total_Decaissements FROM VW_TRESORERIE",
     "mlUsage": "Feature classification dépenses. Détection fraude/anomalie sur paiements."
   },
   {
@@ -1126,12 +1933,27 @@
     "defaultVizType": "line",
     "frequency": "Hebdomadaire",
     "risk": "Élevé",
-    "profiles": ["DAF", "CFO", "Banquier"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["prévision trésorerie", "cash forecast", "projection tréso", "forecast 90j"],
+    "profiles": [
+      "DAF",
+      "CFO",
+      "Banquier"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "prévision trésorerie",
+      "cash forecast",
+      "projection tréso",
+      "forecast 90j"
+    ],
     "sqlSage100View": "VW_TRESORERIE",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_REGLECH", "F_REGLEF"],
-    "sqlSage100": "SELECT Solde_J0 + SUM(Echeances_Clients_Non_Soldees) - SUM(Echeances_Fourn_Non_Soldees) FROM VW_TRESORERIE GROUP BY Tranche_30j",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_REGLECH",
+      "F_REGLEF"
+    ],
+    "sqlSage100": "SELECT MAX(Prevision_30j) AS Treso_J30, MAX(Prevision_60j) AS Treso_J60, MAX(Prevision_90j) AS Treso_J90 FROM VW_TRESORERIE",
     "mlUsage": "Multi-step time-series forecasting. Modèle hybride comptable + prévisionnel. LSTM / Prophet."
   },
   {
@@ -1144,15 +1966,29 @@
     "description": "Besoin de financement du cycle d'exploitation : Stocks + Créances clients - Dettes fournisseurs.",
     "usage": "Mesurer l'efficience du cycle d'exploitation. Anticiper les tensions de trésorerie. KPI stratégique DAF.",
     "unit": "€",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["DAF", "CFO"],
-    "sectors": ["Commerce", "Industrie"],
-    "keywords": ["BFR", "besoin fonds roulement", "working capital", "cycle exploitation"],
+    "profiles": [
+      "DAF",
+      "CFO"
+    ],
+    "sectors": [
+      "Commerce",
+      "Industrie"
+    ],
+    "keywords": [
+      "BFR",
+      "besoin fonds roulement",
+      "working capital",
+      "cycle exploitation"
+    ],
     "sqlSage100View": "VW_TRESORERIE",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_ARTSTOCK"],
-    "sqlSage100": "SELECT Valeur_Stocks + Encours_Clients - Dettes_Fournisseurs AS BFR FROM VW_TRESORERIE",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_ARTSTOCK"
+    ],
+    "sqlSage100": "SELECT MAX(BFR) AS BFR FROM VW_TRESORERIE",
     "mlUsage": "Feature modèles de prévision financière long terme et stress-testing."
   },
   {
@@ -1168,12 +2004,27 @@
     "defaultVizType": "table",
     "frequency": "Trimestriel",
     "risk": "Faible",
-    "profiles": ["DAF", "Expert-Comptable", "Banquier"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["TFT", "tableau flux trésorerie", "cash flow statement", "IAS 7", "flux exploitation"],
+    "profiles": [
+      "DAF",
+      "Expert-Comptable",
+      "Banquier"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "TFT",
+      "tableau flux trésorerie",
+      "cash flow statement",
+      "IAS 7",
+      "flux exploitation"
+    ],
     "sqlSage100View": "VW_TRESORERIE",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_COMPTE"],
-    "sqlSage100": "SELECT Flux_Exploitation, Flux_Investissement, Flux_Financement FROM VW_TRESORERIE",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_COMPTE"
+    ],
+    "sqlSage100": "SELECT EC_Date, Libelle_Operation, Encaissement, Decaissement, Flux_Net, TFT FROM VW_TRESORERIE ORDER BY EC_Date",
     "mlUsage": "Feature santé financière globale. Input modèles d'évaluation d'entreprise."
   },
   {
@@ -1189,12 +2040,24 @@
     "defaultVizType": "bar",
     "frequency": "Quotidien",
     "risk": "Élevé",
-    "profiles": ["DAF Groupe", "Trésorier Central"],
-    "sectors": ["Tous secteurs (Groupe)"],
-    "keywords": ["trésorerie consolidée", "cash pooling", "groupe multi-entités", "consolidation tréso"],
+    "profiles": [
+      "DAF Groupe",
+      "Trésorier Central"
+    ],
+    "sectors": [
+      "Tous secteurs (Groupe)"
+    ],
+    "keywords": [
+      "trésorerie consolidée",
+      "cash pooling",
+      "groupe multi-entités",
+      "consolidation tréso"
+    ],
     "sqlSage100View": "VW_TRESORERIE (multi-bases)",
-    "sqlSage100Tables": ["G_ECRITUREC"],
-    "sqlSage100": "SELECT Entite_Code, SUM(Solde_Treso) FROM VW_TRESORERIE GROUP BY Entite_Code",
+    "sqlSage100Tables": [
+      "G_ECRITUREC"
+    ],
+    "sqlSage100": "SELECT CG_Num, CG_Intitule, MAX(Solde_Tresorerie_Net_Global) AS Solde_Net FROM VW_TRESORERIE GROUP BY CG_Num, CG_Intitule ORDER BY CG_Num",
     "mlUsage": "Feature optimisation cash pooling. Modèles allocation inter-entités."
   },
   {
@@ -1207,15 +2070,29 @@
     "description": "Position nette de chaque entité vis-à-vis du reste du groupe : créances intra-groupe - dettes intra-groupe.",
     "usage": "Gestion conventions de trésorerie. Éliminations consolidation. Conformité prix de transfert.",
     "unit": "€",
-    "defaultVizType": "table",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["DAF Groupe", "Fiscaliste"],
-    "sectors": ["Tous secteurs (Groupe)"],
-    "keywords": ["flux intra-groupe", "interco", "consolidation", "prix transfert", "créances groupe"],
+    "profiles": [
+      "DAF Groupe",
+      "Fiscaliste"
+    ],
+    "sectors": [
+      "Tous secteurs (Groupe)"
+    ],
+    "keywords": [
+      "flux intra-groupe",
+      "interco",
+      "consolidation",
+      "prix transfert",
+      "créances groupe"
+    ],
     "sqlSage100View": "VW_TRESORERIE",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC"],
-    "sqlSage100": "SELECT SUM(Creances_Groupe) - SUM(Dettes_Groupe) FROM VW_TRESORERIE WHERE Flag_IntraGroupe=1",
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC"
+    ],
+    "sqlSage100": "SELECT CT_Num, Nom_Tiers, SUM(Flux_Net) AS Position_Nette FROM VW_TRESORERIE GROUP BY CT_Num, Nom_Tiers ORDER BY Position_Nette",
     "mlUsage": "Feature modèles de consolidation et optimisation flux interco."
   },
   {
@@ -1231,12 +2108,26 @@
     "defaultVizType": "line",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["DAF", "CFO", "DG"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["triple courbe", "BFR évolution", "tréso créances dettes", "tension liquidité"],
+    "profiles": [
+      "DAF",
+      "CFO",
+      "DG"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "triple courbe",
+      "BFR évolution",
+      "tréso créances dettes",
+      "tension liquidité"
+    ],
     "sqlSage100View": "VW_TRESORERIE",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_COMPTET"],
-    "sqlSage100": "SELECT Mois, Treso_M, Creances_M, Dettes_M FROM VW_TRESORERIE ORDER BY Mois",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_COMPTET"
+    ],
+    "sqlSage100": "SELECT CONVERT(varchar(7),EC_Date,120) AS Mois, MAX(Solde_Tresorerie_Net_Global) AS Solde_Treso, MAX(BFR) AS BFR, MAX(Evolution_Dettes_Creances_Treso) AS Evolution_Dettes_Creances FROM VW_TRESORERIE GROUP BY CONVERT(varchar(7),EC_Date,120) ORDER BY Mois",
     "mlUsage": "Multi-variate time-series. Feature modèles de prévision BFR et stress-testing."
   },
   {
@@ -1249,15 +2140,30 @@
     "description": "Nombre moyen de jours pour encaisser les créances clients après facturation. KPI central de la gestion du poste client.",
     "usage": "Mesurer l'efficacité du recouvrement. Identifier les risques d'impayés. Piloter le BFR côté actif.",
     "unit": "jours",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Hebdomadaire",
     "risk": "Élevé",
-    "profiles": ["DAF", "Recouvrement"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["DSO", "days sales outstanding", "délai encaissement", "délai client", "recouvrement"],
+    "profiles": [
+      "DAF",
+      "Recouvrement"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "DSO",
+      "days sales outstanding",
+      "délai encaissement",
+      "délai client",
+      "recouvrement"
+    ],
     "sqlSage100View": "VW_CLIENTS",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC", "F_REGLECH"],
-    "sqlSage100": "SELECT AVG(DATEDIFF(day,EC_DateEcheance,Reglement_Date)) FROM VW_CLIENTS",
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC",
+      "F_REGLECH"
+    ],
+    "sqlSage100": "SELECT AVG(Age_Jours) AS DSO FROM VW_CLIENTS WHERE Est_Lettre=0 AND Solde_Signe > 0",
     "mlUsage": "Feature critique pour modèles de risque crédit et prédiction d'impayés."
   },
   {
@@ -1273,12 +2179,28 @@
     "defaultVizType": "bar",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["DAF", "Responsables BU"],
-    "sectors": ["Services", "Conseil", "Multi-BU"],
-    "keywords": ["DSO BU", "DSO département", "délai encaissement BU", "recouvrement segment"],
+    "profiles": [
+      "DAF",
+      "Responsables BU"
+    ],
+    "sectors": [
+      "Services",
+      "Conseil",
+      "Multi-BU"
+    ],
+    "keywords": [
+      "DSO BU",
+      "DSO département",
+      "délai encaissement BU",
+      "recouvrement segment"
+    ],
     "sqlSage100View": "VW_CLIENTS",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC", "G_SECTION"],
-    "sqlSage100": "SELECT Section_Analytique, AVG(DATEDIFF(day,EC_DateEcheance,Reglement_Date)) FROM VW_CLIENTS GROUP BY Section_Analytique",
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC",
+      "G_SECTION"
+    ],
+    "sqlSage100": "SELECT Periode, AVG(Age_Jours) AS DSO FROM VW_CLIENTS WHERE Est_Lettre=0 AND Solde_Signe > 0 GROUP BY Periode ORDER BY Periode",
     "mlUsage": "Feature multi-dimensionnelle pour scoring risque par segment."
   },
   {
@@ -1291,15 +2213,29 @@
     "description": "Montant total des créances clients non encore encaissées. Somme des soldes débiteurs des comptes 41xxx.",
     "usage": "Pilotage BFR. Base de calcul DSO. Suivi des relances. Indicateur de risque d'impayé global.",
     "unit": "€",
-    "defaultVizType": "gauge",
+    "defaultVizType": "table",
     "frequency": "Quotidien",
     "risk": "Moyen",
-    "profiles": ["Recouvrement", "DAF"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["encours clients", "créances clients", "solde clients", "poste client", "compte 41"],
+    "profiles": [
+      "Recouvrement",
+      "DAF"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "encours clients",
+      "créances clients",
+      "solde clients",
+      "poste client",
+      "compte 41"
+    ],
     "sqlSage100View": "VW_CLIENTS",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC"],
-    "sqlSage100": "SELECT SUM(EC_Montant) FROM VW_CLIENTS WHERE CP_Classe='41' AND EC_Lettrage='' GROUP BY CT_Num",
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC"
+    ],
+    "sqlSage100": "SELECT Code_Client, Nom_Client, SUM(Montant) AS Encours FROM VW_CLIENTS WHERE Est_Lettre=0 AND Solde_Signe > 0 GROUP BY Code_Client, Nom_Client ORDER BY Encours DESC",
     "mlUsage": "Feature pour scoring risque client et prévision cash flows."
   },
   {
@@ -1315,12 +2251,26 @@
     "defaultVizType": "bar",
     "frequency": "Hebdomadaire",
     "risk": "Élevé",
-    "profiles": ["Recouvrement", "DAF", "Comptable"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["balance âgée clients", "créances échues", "tranches échéances", "retards paiement"],
+    "profiles": [
+      "Recouvrement",
+      "DAF",
+      "Comptable"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "balance âgée clients",
+      "créances échues",
+      "tranches échéances",
+      "retards paiement"
+    ],
     "sqlSage100View": "VW_CLIENTS",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC"],
-    "sqlSage100": "SELECT CASE WHEN DATEDIFF(day,EC_DateEcheance,GETDATE())<0 THEN 'Non échu' WHEN DATEDIFF(day,EC_DateEcheance,GETDATE())<=30 THEN '0-30j' WHEN DATEDIFF(day,EC_DateEcheance,GETDATE())<=60 THEN '30-60j' WHEN DATEDIFF(day,EC_DateEcheance,GETDATE())<=90 THEN '60-90j' ELSE '+90j' END AS Tranche, SUM(EC_Montant) FROM VW_CLIENTS WHERE EC_Lettrage='' GROUP BY Tranche",
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC"
+    ],
+    "sqlSage100": "SELECT Tranche_Age, SUM(Montant) AS Encours FROM VW_CLIENTS WHERE Est_Lettre=0 AND Solde_Signe > 0 GROUP BY Tranche_Age ORDER BY Tranche_Age",
     "mlUsage": "Feature multi-classe pour scoring de recouvrement. Prédiction probabilité de recouvrement par tranche."
   },
   {
@@ -1333,15 +2283,30 @@
     "description": "Pourcentage des factures non réglées après leur date d'échéance. Mesure de la qualité du portefeuille client.",
     "usage": "Évaluer le risque de crédit global. Déclencher des relances automatiques. Provisionner les créances douteuses.",
     "unit": "%",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Hebdomadaire",
     "risk": "Élevé",
-    "profiles": ["DAF", "Direction"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["taux impayés", "impayés", "créances douteuses", "bad debt rate", "risque crédit"],
+    "profiles": [
+      "DAF",
+      "Direction"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "taux impayés",
+      "impayés",
+      "créances douteuses",
+      "bad debt rate",
+      "risque crédit"
+    ],
     "sqlSage100View": "VW_CLIENTS",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC", "F_REGLECH"],
-    "sqlSage100": "SELECT (COUNT(Factures_Non_Soldees_Echues) / COUNT(Total_Factures)) * 100 FROM VW_CLIENTS",
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC",
+      "F_REGLECH"
+    ],
+    "sqlSage100": "SELECT (COUNT(CASE WHEN Age_Jours > 0 AND Est_Lettre=0 THEN 1 END) * 100.0 / NULLIF(COUNT(CASE WHEN Solde_Signe > 0 THEN 1 END),0)) AS Taux_Impayes FROM VW_CLIENTS",
     "mlUsage": "Variable cible (target) pour modèles de prédiction d'impayés (classification binaire)."
   },
   {
@@ -1354,15 +2319,31 @@
     "description": "Score composite 0-100 évaluant la solvabilité et le comportement de paiement de chaque client.",
     "usage": "Automatiser la décision de crédit. Prioriser le recouvrement. Alertes proactives. Limite de crédit dynamique.",
     "unit": "score",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Hebdomadaire",
     "risk": "Élevé",
-    "profiles": ["DAF", "Recouvrement", "Direction"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["score risque client", "credit score", "scoring client", "solvabilité", "limite crédit"],
+    "profiles": [
+      "DAF",
+      "Recouvrement",
+      "Direction"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "score risque client",
+      "credit score",
+      "scoring client",
+      "solvabilité",
+      "limite crédit"
+    ],
     "sqlSage100View": "VW_CLIENTS",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC", "F_REGLECH"],
-    "sqlSage100": "SELECT CT_Num, (w1*DSO_Norm + w2*Taux_Retard + w3*(Encours/CA) + w4*Anciennete_Neg + w5*NbImpayesHisto) AS Score FROM VW_CLIENTS",
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC",
+      "F_REGLECH"
+    ],
+    "sqlSage100": "SELECT Code_Client, Nom_Client, AVG(Age_Jours) AS DSO_Moyen, SUM(CASE WHEN Age_Jours > 0 AND Est_Lettre=0 THEN Montant ELSE 0 END) AS Encours_En_Retard, COUNT(CASE WHEN Age_Jours > 30 THEN 1 END) AS Nb_Retards FROM VW_CLIENTS GROUP BY Code_Client, Nom_Client ORDER BY Encours_En_Retard DESC",
     "mlUsage": "Output modèle de scoring ML (XGBoost, RF). Features engineerées depuis l'historique des paiements."
   },
   {
@@ -1378,12 +2359,25 @@
     "defaultVizType": "table",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["Commercial", "DAF"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["top clients", "clients stratégiques", "classement clients", "meilleurs clients"],
+    "profiles": [
+      "Commercial",
+      "DAF"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "top clients",
+      "clients stratégiques",
+      "classement clients",
+      "meilleurs clients"
+    ],
     "sqlSage100View": "VW_CLIENTS",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC"],
-    "sqlSage100": "SELECT TOP 10 CT_Num, CT_Nom, SUM(Montant_HT), RANK() OVER(ORDER BY SUM(Montant_HT) DESC) AS Rang FROM VW_CLIENTS GROUP BY CT_Num, CT_Nom ORDER BY Rang",
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC"
+    ],
+    "sqlSage100": "SELECT TOP 10 Code_Client, Nom_Client, SUM(Debit_Client) AS CA_Total, RANK() OVER(ORDER BY SUM(Debit_Client) DESC) AS Rang FROM VW_CLIENTS GROUP BY Code_Client, Nom_Client ORDER BY Rang",
     "mlUsage": "Feature pour segmentation RFM et analyse de concentration."
   },
   {
@@ -1396,15 +2390,29 @@
     "description": "Part du CA total générée par les 20% des meilleurs clients. Un taux >80% signale une dépendance risquée.",
     "usage": "Mesurer la vulnérabilité commerciale. Décision de diversification. Évaluation risque de portefeuille.",
     "unit": "%",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Trimestriel",
     "risk": "Élevé",
-    "profiles": ["DG", "DAF"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["concentration clients", "pareto", "20/80", "risque portefeuille", "dépendance client"],
+    "profiles": [
+      "DG",
+      "DAF"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "concentration clients",
+      "pareto",
+      "20/80",
+      "risque portefeuille",
+      "dépendance client"
+    ],
     "sqlSage100View": "VW_CLIENTS",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC"],
-    "sqlSage100": "SELECT (CA_Top20pct_Clients / CA_Total) * 100 AS Taux_Concentration FROM VW_CLIENTS",
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC"
+    ],
+    "sqlSage100": "SELECT Code_Client, Nom_Client, SUM(Debit_Client) AS CA_Client, SUM(Debit_Client) * 100.0 / NULLIF(SUM(SUM(Debit_Client)) OVER (),0) AS Pct_CA FROM VW_CLIENTS GROUP BY Code_Client, Nom_Client ORDER BY CA_Client DESC",
     "mlUsage": "Feature évaluation risque portefeuille. Alerte concentration."
   },
   {
@@ -1420,12 +2428,24 @@
     "defaultVizType": "bar",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["DAF Groupe"],
-    "sectors": ["Tous secteurs (Groupe)"],
-    "keywords": ["créances groupe", "intra-groupe clients", "consolidation créances", "interco clients"],
+    "profiles": [
+      "DAF Groupe"
+    ],
+    "sectors": [
+      "Tous secteurs (Groupe)"
+    ],
+    "keywords": [
+      "créances groupe",
+      "intra-groupe clients",
+      "consolidation créances",
+      "interco clients"
+    ],
     "sqlSage100View": "VW_CLIENTS",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC"],
-    "sqlSage100": "SELECT Flag_Groupe, SUM(Encours) FROM VW_CLIENTS GROUP BY Flag_Groupe",
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC"
+    ],
+    "sqlSage100": "-- Flag_Groupe absent de VW_CLIENTS -- SELECT Classement, SUM(CASE WHEN Est_Lettre=0 THEN Montant ELSE 0 END) AS Encours FROM VW_CLIENTS GROUP BY Classement ORDER BY Encours DESC",
     "mlUsage": "Feature pour modèles de consolidation et gestion trésorerie centralisée."
   },
   {
@@ -1438,15 +2458,29 @@
     "description": "% clients actifs sur période N également actifs sur N-1. Inverse = taux de churn.",
     "usage": "Mesurer la rétention client. Détecter le churn précoce. Évaluer efficacité CRM.",
     "unit": "%",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Trimestriel",
     "risk": "Moyen",
-    "profiles": ["Commercial", "DG"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["churn", "taux fidélisation", "rétention client", "attrition", "clients perdus"],
+    "profiles": [
+      "Commercial",
+      "DG"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "churn",
+      "taux fidélisation",
+      "rétention client",
+      "attrition",
+      "clients perdus"
+    ],
     "sqlSage100View": "VW_CLIENTS",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC"],
-    "sqlSage100": "SELECT (COUNT(Clients_N_et_N1) / COUNT(Clients_N1)) * 100 AS Taux_Retention FROM VW_CLIENTS",
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC"
+    ],
+    "sqlSage100": "SELECT COUNT(DISTINCT CASE WHEN Annee=YEAR(GETDATE()) THEN Code_Client END) AS Clients_N, COUNT(DISTINCT CASE WHEN Annee=YEAR(GETDATE())-1 THEN Code_Client END) AS Clients_N1 FROM VW_CLIENTS WHERE Debit_Client > 0",
     "mlUsage": "Variable cible pour modèles de churn prediction (XGBoost, logistic regression)."
   },
   {
@@ -1462,12 +2496,26 @@
     "defaultVizType": "bar",
     "frequency": "Mensuel",
     "risk": "Élevé",
-    "profiles": ["DAF", "Responsables BU"],
-    "sectors": ["Services", "Multi-BU"],
-    "keywords": ["écart créances objectif", "balance objectif BU", "dépassement recouvrement"],
+    "profiles": [
+      "DAF",
+      "Responsables BU"
+    ],
+    "sectors": [
+      "Services",
+      "Multi-BU"
+    ],
+    "keywords": [
+      "écart créances objectif",
+      "balance objectif BU",
+      "dépassement recouvrement"
+    ],
     "sqlSage100View": "VW_CLIENTS",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC", "G_SECTION"],
-    "sqlSage100": "SELECT GS_No, (Encours_Reel_BU - Objectif_Balance_BU) AS Gap, ((Encours_Reel_BU - Objectif_Balance_BU)/NULLIF(Objectif_Balance_BU,0)*100) AS Taux_Depassement FROM VW_CLIENTS",
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC",
+      "G_SECTION"
+    ],
+    "sqlSage100": "SELECT Periode, Code_Client, Nom_Client, SUM(CASE WHEN Est_Lettre=0 THEN Montant ELSE 0 END) AS Encours_Reel FROM VW_CLIENTS WHERE Solde_Signe > 0 GROUP BY Periode, Code_Client, Nom_Client ORDER BY Encours_Reel DESC",
     "mlUsage": "Variable cible pour modèles de prédiction de dépassement d'objectif."
   },
   {
@@ -1480,14 +2528,28 @@
     "description": "Comparaison mensuelle entre le cumul des factures émises et le solde restant dû. L'écart mesure l'efficacité du recouvrement.",
     "usage": "Visualiser l'efficacité du recouvrement dans le temps. Alertes sur dégradation du cycle.",
     "unit": "%",
-    "defaultVizType": "line",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["DAF", "Recouvrement"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["taux recouvrement", "efficacité recouvrement", "factures vs encours", "gap facturation"],
+    "profiles": [
+      "DAF",
+      "Recouvrement"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "taux recouvrement",
+      "efficacité recouvrement",
+      "factures vs encours",
+      "gap facturation"
+    ],
     "sqlSage100View": "VW_CLIENTS",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_PIECE", "F_REGLECH"],
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_PIECE",
+      "F_REGLECH"
+    ],
     "sqlSage100": "SELECT (Cumul_Facture_M - Solde_Creances_M) / Cumul_Facture_M * 100 AS Taux_Recouvrement FROM VW_CLIENTS",
     "mlUsage": "Feature prédiction taux de recouvrement futur. Time-series sur le gap F/E."
   },
@@ -1501,14 +2563,28 @@
     "description": "Total des achats fournisseurs HT sur la période. Agrégable par fournisseur, famille, période.",
     "usage": "Suivre les dépenses d'approvisionnement. Comparer avec budget achats. Analyser par fournisseur/famille.",
     "unit": "€",
-    "defaultVizType": "bar",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["DAF", "Achats"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["total achats", "dépenses fournisseurs", "achats HT", "approvisionnement"],
+    "profiles": [
+      "DAF",
+      "Achats"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "total achats",
+      "dépenses fournisseurs",
+      "achats HT",
+      "approvisionnement"
+    ],
     "sqlSage100View": "VW_FOURNISSEURS",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC", "F_PIECE"],
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC",
+      "F_PIECE"
+    ],
     "sqlSage100": "SELECT SUM(EC_Montant) FROM VW_FOURNISSEURS WHERE CT_Type=4 AND JO_Type IN (1,2) AND EC_Sens='D'",
     "mlUsage": "Feature pour optimisation des achats et prévision de dépenses."
   },
@@ -1522,14 +2598,30 @@
     "description": "Nombre moyen de jours pour régler les factures fournisseurs. Mesure du respect des délais légaux (LME : 60 jours).",
     "usage": "Optimiser le BFR côté passif. Vérifier la conformité LME. Négociation des conditions de paiement.",
     "unit": "jours",
-    "defaultVizType": "gauge",
+    "defaultVizType": "bar",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["DAF", "Achats", "Juridique"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["DPO", "days payable outstanding", "délai paiement fournisseur", "LME", "délai règlement"],
+    "profiles": [
+      "DAF",
+      "Achats",
+      "Juridique"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "DPO",
+      "days payable outstanding",
+      "délai paiement fournisseur",
+      "LME",
+      "délai règlement"
+    ],
     "sqlSage100View": "VW_FOURNISSEURS",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC", "F_REGLEF"],
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC",
+      "F_REGLEF"
+    ],
     "sqlSage100": "SELECT AVG(DATEDIFF(day,EC_Date,Reglement_Date)) FROM VW_FOURNISSEURS GROUP BY CT_Num",
     "mlUsage": "Feature optimisation cash management et modèles de prévision cash outflow."
   },
@@ -1543,14 +2635,27 @@
     "description": "Montant total des factures fournisseurs dont l'échéance est dépassée et non encore réglées. Risque de pénalités.",
     "usage": "Anticiper les pénalités de retard. Prioriser les paiements urgents. Éviter les litiges fournisseurs.",
     "unit": "€",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Quotidien",
     "risk": "Élevé",
-    "profiles": ["Trésorier", "DAF"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["dettes échues", "retards fournisseurs", "factures impayées fournisseurs", "pénalités"],
+    "profiles": [
+      "Trésorier",
+      "DAF"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "dettes échues",
+      "retards fournisseurs",
+      "factures impayées fournisseurs",
+      "pénalités"
+    ],
     "sqlSage100View": "VW_FOURNISSEURS",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC"],
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC"
+    ],
     "sqlSage100": "SELECT SUM(Montant_TTC) FROM VW_FOURNISSEURS WHERE CP_Classe='40' AND EC_DateEcheance<GETDATE() AND EC_Lettrage=''",
     "mlUsage": "Feature prévision cash outflow urgent. Modèle priorisation paiements."
   },
@@ -1567,11 +2672,25 @@
     "defaultVizType": "bar",
     "frequency": "Hebdomadaire",
     "risk": "Élevé",
-    "profiles": ["DAF", "Achats", "Juridique"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["balance âgée fournisseurs", "dettes échues tranches", "LME conformité", "retard paiement fournisseur"],
+    "profiles": [
+      "DAF",
+      "Achats",
+      "Juridique"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "balance âgée fournisseurs",
+      "dettes échues tranches",
+      "LME conformité",
+      "retard paiement fournisseur"
+    ],
     "sqlSage100View": "VW_FOURNISSEURS",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC"],
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC"
+    ],
     "sqlSage100": "SELECT CASE WHEN DATEDIFF(day,EC_DateEcheance,GETDATE())<0 THEN 'Non échu' WHEN DATEDIFF(day,EC_DateEcheance,GETDATE())<=30 THEN '0-30j' WHEN DATEDIFF(day,EC_DateEcheance,GETDATE())<=60 THEN '30-60j' WHEN DATEDIFF(day,EC_DateEcheance,GETDATE())<=90 THEN '60-90j' ELSE '+90j' END AS Tranche, SUM(EC_Montant) FROM VW_FOURNISSEURS WHERE EC_Lettrage='' GROUP BY Tranche",
     "mlUsage": "Feature scoring risque pénalités fournisseurs. Alerte automatique LME."
   },
@@ -1588,11 +2707,25 @@
     "defaultVizType": "table",
     "frequency": "Hebdomadaire",
     "risk": "Élevé",
-    "profiles": ["Trésorier", "Comptable"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["échéancier fournisseurs", "planning paiements", "prévision décaissements", "cash outflow"],
+    "profiles": [
+      "Trésorier",
+      "Comptable"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "échéancier fournisseurs",
+      "planning paiements",
+      "prévision décaissements",
+      "cash outflow"
+    ],
     "sqlSage100View": "VW_FOURNISSEURS",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC", "F_REGLEF"],
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC",
+      "F_REGLEF"
+    ],
     "sqlSage100": "SELECT EC_DateEcheance, CT_Nom, EC_Libelle, SUM(EC_Montant) FROM VW_FOURNISSEURS WHERE EC_Lettrage='' ORDER BY EC_DateEcheance",
     "mlUsage": "Feature prévision cash outflows. Modèle priorisation paiements automatisé."
   },
@@ -1609,12 +2742,26 @@
     "defaultVizType": "pie",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["DAF", "Achats", "Contrôleur"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["dettes par rubrique", "dépenses par nature", "charges à payer", "répartition achats"],
+    "profiles": [
+      "DAF",
+      "Achats",
+      "Contrôleur"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "dettes par rubrique",
+      "dépenses par nature",
+      "charges à payer",
+      "répartition achats"
+    ],
     "sqlSage100View": "VW_FOURNISSEURS",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC"],
-    "sqlSage100": "SELECT Type_Depense, SUM(EC_Montant) FROM VW_FOURNISSEURS JOIN Mapping_Tiers_Rubrique ON CT_Num GROUP BY Type_Depense",
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC"
+    ],
+    "sqlSage100": "SELECT type_depense, SUM(encours_fournisseurs) AS Total_Dettes FROM VW_FOURNISSEURS GROUP BY type_depense ORDER BY Total_Dettes DESC",
     "mlUsage": "Feature prévision budgétaire par rubrique. Clustering profils de dépenses."
   },
   {
@@ -1630,11 +2777,25 @@
     "defaultVizType": "table",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["Achats", "DAF"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["top fournisseurs", "fournisseurs stratégiques", "DPO individuel", "classement achats"],
+    "profiles": [
+      "Achats",
+      "DAF"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "top fournisseurs",
+      "fournisseurs stratégiques",
+      "DPO individuel",
+      "classement achats"
+    ],
     "sqlSage100View": "VW_FOURNISSEURS",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC", "F_REGLEF"],
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC",
+      "F_REGLEF"
+    ],
     "sqlSage100": "SELECT TOP 10 CT_Num, CT_Nom, SUM(Achats), (Encours/Achats_Annuels)*365 AS DPO_Individuel, RANK() OVER(ORDER BY SUM(Achats) DESC) AS Rang FROM VW_FOURNISSEURS GROUP BY CT_Num, CT_Nom ORDER BY Rang",
     "mlUsage": "Feature optimisation conditions fournisseurs et modèles de négociation."
   },
@@ -1651,11 +2812,23 @@
     "defaultVizType": "bar",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["DAF Groupe"],
-    "sectors": ["Tous secteurs (Groupe)"],
-    "keywords": ["dettes groupe", "interco fournisseurs", "consolidation dettes", "intra-groupe passif"],
+    "profiles": [
+      "DAF Groupe"
+    ],
+    "sectors": [
+      "Tous secteurs (Groupe)"
+    ],
+    "keywords": [
+      "dettes groupe",
+      "interco fournisseurs",
+      "consolidation dettes",
+      "intra-groupe passif"
+    ],
     "sqlSage100View": "VW_FOURNISSEURS",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC"],
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC"
+    ],
     "sqlSage100": "SELECT Flag_Groupe, SUM(Dettes) FROM VW_FOURNISSEURS GROUP BY Flag_Groupe",
     "mlUsage": "Feature consolidation et optimisation flux intra-groupe."
   },
@@ -1672,11 +2845,24 @@
     "defaultVizType": "line",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["Contrôleur", "DAF"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["évolution dettes rubrique", "tendance achats", "N/N-1 fournisseurs", "dérive dépenses"],
+    "profiles": [
+      "Contrôleur",
+      "DAF"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "évolution dettes rubrique",
+      "tendance achats",
+      "N/N-1 fournisseurs",
+      "dérive dépenses"
+    ],
     "sqlSage100View": "VW_FOURNISSEURS",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC"],
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC"
+    ],
     "sqlSage100": "SELECT Mois, Rubrique, SUM(Encours) FROM VW_FOURNISSEURS GROUP BY Mois, Rubrique",
     "mlUsage": "Time-series par catégorie de dépenses. Feature reprévision budgétaire."
   },
@@ -1690,14 +2876,30 @@
     "description": "Valorisation totale du stock au Prix Unitaire Moyen Pondéré. Agrégable par dépôt, famille, article.",
     "usage": "Évaluation du patrimoine. Calcul du BFR. Base d'analyse de rotation. Reporting bilan.",
     "unit": "€",
-    "defaultVizType": "bar",
+    "defaultVizType": "table",
     "frequency": "Quotidien",
     "risk": "Faible",
-    "profiles": ["DAF", "Logistique"],
-    "sectors": ["Commerce", "Industrie", "Distribution"],
-    "keywords": ["valeur stock", "PUMP", "valorisation stock", "inventaire valorisé"],
+    "profiles": [
+      "DAF",
+      "Logistique"
+    ],
+    "sectors": [
+      "Commerce",
+      "Industrie",
+      "Distribution"
+    ],
+    "keywords": [
+      "valeur stock",
+      "PUMP",
+      "valorisation stock",
+      "inventaire valorisé"
+    ],
     "sqlSage100View": "VW_STOCKS",
-    "sqlSage100Tables": ["F_ARTSTOCK", "F_ARTICLE", "F_DEPOT"],
+    "sqlSage100Tables": [
+      "F_ARTSTOCK",
+      "F_ARTICLE",
+      "F_DEPOT"
+    ],
     "sqlSage100": "SELECT SUM(AS_QteSto * AS_PUMP) FROM VW_STOCKS GROUP BY AR_Ref, DE_No",
     "mlUsage": "Feature prévision besoins en approvisionnement."
   },
@@ -1711,14 +2913,30 @@
     "description": "Nombre de renouvellements du stock sur la période. Mesure l'efficacité de gestion des stocks.",
     "usage": "Identifier les stocks dormants. Optimiser les niveaux de réapprovisionnement. Réduire le BFR.",
     "unit": "x",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["Logistique", "DAF"],
-    "sectors": ["Commerce", "Industrie", "Distribution"],
-    "keywords": ["rotation stocks", "stock turnover", "renouvellement stock", "vitesse écoulement"],
+    "profiles": [
+      "Logistique",
+      "DAF"
+    ],
+    "sectors": [
+      "Commerce",
+      "Industrie",
+      "Distribution"
+    ],
+    "keywords": [
+      "rotation stocks",
+      "stock turnover",
+      "renouvellement stock",
+      "vitesse écoulement"
+    ],
     "sqlSage100View": "VW_STOCKS",
-    "sqlSage100Tables": ["F_ARTSTOCK", "F_ARTICLE", "G_ECRITUREC"],
+    "sqlSage100Tables": [
+      "F_ARTSTOCK",
+      "F_ARTICLE",
+      "G_ECRITUREC"
+    ],
     "sqlSage100": "SELECT CAMV_Periode / ((Stock_Debut + Stock_Fin)/2) AS Taux_Rotation FROM VW_STOCKS",
     "mlUsage": "Feature gestion prédictive des stocks. Calcul du reorder point."
   },
@@ -1732,14 +2950,30 @@
     "description": "Nombre de jours de ventes que le stock actuel peut couvrir. Par article et par dépôt.",
     "usage": "Prévenir les ruptures de stock. Déclencher les commandes fournisseurs. Optimiser le stock de sécurité.",
     "unit": "jours",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Quotidien",
     "risk": "Élevé",
-    "profiles": ["Logistique", "Achats"],
-    "sectors": ["Commerce", "Industrie", "Distribution"],
-    "keywords": ["couverture stock", "jours de stock", "stock sécurité", "réapprovisionnement"],
+    "profiles": [
+      "Logistique",
+      "Achats"
+    ],
+    "sectors": [
+      "Commerce",
+      "Industrie",
+      "Distribution"
+    ],
+    "keywords": [
+      "couverture stock",
+      "jours de stock",
+      "stock sécurité",
+      "réapprovisionnement"
+    ],
     "sqlSage100View": "VW_STOCKS",
-    "sqlSage100Tables": ["F_ARTSTOCK", "F_ARTICLE", "G_ECRITUREC"],
+    "sqlSage100Tables": [
+      "F_ARTSTOCK",
+      "F_ARTICLE",
+      "G_ECRITUREC"
+    ],
     "sqlSage100": "SELECT AR_Ref, AS_QteSto / NULLIF(Ventes_Jour_Moyennes_30j, 0) AS Couverture_Jours FROM VW_STOCKS",
     "mlUsage": "Feature prévision de rupture. Modèle réapprovisionnement automatique (reorder point)."
   },
@@ -1753,14 +2987,30 @@
     "description": "% de références actives avec stock nul ou inférieur au stock minimum paramétré dans Sage.",
     "usage": "Mesurer la disponibilité produit. Évaluer l'impact commercial des ruptures. Alertes automatiques.",
     "unit": "%",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Quotidien",
     "risk": "Élevé",
-    "profiles": ["Logistique", "Commercial"],
-    "sectors": ["Commerce", "Industrie", "Distribution"],
-    "keywords": ["taux rupture", "rupture stock", "disponibilité produit", "stock minimum", "out of stock"],
+    "profiles": [
+      "Logistique",
+      "Commercial"
+    ],
+    "sectors": [
+      "Commerce",
+      "Industrie",
+      "Distribution"
+    ],
+    "keywords": [
+      "taux rupture",
+      "rupture stock",
+      "disponibilité produit",
+      "stock minimum",
+      "out of stock"
+    ],
     "sqlSage100View": "VW_STOCKS",
-    "sqlSage100Tables": ["F_ARTSTOCK", "F_ARTICLE"],
+    "sqlSage100Tables": [
+      "F_ARTSTOCK",
+      "F_ARTICLE"
+    ],
     "sqlSage100": "SELECT (COUNT(AR_Ref) FILTER (WHERE AS_QteSto<=AR_StkMini) / COUNT(AR_Ref) FILTER (WHERE AR_Actif=1)) * 100 FROM VW_STOCKS",
     "mlUsage": "Variable cible pour modèles de prédiction de rupture."
   },
@@ -1777,12 +3027,27 @@
     "defaultVizType": "table",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["Logistique", "DAF"],
-    "sectors": ["Commerce", "Industrie"],
-    "keywords": ["stock dormant", "stock obsolète", "stock sans mouvement", "dépréciation stock"],
+    "profiles": [
+      "Logistique",
+      "DAF"
+    ],
+    "sectors": [
+      "Commerce",
+      "Industrie"
+    ],
+    "keywords": [
+      "stock dormant",
+      "stock obsolète",
+      "stock sans mouvement",
+      "dépréciation stock"
+    ],
     "sqlSage100View": "VW_STOCKS",
-    "sqlSage100Tables": ["F_ARTSTOCK", "F_ARTICLE", "F_MOUVEMENT"],
-    "sqlSage100": "SELECT AR_Ref, AS_QteSto * AS_PUMP AS Valeur FROM VW_STOCKS WHERE AS_QteSto > 0 AND DATEDIFF(day, DernierMouvement_Date, GETDATE()) > @SeuilJours",
+    "sqlSage100Tables": [
+      "F_ARTSTOCK",
+      "F_ARTICLE",
+      "F_MOUVEMENT"
+    ],
+    "sqlSage100": "SELECT AR_Ref, AS_QteSto * AS_PUMP AS Valeur FROM VW_STOCKS WHERE AS_QteSto > 0 AND DATEDIFF(day, DernierMouvement_Date, GETDATE()) > 180",
     "mlUsage": "Feature classification articles et optimisation assortiment. Prédiction obsolescence."
   },
   {
@@ -1795,14 +3060,29 @@
     "description": "Marge brute unitaire et totale par référence article et par famille d'articles. En valeur et en pourcentage.",
     "usage": "Identifier les articles les plus profitables. Optimiser l'assortiment. Politique de prix par famille.",
     "unit": "€",
-    "defaultVizType": "bar",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["Commercial", "DAF"],
-    "sectors": ["Commerce", "Industrie"],
-    "keywords": ["marge article", "marge famille", "rentabilité produit", "taux marge article"],
+    "profiles": [
+      "Commercial",
+      "DAF"
+    ],
+    "sectors": [
+      "Commerce",
+      "Industrie"
+    ],
+    "keywords": [
+      "marge article",
+      "marge famille",
+      "rentabilité produit",
+      "taux marge article"
+    ],
     "sqlSage100View": "VW_STOCKS",
-    "sqlSage100Tables": ["F_ARTICLE", "F_ARTSTOCK", "G_ECRITUREC"],
+    "sqlSage100Tables": [
+      "F_ARTICLE",
+      "F_ARTSTOCK",
+      "G_ECRITUREC"
+    ],
     "sqlSage100": "SELECT AR_Ref, AR_Famille, (Prix_Vente_HT - AS_PUMP) AS Marge_U, ((Prix_Vente_HT - AS_PUMP)/Prix_Vente_HT*100) AS Taux_Marge FROM VW_STOCKS",
     "mlUsage": "Feature recommandation de gamme. Optimisation pricing dynamique."
   },
@@ -1819,11 +3099,27 @@
     "defaultVizType": "bar",
     "frequency": "Hebdomadaire",
     "risk": "Faible",
-    "profiles": ["Logistique", "DAF"],
-    "sectors": ["Commerce", "Industrie", "Distribution"],
-    "keywords": ["stock par dépôt", "entrepôt", "multi-sites stock", "valorisation dépôt"],
+    "profiles": [
+      "Logistique",
+      "DAF"
+    ],
+    "sectors": [
+      "Commerce",
+      "Industrie",
+      "Distribution"
+    ],
+    "keywords": [
+      "stock par dépôt",
+      "entrepôt",
+      "multi-sites stock",
+      "valorisation dépôt"
+    ],
     "sqlSage100View": "VW_STOCKS",
-    "sqlSage100Tables": ["F_ARTSTOCK", "F_DEPOT", "F_ARTICLE"],
+    "sqlSage100Tables": [
+      "F_ARTSTOCK",
+      "F_DEPOT",
+      "F_ARTICLE"
+    ],
     "sqlSage100": "SELECT DE_No, DE_Intitule, SUM(AS_QteSto * AS_PUMP) FROM VW_STOCKS GROUP BY DE_No, DE_Intitule",
     "mlUsage": "Feature optimisation répartition stock multi-sites. Modèles de transfert inter-dépôts."
   },
@@ -1837,14 +3133,30 @@
     "description": "% des commandes clients livrées dans les délais et en totalité sans rupture. Indicateur qualité logistique.",
     "usage": "Mesurer la performance de livraison. Identifier les familles/produits à problème. SLA clients.",
     "unit": "%",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Hebdomadaire",
     "risk": "Moyen",
-    "profiles": ["Logistique", "Commercial"],
-    "sectors": ["Commerce", "Distribution", "Industrie"],
-    "keywords": ["taux service", "satisfaction commandes", "SLA livraison", "fill rate", "service level"],
+    "profiles": [
+      "Logistique",
+      "Commercial"
+    ],
+    "sectors": [
+      "Commerce",
+      "Distribution",
+      "Industrie"
+    ],
+    "keywords": [
+      "taux service",
+      "satisfaction commandes",
+      "SLA livraison",
+      "fill rate",
+      "service level"
+    ],
     "sqlSage100View": "VW_STOCKS",
-    "sqlSage100Tables": ["F_DOCLIGNE", "F_ARTSTOCK"],
+    "sqlSage100Tables": [
+      "F_DOCLIGNE",
+      "F_ARTSTOCK"
+    ],
     "sqlSage100": "SELECT (Nb_Lignes_Livrees_Sans_Rupture / Nb_Lignes_Commandees_Totales) * 100 AS Taux_Service FROM VW_STOCKS",
     "mlUsage": "Feature pour modèles de prévision de satisfaction client et d'optimisation logistique."
   },
@@ -1858,14 +3170,27 @@
     "description": "% d'écritures sur comptes clients (41) et fournisseurs (40) correctement lettrées (rapprochées avec règlement).",
     "usage": "Évaluer la qualité de la saisie comptable. Détecter les anomalies. Préparer la clôture. Audit interne.",
     "unit": "%",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["Expert-Comptable", "Comptable"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["taux lettrage", "lettrage comptable", "qualité saisie", "rapprochement tiers"],
+    "profiles": [
+      "Expert-Comptable",
+      "Comptable"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "taux lettrage",
+      "lettrage comptable",
+      "qualité saisie",
+      "rapprochement tiers"
+    ],
     "sqlSage100View": "VW_GRAND_LIVRE",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_COMPTET"],
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_COMPTET"
+    ],
     "sqlSage100": "SELECT (COUNT(EC_Id) FILTER (WHERE EC_Lettrage!='' AND CP_Classe IN ('40','41')) / COUNT(*)) * 100 AS Taux_Lettrage FROM VW_GRAND_LIVRE",
     "mlUsage": "Feature détection anomalies comptables. Indicateur qualité données."
   },
@@ -1879,14 +3204,27 @@
     "description": "Écart entre le solde comptable des comptes 512xxx et le solde des relevés bancaires. Identification des opérations en attente.",
     "usage": "Fiabilité des données comptables. Détection d'opérations non saisies ou d'erreurs. Conformité audit.",
     "unit": "€",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["Comptable", "Expert-Comptable"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["rapprochement bancaire", "écart bancaire", "solde comptable banque", "rapprocher"],
+    "profiles": [
+      "Comptable",
+      "Expert-Comptable"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "rapprochement bancaire",
+      "écart bancaire",
+      "solde comptable banque",
+      "rapprocher"
+    ],
     "sqlSage100View": "VW_GRAND_LIVRE",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_COMPTE"],
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_COMPTE"
+    ],
     "sqlSage100": "SELECT Solde_Comptable_512 - Solde_Releve_Bancaire AS Ecart FROM VW_GRAND_LIVRE",
     "mlUsage": "Feature détection d'anomalies et d'erreurs comptables automatiques."
   },
@@ -1903,11 +3241,24 @@
     "defaultVizType": "bar",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["Comptable", "DAF"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["écritures par journal", "volume saisie", "productivité comptable", "journal achats ventes"],
+    "profiles": [
+      "Comptable",
+      "DAF"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "écritures par journal",
+      "volume saisie",
+      "productivité comptable",
+      "journal achats ventes"
+    ],
     "sqlSage100View": "VW_GRAND_LIVRE",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_JOURNAL"],
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_JOURNAL"
+    ],
     "sqlSage100": "SELECT JO_Num, JO_Intitule, COUNT(EC_Id) FROM VW_GRAND_LIVRE GROUP BY JO_Num, JO_Intitule, EC_Exercice, MONTH(EC_Date)",
     "mlUsage": "Feature détection d'anomalies (pic/creux inhabituels de saisie). Analyse de comportement utilisateur."
   },
@@ -1924,11 +3275,24 @@
     "defaultVizType": "bar",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["Comptable", "Contrôleur"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["charges par nature", "classe 6", "charges exploitation", "décomposition charges"],
+    "profiles": [
+      "Comptable",
+      "Contrôleur"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "charges par nature",
+      "classe 6",
+      "charges exploitation",
+      "décomposition charges"
+    ],
     "sqlSage100View": "VW_GRAND_LIVRE",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_COMPTE"],
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_COMPTE"
+    ],
     "sqlSage100": "SELECT LEFT(CP_Num,2) AS Classe, SUM(EC_Montant) FROM VW_GRAND_LIVRE WHERE EC_Sens='D' AND LEFT(CP_Num,2) IN ('60','61','62','63','64','65','66') GROUP BY LEFT(CP_Num,2)",
     "mlUsage": "Feature prévision budgétaire par nature. Clustering profils d'entreprise."
   },
@@ -1942,14 +3306,28 @@
     "description": "Montant total des dotations aux amortissements comptabilisées sur l'exercice. Par nature d'immobilisation.",
     "usage": "Suivi du plan d'amortissement. Impact sur résultat. Calcul de la CAF (Capacité d'Autofinancement).",
     "unit": "€",
-    "defaultVizType": "bar",
+    "defaultVizType": "line",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["Expert-Comptable", "DAF"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["dotations amortissements", "amortissements", "CAF", "classe 68", "plan amortissement"],
+    "profiles": [
+      "Expert-Comptable",
+      "DAF"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "dotations amortissements",
+      "amortissements",
+      "CAF",
+      "classe 68",
+      "plan amortissement"
+    ],
     "sqlSage100View": "VW_GRAND_LIVRE",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_COMPTE"],
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_COMPTE"
+    ],
     "sqlSage100": "SELECT EC_Exercice, SUM(EC_Montant) FROM VW_GRAND_LIVRE WHERE CP_Classe='68' AND EC_Sens='D' GROUP BY EC_Exercice",
     "mlUsage": "Feature calcul EBITDA et modèles de valorisation d'entreprise."
   },
@@ -1963,14 +3341,29 @@
     "description": "Solde net de TVA (collectée sur ventes - déductible sur achats) = TVA à décaisser ou crédit de TVA.",
     "usage": "Préparation des déclarations CA3/CA12. Anticipation des décaissements TVA. Contrôle fiscal.",
     "unit": "€",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["Comptable", "Expert-Comptable", "DAF"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["TVA collectée", "TVA déductible", "crédit TVA", "TVA à décaisser", "CA3"],
+    "profiles": [
+      "Comptable",
+      "Expert-Comptable",
+      "DAF"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "TVA collectée",
+      "TVA déductible",
+      "crédit TVA",
+      "TVA à décaisser",
+      "CA3"
+    ],
     "sqlSage100View": "VW_GRAND_LIVRE",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_COMPTE"],
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_COMPTE"
+    ],
     "sqlSage100": "SELECT SUM(CASE WHEN CP_Num='4457' THEN EC_Montant ELSE 0 END) AS TVA_Collectee, SUM(CASE WHEN CP_Num IN ('4456','4452') THEN EC_Montant ELSE 0 END) AS TVA_Deductible FROM VW_GRAND_LIVRE",
     "mlUsage": "Feature prévision des décaissements fiscaux dans le tableau de flux."
   },
@@ -1987,12 +3380,27 @@
     "defaultVizType": "bar",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["DAF", "Expert-Comptable", "DG"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["résultat exercice", "P&L", "compte résultat", "produits charges", "liasse fiscale"],
+    "profiles": [
+      "DAF",
+      "Expert-Comptable",
+      "DG"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "résultat exercice",
+      "P&L",
+      "compte résultat",
+      "produits charges",
+      "liasse fiscale"
+    ],
     "sqlSage100View": "VW_GRAND_LIVRE",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_COMPTE"],
-    "sqlSage100": "SELECT SUM(CASE WHEN CP_Classe='7' THEN EC_Montant ELSE 0 END) AS Produits_7, SUM(CASE WHEN CP_Classe='6' THEN EC_Montant ELSE 0 END) AS Charges_6 FROM VW_GRAND_LIVRE WHERE EC_Exercice=@Annee",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_COMPTE"
+    ],
+    "sqlSage100": "SELECT SUM(CASE WHEN CP_Classe='7' THEN EC_Montant ELSE 0 END) AS Produits_7, SUM(CASE WHEN CP_Classe='6' THEN EC_Montant ELSE 0 END) AS Charges_6 FROM VW_GRAND_LIVRE",
     "mlUsage": "Feature santé financière globale. Input modèles d'évaluation et notation."
   },
   {
@@ -2008,11 +3416,27 @@
     "defaultVizType": "bar",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["Contrôleur", "DAF", "Responsables BU"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["ca analytique", "axe analytique", "centre profit", "section analytique", "reporting BU"],
+    "profiles": [
+      "Contrôleur",
+      "DAF",
+      "Responsables BU"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "ca analytique",
+      "axe analytique",
+      "centre profit",
+      "section analytique",
+      "reporting BU"
+    ],
     "sqlSage100View": "VW_ANALYTIQUE",
-    "sqlSage100Tables": ["G_ECRITUREC", "G_SECTION", "G_AXE"],
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "G_SECTION",
+      "G_AXE"
+    ],
     "sqlSage100": "SELECT GA_No, GA_Intitule, GS_No, GS_Intitule, SUM(EA_Montant) FROM VW_ANALYTIQUE WHERE EA_Type=2 GROUP BY GA_No, GA_Intitule, GS_No, GS_Intitule",
     "mlUsage": "Features pour modèles de performance par segment/territoire."
   },
@@ -2029,11 +3453,25 @@
     "defaultVizType": "bar",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["Contrôleur", "DAF"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["charges analytiques", "charges par BU", "coûts par département", "imputation analytique"],
+    "profiles": [
+      "Contrôleur",
+      "DAF"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "charges analytiques",
+      "charges par BU",
+      "coûts par département",
+      "imputation analytique"
+    ],
     "sqlSage100View": "VW_ANALYTIQUE",
-    "sqlSage100Tables": ["G_ECRITUREC", "G_SECTION", "F_COMPTE"],
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "G_SECTION",
+      "F_COMPTE"
+    ],
     "sqlSage100": "SELECT GS_No, LEFT(CP_Num,2) AS Classe, SUM(EA_Montant) FROM VW_ANALYTIQUE WHERE EC_Sens='D' AND CP_Classe='6' GROUP BY GS_No, LEFT(CP_Num,2)",
     "mlUsage": "Feature prévision budgétaire par BU. Modèles d'allocation de coûts."
   },
@@ -2050,11 +3488,25 @@
     "defaultVizType": "bar",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["DG", "DAF", "Contrôleur"],
-    "sectors": ["Tous secteurs multi-BU"],
-    "keywords": ["résultat centre profit", "P&L BU", "rentabilité département", "résultat section"],
+    "profiles": [
+      "DG",
+      "DAF",
+      "Contrôleur"
+    ],
+    "sectors": [
+      "Tous secteurs multi-BU"
+    ],
+    "keywords": [
+      "résultat centre profit",
+      "P&L BU",
+      "rentabilité département",
+      "résultat section"
+    ],
     "sqlSage100View": "VW_ANALYTIQUE",
-    "sqlSage100Tables": ["G_ECRITUREC", "G_SECTION"],
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "G_SECTION"
+    ],
     "sqlSage100": "SELECT GS_No, GS_Intitule, SUM(Produits_Section) - SUM(Charges_Section) AS Resultat FROM VW_ANALYTIQUE GROUP BY GS_No, GS_Intitule",
     "mlUsage": "Feature pour modèles de performance par BU et décisions d'investissement."
   },
@@ -2068,14 +3520,27 @@
     "description": "Différence entre montant budgété et réalisé par axe analytique. En valeur absolue et en % d'écart.",
     "usage": "Contrôle budgétaire en temps réel. Alertes sur dépassements. Reprévision en cours d'année.",
     "unit": "€",
-    "defaultVizType": "bar",
+    "defaultVizType": "line",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["Contrôleur", "DAF"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["écart budget réalisé", "dépassement budget", "vs budget", "contrôle budgétaire axe"],
+    "profiles": [
+      "Contrôleur",
+      "DAF"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "écart budget réalisé",
+      "dépassement budget",
+      "vs budget",
+      "contrôle budgétaire axe"
+    ],
     "sqlSage100View": "VW_ANALYTIQUE",
-    "sqlSage100Tables": ["G_ECRITUREC", "G_SECTION"],
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "G_SECTION"
+    ],
     "sqlSage100": "SELECT GS_No, Mois, (Realise - Budget) AS Ecart, ((Realise - Budget)/NULLIF(Budget,0)*100) AS Taux_Ecart FROM VW_ANALYTIQUE GROUP BY GS_No, Mois",
     "mlUsage": "Feature reprévision automatique. Modèle forecasting adaptatif."
   },
@@ -2092,11 +3557,28 @@
     "defaultVizType": "bar",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["Direction Commerciale", "DG"],
-    "sectors": ["Commerce", "Services", "Distribution"],
-    "keywords": ["ca par commercial", "performance vendeur", "commissions", "objectifs commercial", "représentant"],
+    "profiles": [
+      "Direction Commerciale",
+      "DG"
+    ],
+    "sectors": [
+      "Commerce",
+      "Services",
+      "Distribution"
+    ],
+    "keywords": [
+      "ca par commercial",
+      "performance vendeur",
+      "commissions",
+      "objectifs commercial",
+      "représentant"
+    ],
     "sqlSage100View": "VW_ANALYTIQUE",
-    "sqlSage100Tables": ["G_ECRITUREC", "G_SECTION", "F_COMPTET"],
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "G_SECTION",
+      "F_COMPTET"
+    ],
     "sqlSage100": "SELECT GS_Intitule AS Commercial, SUM(EA_Montant) FROM VW_ANALYTIQUE WHERE GA_Intitule LIKE '%Commercial%' GROUP BY GS_Intitule",
     "mlUsage": "Feature ranking et scoring commercial. Prédiction de performance par commercial."
   },
@@ -2113,11 +3595,26 @@
     "defaultVizType": "map",
     "frequency": "Trimestriel",
     "risk": "Faible",
-    "profiles": ["DG", "Direction Commerciale"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["ca par région", "ca géographique", "zone géo", "pays", "expansion territoriale"],
+    "profiles": [
+      "DG",
+      "Direction Commerciale"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "ca par région",
+      "ca géographique",
+      "zone géo",
+      "pays",
+      "expansion territoriale"
+    ],
     "sqlSage100View": "VW_ANALYTIQUE",
-    "sqlSage100Tables": ["G_ECRITUREC", "G_SECTION", "F_COMPTET"],
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "G_SECTION",
+      "F_COMPTET"
+    ],
     "sqlSage100": "SELECT Region, SUM(EA_Montant) FROM VW_ANALYTIQUE GROUP BY Region",
     "mlUsage": "Feature pour modèles de prévision par territoire et optimisation de la couverture commerciale."
   },
@@ -2131,15 +3628,30 @@
     "description": "% des devis (type DE) transformés en commandes (type BC) sur la période. Mesure l'efficacité commerciale.",
     "usage": "Identifier les freins à la conversion. Benchmark par commercial. Optimiser la politique tarifaire.",
     "unit": "%",
-    "defaultVizType": "gauge",
+    "defaultVizType": "bar",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["Direction Commerciale", "DG"],
-    "sectors": ["Commerce", "Distribution", "Services"],
-    "keywords": ["taux transformation", "conversion devis commande", "win rate", "pipeline commercial"],
+    "profiles": [
+      "Direction Commerciale",
+      "DG"
+    ],
+    "sectors": [
+      "Commerce",
+      "Distribution",
+      "Services"
+    ],
+    "keywords": [
+      "taux transformation",
+      "conversion devis commande",
+      "win rate",
+      "pipeline commercial"
+    ],
     "sqlSage100View": "VW_COMMANDES",
-    "sqlSage100Tables": ["F_DOCCLIENT", "F_DOCLIGNE"],
-    "sqlSage100": "SELECT (COUNT(CASE WHEN DO_Type=1 THEN 1 END) / NULLIF(COUNT(CASE WHEN DO_Type=3 THEN 1 END),0)) * 100 AS Taux_Transformation FROM VW_COMMANDES GROUP BY periode",
+    "sqlSage100Tables": [
+      "F_DOCCLIENT",
+      "F_DOCLIGNE"
+    ],
+    "sqlSage100": "SELECT Periode, (COUNT(CASE WHEN Sens_Commercial='V' AND Statut_Code='BL' THEN 1 END) * 100.0 / NULLIF(COUNT(CASE WHEN Sens_Commercial='V' AND Statut_Code='BC' THEN 1 END),0)) AS Taux_Transformation FROM VW_COMMANDES GROUP BY Periode ORDER BY Periode",
     "mlUsage": "Feature pour modèles de prévision de CA pipelines et scoring d'opportunités."
   },
   {
@@ -2152,15 +3664,30 @@
     "description": "Montant total des commandes clients confirmées non encore livrées et facturées. Carnet de commandes.",
     "usage": "Visibilité sur le CA futur garanti. Planification de la production/logistique. Indicateur de charge.",
     "unit": "€",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Hebdomadaire",
     "risk": "Moyen",
-    "profiles": ["Direction Commerciale", "Production"],
-    "sectors": ["Commerce", "Industrie", "Distribution"],
-    "keywords": ["backlog", "carnet commandes", "commandes en cours", "order book"],
+    "profiles": [
+      "Direction Commerciale",
+      "Production"
+    ],
+    "sectors": [
+      "Commerce",
+      "Industrie",
+      "Distribution"
+    ],
+    "keywords": [
+      "backlog",
+      "carnet commandes",
+      "commandes en cours",
+      "order book"
+    ],
     "sqlSage100View": "VW_COMMANDES",
-    "sqlSage100Tables": ["F_DOCCLIENT", "F_DOCLIGNE"],
-    "sqlSage100": "SELECT SUM(DL_MontantHT) FROM VW_COMMANDES WHERE DO_Type=1 AND DO_Statut<>'Terminé' AND DL_QteLivree<DL_Qte",
+    "sqlSage100Tables": [
+      "F_DOCCLIENT",
+      "F_DOCLIGNE"
+    ],
+    "sqlSage100": "SELECT SUM(Total_HT) AS Backlog_Commandes FROM VW_COMMANDES WHERE Sens_Commercial='V' AND Statut_Code NOT IN ('BL','FA','AV')",
     "mlUsage": "Feature pour prévision du CA à court terme (1-3 mois). Input modèle de charge."
   },
   {
@@ -2173,15 +3700,30 @@
     "description": "Nombre moyen de jours entre la date de commande et la date de livraison effective. Par article, famille, client.",
     "usage": "Mesurer la performance logistique. Identifier les goulots d'étranglement. SLA clients.",
     "unit": "jours",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Hebdomadaire",
     "risk": "Moyen",
-    "profiles": ["Logistique", "Commercial"],
-    "sectors": ["Commerce", "Distribution", "Industrie"],
-    "keywords": ["délai livraison", "lead time", "performance logistique", "délai commande livraison"],
+    "profiles": [
+      "Logistique",
+      "Commercial"
+    ],
+    "sectors": [
+      "Commerce",
+      "Distribution",
+      "Industrie"
+    ],
+    "keywords": [
+      "délai livraison",
+      "lead time",
+      "performance logistique",
+      "délai commande livraison"
+    ],
     "sqlSage100View": "VW_COMMANDES",
-    "sqlSage100Tables": ["F_DOCCLIENT", "F_DOCLIGNE"],
-    "sqlSage100": "SELECT AVG(DATEDIFF(day, DO_DateCmd, DO_DateLivraison)) FROM VW_COMMANDES WHERE DO_Type IN (1,3)",
+    "sqlSage100Tables": [
+      "F_DOCCLIENT",
+      "F_DOCLIGNE"
+    ],
+    "sqlSage100": "SELECT AVG(Age_Jours) AS Delai_Moyen_Livraison FROM VW_COMMANDES WHERE Date_Livraison_Prevue IS NOT NULL AND Statut_Code IN ('BL','FA')",
     "mlUsage": "Feature pour modèles de prédiction de délai et optimisation logistique."
   },
   {
@@ -2194,15 +3736,29 @@
     "description": "Montant moyen d'une commande ou d'une facture client. Par période, commercial, famille de produits.",
     "usage": "Mesurer la qualité des ventes. Identifier les opportunités d'upsell. Benchmark par commercial.",
     "unit": "€",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["Direction Commerciale"],
-    "sectors": ["Commerce", "Distribution", "Services"],
-    "keywords": ["ticket moyen", "panier moyen", "average order value", "montant moyen commande"],
+    "profiles": [
+      "Direction Commerciale"
+    ],
+    "sectors": [
+      "Commerce",
+      "Distribution",
+      "Services"
+    ],
+    "keywords": [
+      "ticket moyen",
+      "panier moyen",
+      "average order value",
+      "montant moyen commande"
+    ],
     "sqlSage100View": "VW_COMMANDES",
-    "sqlSage100Tables": ["F_DOCCLIENT", "F_DOCLIGNE"],
-    "sqlSage100": "SELECT SUM(DO_TotalHT) / COUNT(DISTINCT DO_Piece) AS Ticket_Moyen FROM VW_COMMANDES WHERE DO_Type IN (2,6)",
+    "sqlSage100Tables": [
+      "F_DOCCLIENT",
+      "F_DOCLIGNE"
+    ],
+    "sqlSage100": "SELECT SUM(Total_HT) / NULLIF(COUNT(DISTINCT N_Piece),0) AS Ticket_Moyen FROM VW_COMMANDES WHERE Sens_Commercial='V' AND Statut_Code='FA'",
     "mlUsage": "Feature segmentation client et optimisation commerciale."
   },
   {
@@ -2215,15 +3771,31 @@
     "description": "% du CA HT faisant l'objet d'un retour ou d'un avoir. Par article, famille, client, commercial.",
     "usage": "Mesurer la qualité produit et le taux de satisfaction. Identifier les articles à problème. Politique SAV.",
     "unit": "%",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["Qualité", "Commercial", "DAF"],
-    "sectors": ["Commerce", "Distribution"],
-    "keywords": ["taux retour", "taux avoir", "retours clients", "SAV", "qualité produit"],
+    "profiles": [
+      "Qualité",
+      "Commercial",
+      "DAF"
+    ],
+    "sectors": [
+      "Commerce",
+      "Distribution"
+    ],
+    "keywords": [
+      "taux retour",
+      "taux avoir",
+      "retours clients",
+      "SAV",
+      "qualité produit"
+    ],
     "sqlSage100View": "VW_COMMANDES",
-    "sqlSage100Tables": ["F_DOCCLIENT", "F_DOCLIGNE"],
-    "sqlSage100": "SELECT (SUM(CASE WHEN DO_Type=5 THEN DO_TotalHT ELSE 0 END) / NULLIF(SUM(CASE WHEN DO_Type=2 THEN DO_TotalHT ELSE 0 END),0)) * 100 AS Taux_Retour FROM VW_COMMANDES",
+    "sqlSage100Tables": [
+      "F_DOCCLIENT",
+      "F_DOCLIGNE"
+    ],
+    "sqlSage100": "SELECT (SUM(CASE WHEN Type_Code='AV' THEN Total_HT ELSE 0 END) / NULLIF(SUM(CASE WHEN Type_Code='FA' THEN Total_HT ELSE 0 END),0)) * 100 AS Taux_Retour FROM VW_COMMANDES",
     "mlUsage": "Feature pour modèles de prédiction de satisfaction et classification de qualité produit."
   },
   {
@@ -2239,12 +3811,24 @@
     "defaultVizType": "bar",
     "frequency": "Annuel",
     "risk": "Faible",
-    "profiles": ["DAF", "Expert-Comptable"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["valeur brute immobilisations", "actif immobilisé", "patrimoine brut", "investissements"],
+    "profiles": [
+      "DAF",
+      "Expert-Comptable"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "valeur brute immobilisations",
+      "actif immobilisé",
+      "patrimoine brut",
+      "investissements"
+    ],
     "sqlSage100View": "VW_IMMOBILISATIONS",
-    "sqlSage100Tables": ["F_IMMOBILI"],
-    "sqlSage100": "SELECT IM_Famille, SUM(IM_ValOrigine) FROM VW_IMMOBILISATIONS WHERE IM_Statut='Actif' GROUP BY IM_Famille",
+    "sqlSage100Tables": [
+      "F_IMMOBILI"
+    ],
+    "sqlSage100": "SELECT Libelle_Famille, SUM(Valeur_Acquisition) AS Valeur_Brute FROM VW_IMMOBILISATIONS WHERE Etat_Code='Actif' GROUP BY Libelle_Famille ORDER BY Valeur_Brute DESC",
     "mlUsage": "Feature pour modèles de valorisation d'entreprise et rating financier."
   },
   {
@@ -2257,15 +3841,27 @@
     "description": "Valeur brute moins cumul des amortissements pratiqués. Représente la valeur résiduelle comptable.",
     "usage": "Bilan comptable. Calcul des plus/moins-values de cession. Indicateur de vieillissement du parc.",
     "unit": "€",
-    "defaultVizType": "bar",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["DAF", "Expert-Comptable"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["VNC", "valeur nette comptable", "valeur résiduelle", "amortissements cumulés"],
+    "profiles": [
+      "DAF",
+      "Expert-Comptable"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "VNC",
+      "valeur nette comptable",
+      "valeur résiduelle",
+      "amortissements cumulés"
+    ],
     "sqlSage100View": "VW_IMMOBILISATIONS",
-    "sqlSage100Tables": ["F_IMMOBILI"],
-    "sqlSage100": "SELECT SUM(IM_ValOrigine - IM_CumulAmort) FROM VW_IMMOBILISATIONS WHERE IM_Statut='Actif'",
+    "sqlSage100Tables": [
+      "F_IMMOBILI"
+    ],
+    "sqlSage100": "SELECT SUM(Valeur_Nette_Comptable) AS VNC_Total FROM VW_IMMOBILISATIONS WHERE Etat_Code='Actif'",
     "mlUsage": "Feature évaluation d'entreprise. Modèles de prévision des besoins de renouvellement."
   },
   {
@@ -2278,15 +3874,29 @@
     "description": "% moyen de la valeur brute déjà amortie. Proxy de l'âge moyen du parc d'actifs. Alerte sur parc vieillissant.",
     "usage": "Évaluer le vieillissement du parc. Planifier les investissements de renouvellement. Due diligence.",
     "unit": "%",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Annuel",
     "risk": "Moyen",
-    "profiles": ["DAF", "Direction"],
-    "sectors": ["Industrie", "Commerce", "Services"],
-    "keywords": ["taux amortissement", "vieillissement parc", "âge actifs", "renouvellement investissements"],
+    "profiles": [
+      "DAF",
+      "Direction"
+    ],
+    "sectors": [
+      "Industrie",
+      "Commerce",
+      "Services"
+    ],
+    "keywords": [
+      "taux amortissement",
+      "vieillissement parc",
+      "âge actifs",
+      "renouvellement investissements"
+    ],
     "sqlSage100View": "VW_IMMOBILISATIONS",
-    "sqlSage100Tables": ["F_IMMOBILI"],
-    "sqlSage100": "SELECT (SUM(IM_CumulAmort) / NULLIF(SUM(IM_ValOrigine),0)) * 100 AS Taux_Amort FROM VW_IMMOBILISATIONS",
+    "sqlSage100Tables": [
+      "F_IMMOBILI"
+    ],
+    "sqlSage100": "SELECT AVG(Taux_Amort_Cumul_Pct) AS Taux_Amort_Moyen, SUM(Dotations_Eco_Cumul) AS Dotations_Cumul, SUM(Valeur_Acquisition) AS Valeur_Brute_Totale FROM VW_IMMOBILISATIONS WHERE Etat_Code='Actif'",
     "mlUsage": "Feature pour modèles de prédiction des besoins d'investissement."
   },
   {
@@ -2302,12 +3912,25 @@
     "defaultVizType": "line",
     "frequency": "Annuel",
     "risk": "Faible",
-    "profiles": ["DAF", "Expert-Comptable"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["dotations prévisionnelles", "amortissements futurs", "plan amortissement", "budget amortissement"],
+    "profiles": [
+      "DAF",
+      "Expert-Comptable"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "dotations prévisionnelles",
+      "amortissements futurs",
+      "plan amortissement",
+      "budget amortissement"
+    ],
     "sqlSage100View": "VW_IMMOBILISATIONS",
-    "sqlSage100Tables": ["F_IMMOBILI", "F_IMMOPREV"],
-    "sqlSage100": "SELECT Exercice_Futur, SUM(Annuité_Amort_Prévisionnelle) FROM VW_IMMOBILISATIONS GROUP BY Exercice_Futur",
+    "sqlSage100Tables": [
+      "F_IMMOBILI",
+      "F_IMMOPREV"
+    ],
+    "sqlSage100": "SELECT Annee_Amort, SUM(Valeur_Acquisition * Taux_Amort_Annee / 100) AS Dotation_Previsionnelle FROM VW_IMMOBILISATIONS WHERE Etat_Code='Actif' GROUP BY Annee_Amort ORDER BY Annee_Amort",
     "mlUsage": "Feature pour modèles de prévision financière et budget pluriannuel."
   },
   {
@@ -2320,15 +3943,30 @@
     "description": "Total des charges de personnel comptabilisées (salaires bruts + charges patronales + primes) sur la période.",
     "usage": "Contrôle budgétaire RH. Ratio masse salariale / CA. Impact sur résultat.",
     "unit": "€",
-    "defaultVizType": "bar",
+    "defaultVizType": "line",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["DRH", "DAF", "Contrôleur"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["masse salariale", "charges personnel", "coût RH", "salaires", "classe 64"],
+    "profiles": [
+      "DRH",
+      "DAF",
+      "Contrôleur"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "masse salariale",
+      "charges personnel",
+      "coût RH",
+      "salaires",
+      "classe 64"
+    ],
     "sqlSage100View": "VW_PAIE",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_COMPTE"],
-    "sqlSage100": "SELECT Mois, Annee, SUM(EC_Montant) FROM VW_PAIE WHERE CP_Classe='64' AND EC_Sens='D' GROUP BY Mois, Annee",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_COMPTE"
+    ],
+    "sqlSage100": "SELECT Annee, Mois, Periode, SUM(Cout_Total_Employeur) AS Masse_Salariale, SUM(Salaire_Brut) AS Salaires_Bruts, SUM(Cotisations_Patronales) AS Charges_Patronales FROM VW_PAIE GROUP BY Annee, Mois, Periode ORDER BY Annee, Mois",
     "mlUsage": "Feature pour modèles de prévision budgétaire RH."
   },
   {
@@ -2341,15 +3979,28 @@
     "description": "Part de la masse salariale dans le chiffre d'affaires. Indicateur clé de productivité et de modèle économique.",
     "usage": "Benchmark sectoriel. Alerte sur dérive de productivité. Aide aux décisions RH.",
     "unit": "%",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Moyen",
-    "profiles": ["DG", "DAF", "DRH"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["ratio masse salariale CA", "productivité RH", "coût RH CA", "benchmark RH"],
+    "profiles": [
+      "DG",
+      "DAF",
+      "DRH"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "ratio masse salariale CA",
+      "productivité RH",
+      "coût RH CA",
+      "benchmark RH"
+    ],
     "sqlSage100View": "VW_PAIE",
-    "sqlSage100Tables": ["G_ECRITUREC"],
-    "sqlSage100": "SELECT (Masse_Salariale / CA_HT) * 100 AS Ratio_MS_CA FROM VW_PAIE",
+    "sqlSage100Tables": [
+      "G_ECRITUREC"
+    ],
+    "sqlSage100": "SELECT Annee, Mois, SUM(Cout_Total_Employeur) AS Masse_Salariale FROM VW_PAIE GROUP BY Annee, Mois ORDER BY Annee, Mois -- Ratio MS/CA : diviser par CA de VW_FINANCE_GENERAL",
     "mlUsage": "Feature pour modèles de performance économique et benchmarking sectoriel."
   },
   {
@@ -2362,15 +4013,27 @@
     "description": "Masse salariale totale divisée par le nombre de collaborateurs actifs. En coût chargé.",
     "usage": "Benchmark interne et sectoriel. Aide aux décisions de recrutement. Modèles de croissance.",
     "unit": "€",
-    "defaultVizType": "gauge",
+    "defaultVizType": "card",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["DRH", "DAF"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["coût moyen collaborateur", "coût chargé", "coût ETP", "coût employé"],
+    "profiles": [
+      "DRH",
+      "DAF"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "coût moyen collaborateur",
+      "coût chargé",
+      "coût ETP",
+      "coût employé"
+    ],
     "sqlSage100View": "VW_PAIE",
-    "sqlSage100Tables": ["G_ECRITUREC"],
-    "sqlSage100": "SELECT Masse_Salariale_Chargee / Nb_Collaborateurs_Actifs AS Cout_Moyen FROM VW_PAIE",
+    "sqlSage100Tables": [
+      "G_ECRITUREC"
+    ],
+    "sqlSage100": "SELECT Annee, Mois, SUM(Cout_Total_Employeur) / NULLIF(COUNT(DISTINCT Matricule),0) AS Cout_Moyen_Collaborateur, COUNT(DISTINCT Matricule) AS Nb_Collaborateurs FROM VW_PAIE GROUP BY Annee, Mois ORDER BY Annee, Mois",
     "mlUsage": "Feature pour modèles de planification RH et prévision budgétaire."
   },
   {
@@ -2386,12 +4049,26 @@
     "defaultVizType": "bar",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["Contrôleur", "DRH", "Responsables BU"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["masse salariale département", "coût RH BU", "analytique RH", "charges personnel axe"],
+    "profiles": [
+      "Contrôleur",
+      "DRH",
+      "Responsables BU"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "masse salariale département",
+      "coût RH BU",
+      "analytique RH",
+      "charges personnel axe"
+    ],
     "sqlSage100View": "VW_PAIE",
-    "sqlSage100Tables": ["G_ECRITUREC", "G_SECTION"],
-    "sqlSage100": "SELECT GS_No, GS_Intitule, SUM(EA_Montant) FROM VW_PAIE WHERE CP_Classe='64' GROUP BY GS_No, GS_Intitule",
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "G_SECTION"
+    ],
+    "sqlSage100": "SELECT Annee, Mois, Matricule, Nom_Complet, Salaire_Brut, Net_A_Payer, Cotisations_Patronales, Cout_Total_Employeur FROM VW_PAIE ORDER BY Annee DESC, Mois DESC, Nom_Complet",
     "mlUsage": "Feature pour modèles de budgétisation RH par département."
   },
   {
@@ -2407,11 +4084,25 @@
     "defaultVizType": "table",
     "frequency": "Quotidien",
     "risk": "Élevé",
-    "profiles": ["Audit", "DAF", "Contrôleur"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["anomaly score", "écritures atypiques", "fraude comptable", "contrôle interne", "isolation forest"],
+    "profiles": [
+      "Audit",
+      "DAF",
+      "Contrôleur"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "anomaly score",
+      "écritures atypiques",
+      "fraude comptable",
+      "contrôle interne",
+      "isolation forest"
+    ],
     "sqlSage100View": "VW_GRAND_LIVRE",
-    "sqlSage100Tables": ["G_ECRITUREC"],
+    "sqlSage100Tables": [
+      "G_ECRITUREC"
+    ],
     "sqlSage100": "SELECT EC_Id, EC_Montant, CP_Num, JO_Num, EC_Heure, Utilisateur FROM VW_GRAND_LIVRE -- Isolation Forest / Z-Score sur distribution",
     "mlUsage": "Anomaly detection non supervisé (Isolation Forest, Autoencoder). Features: montant, compte, journal, user, timestamp."
   },
@@ -2428,11 +4119,25 @@
     "defaultVizType": "table",
     "frequency": "Hebdomadaire",
     "risk": "Élevé",
-    "profiles": ["Comptable", "Audit", "DAF"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["doublons factures", "double paiement", "contrôle factures", "doublon fournisseur"],
+    "profiles": [
+      "Comptable",
+      "Audit",
+      "DAF"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "doublons factures",
+      "double paiement",
+      "contrôle factures",
+      "doublon fournisseur"
+    ],
     "sqlSage100View": "VW_GRAND_LIVRE",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_COMPTET"],
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_COMPTET"
+    ],
     "sqlSage100": "SELECT CT_Num, EC_Montant, EC_Date, COUNT(*) AS Nb_Doublons FROM VW_GRAND_LIVRE GROUP BY CT_Num, EC_Montant, EC_Date HAVING COUNT(*)>1",
     "mlUsage": "Pattern matching et clustering sur données factures. Détection automatique de doublons."
   },
@@ -2449,11 +4154,24 @@
     "defaultVizType": "table",
     "frequency": "Quotidien",
     "risk": "Élevé",
-    "profiles": ["DSI", "Audit", "DG"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["transactions hors horaire", "saisie nuit week-end", "fraude accès", "sécurité comptable"],
+    "profiles": [
+      "DSI",
+      "Audit",
+      "DG"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "transactions hors horaire",
+      "saisie nuit week-end",
+      "fraude accès",
+      "sécurité comptable"
+    ],
     "sqlSage100View": "VW_GRAND_LIVRE",
-    "sqlSage100Tables": ["G_ECRITUREC"],
+    "sqlSage100Tables": [
+      "G_ECRITUREC"
+    ],
     "sqlSage100": "SELECT EC_Id, EC_DateCreation, EC_HeureCreation, Utilisateur FROM VW_GRAND_LIVRE WHERE DATEPART(hour,EC_HeureCreation) NOT BETWEEN 7 AND 20 OR DATEPART(weekday,EC_DateCreation) IN (1,7)",
     "mlUsage": "Feature pour modèles de détection de fraude. Analyse comportementale utilisateur."
   },
@@ -2467,14 +4185,27 @@
     "description": "Analyse de la distribution des premiers chiffres significatifs des montants (Loi de Benford). Écart à la distribution théorique = signal de fraude ou d'erreur.",
     "usage": "Audit des données comptables. Détection de falsifications. Conformité aux normes d'audit (IFAC).",
     "unit": "score",
-    "defaultVizType": "line",
+    "defaultVizType": "bar",
     "frequency": "Trimestriel",
     "risk": "Élevé",
-    "profiles": ["Audit", "Expert-Comptable"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["loi Benford", "montants ronds", "fraude comptable", "analyse premiers chiffres", "IFAC"],
+    "profiles": [
+      "Audit",
+      "Expert-Comptable"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "loi Benford",
+      "montants ronds",
+      "fraude comptable",
+      "analyse premiers chiffres",
+      "IFAC"
+    ],
     "sqlSage100View": "VW_GRAND_LIVRE",
-    "sqlSage100Tables": ["G_ECRITUREC"],
+    "sqlSage100Tables": [
+      "G_ECRITUREC"
+    ],
     "sqlSage100": "SELECT LEFT(CAST(ABS(EC_Montant) AS VARCHAR),1) AS Premier_Chiffre, COUNT(*) AS Frequence FROM VW_GRAND_LIVRE GROUP BY LEFT(CAST(ABS(EC_Montant) AS VARCHAR),1)",
     "mlUsage": "Test statistique de Benford. Feature pour modèles d'audit algorithmique."
   },
@@ -2491,11 +4222,23 @@
     "defaultVizType": "table",
     "frequency": "Hebdomadaire",
     "risk": "Élevé",
-    "profiles": ["Audit", "DAF"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["modifications écritures lettrées", "intégrité comptable", "audit trail", "post-lettrage"],
+    "profiles": [
+      "Audit",
+      "DAF"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "modifications écritures lettrées",
+      "intégrité comptable",
+      "audit trail",
+      "post-lettrage"
+    ],
     "sqlSage100View": "VW_GRAND_LIVRE",
-    "sqlSage100Tables": ["G_ECRITUREC"],
+    "sqlSage100Tables": [
+      "G_ECRITUREC"
+    ],
     "sqlSage100": "SELECT EC_Id, EC_DateModif, EC_Utilisateur FROM VW_GRAND_LIVRE WHERE EC_DateModif > EC_DateLettrage AND EC_Lettrage!=''",
     "mlUsage": "Feature pour modèles de risque d'intégrité comptable."
   },
@@ -2512,11 +4255,26 @@
     "defaultVizType": "line",
     "frequency": "Mensuel",
     "risk": "Faible",
-    "profiles": ["DAF", "CFO", "DG"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["prévision CA", "forecasting", "CA prévisionnel", "time series", "Prophet LSTM SARIMA"],
+    "profiles": [
+      "DAF",
+      "CFO",
+      "DG"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "prévision CA",
+      "forecasting",
+      "CA prévisionnel",
+      "time series",
+      "Prophet LSTM SARIMA"
+    ],
     "sqlSage100View": "VW_FINANCE_GENERAL (24 mois historique)",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_PIECE"],
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_PIECE"
+    ],
     "sqlSage100": "SELECT Mois, CA_Mensuel FROM VW_FINANCE_GENERAL ORDER BY Mois -- Modèle Prophet/SARIMA/LSTM entraîné sur 24 mois",
     "mlUsage": "Forecasting. Input: historique CA mensuel + saisonnalité + variables exogènes. Output: prévision + IC 80/95%."
   },
@@ -2533,11 +4291,25 @@
     "defaultVizType": "table",
     "frequency": "Hebdomadaire",
     "risk": "Élevé",
-    "profiles": ["Direction Commerciale", "DAF"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["churn score", "probabilité abandon", "rétention ML", "XGBoost churn", "RFM"],
+    "profiles": [
+      "Direction Commerciale",
+      "DAF"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "churn score",
+      "probabilité abandon",
+      "rétention ML",
+      "XGBoost churn",
+      "RFM"
+    ],
     "sqlSage100View": "VW_CLIENTS (24 mois historique)",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC"],
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC"
+    ],
     "sqlSage100": "SELECT CT_Num, P_Churn FROM VW_CLIENTS -- XGBoost/RF sur features: Récence, Fréquence, Montant, ΔCA, DSO, NbLignes, NbRetours",
     "mlUsage": "Classification binaire. Features RFM + comportemental. Algo: XGBoost, Random Forest. AUC cible >0.80."
   },
@@ -2554,11 +4326,27 @@
     "defaultVizType": "table",
     "frequency": "Quotidien",
     "risk": "Élevé",
-    "profiles": ["Logistique", "DAF"],
-    "sectors": ["Commerce", "Industrie", "Distribution"],
-    "keywords": ["prévision rupture", "réappro automatique", "stockout prediction", "gradient boosting stock"],
+    "profiles": [
+      "Logistique",
+      "DAF"
+    ],
+    "sectors": [
+      "Commerce",
+      "Industrie",
+      "Distribution"
+    ],
+    "keywords": [
+      "prévision rupture",
+      "réappro automatique",
+      "stockout prediction",
+      "gradient boosting stock"
+    ],
     "sqlSage100View": "VW_STOCKS (12 mois historique)",
-    "sqlSage100Tables": ["F_ARTSTOCK", "F_ARTICLE", "G_ECRITUREC"],
+    "sqlSage100Tables": [
+      "F_ARTSTOCK",
+      "F_ARTICLE",
+      "G_ECRITUREC"
+    ],
     "sqlSage100": "SELECT AR_Ref, P_Rupture_30j FROM VW_STOCKS -- Modèle sur: Stock_Actuel, Consomm_Histo, Saisonnalité, Lead_Time_Fournisseur",
     "mlUsage": "Classification / Régression de survie. Algo: Gradient Boosting. Feature engineering: tendance conso, saisonnalité."
   },
@@ -2575,11 +4363,26 @@
     "defaultVizType": "line",
     "frequency": "Hebdomadaire",
     "risk": "Moyen",
-    "profiles": ["Trésorier", "DAF", "CFO"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["prévision trésorerie ML", "cash forecast ML", "LSTM trésorerie", "90 jours cash"],
+    "profiles": [
+      "Trésorier",
+      "DAF",
+      "CFO"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "prévision trésorerie ML",
+      "cash forecast ML",
+      "LSTM trésorerie",
+      "90 jours cash"
+    ],
     "sqlSage100View": "VW_TRESORERIE",
-    "sqlSage100Tables": ["G_ECRITUREC", "F_REGLECH", "F_REGLEF"],
+    "sqlSage100Tables": [
+      "G_ECRITUREC",
+      "F_REGLECH",
+      "F_REGLEF"
+    ],
     "sqlSage100": "SELECT Date, Solde_Prevu FROM VW_TRESORERIE -- LSTM multi-variate sur: Solde_Quotidien_Histo + Echeances_Prevues_C + Echeances_Prevues_F",
     "mlUsage": "Multi-step LSTM / Transformer. Features: séries temporelles multi-sources. Output: distribution prévisionnelle."
   },
@@ -2596,11 +4399,27 @@
     "defaultVizType": "table",
     "frequency": "Mensuel",
     "risk": "Élevé",
-    "profiles": ["Achats", "DAF"],
-    "sectors": ["Commerce", "Industrie", "Distribution"],
-    "keywords": ["scoring fournisseur", "risque supply chain", "dépendance fournisseur", "fournisseur critique"],
+    "profiles": [
+      "Achats",
+      "DAF"
+    ],
+    "sectors": [
+      "Commerce",
+      "Industrie",
+      "Distribution"
+    ],
+    "keywords": [
+      "scoring fournisseur",
+      "risque supply chain",
+      "dépendance fournisseur",
+      "fournisseur critique"
+    ],
     "sqlSage100View": "VW_FOURNISSEURS",
-    "sqlSage100Tables": ["F_COMPTET", "G_ECRITUREC", "F_REGLEF"],
+    "sqlSage100Tables": [
+      "F_COMPTET",
+      "G_ECRITUREC",
+      "F_REGLEF"
+    ],
     "sqlSage100": "SELECT CT_Num, Score_Risque FROM VW_FOURNISSEURS -- f(Poids_Achats, Nb_Retards_Livraison, Nb_Litiges, Délai_Moyen, Ancienneté_Relation)",
     "mlUsage": "Scoring composite. Normalization des features + pondération. Validation par expert métier."
   },
@@ -2617,11 +4436,24 @@
     "defaultVizType": "table",
     "frequency": "Quotidien",
     "risk": "Élevé",
-    "profiles": ["Audit", "DAF", "DSI"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["autoML anomalies", "détection fraude ML", "isolation forest comptable", "autoencoder"],
+    "profiles": [
+      "Audit",
+      "DAF",
+      "DSI"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "autoML anomalies",
+      "détection fraude ML",
+      "isolation forest comptable",
+      "autoencoder"
+    ],
     "sqlSage100View": "VW_GRAND_LIVRE",
-    "sqlSage100Tables": ["G_ECRITUREC"],
+    "sqlSage100Tables": [
+      "G_ECRITUREC"
+    ],
     "sqlSage100": "SELECT EC_Id, Score_Anomalie FROM VW_GRAND_LIVRE -- Isolation Forest / Autoencoder sur: Montant, CP_Num, JO_Num, Utilisateur, Heure, Jour_Semaine",
     "mlUsage": "Anomaly Detection. Isolation Forest (sklearn). Seuil d'anomalie paramétrable. Explicabilité SHAP."
   },
@@ -2638,11 +4470,25 @@
     "defaultVizType": "text",
     "frequency": "Temps réel",
     "risk": "Faible",
-    "profiles": ["DAF", "DG", "Tous profils"],
-    "sectors": ["Tous secteurs"],
-    "keywords": ["NLQ", "natural language query", "text to SQL", "IA questions données", "self-service BI"],
+    "profiles": [
+      "DAF",
+      "DG",
+      "Tous profils"
+    ],
+    "sectors": [
+      "Tous secteurs"
+    ],
+    "keywords": [
+      "NLQ",
+      "natural language query",
+      "text to SQL",
+      "IA questions données",
+      "self-service BI"
+    ],
     "sqlSage100View": "Toutes les vues Flat",
-    "sqlSage100Tables": ["Toutes tables"],
+    "sqlSage100Tables": [
+      "Toutes tables"
+    ],
     "sqlSage100": "-- LLM (GPT-4 / Claude) + RAG sur schéma des vues Flat + génération SQL + exécution + réponse en langage naturel",
     "mlUsage": "LLM + Text-to-SQL. Prompt engineering sur le schéma des vues. Validation sémantique de la query générée."
   }

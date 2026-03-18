@@ -43,7 +43,7 @@ export class OnboardingService {
   }
 
   // Marque une etape comme completee et avance currentStep
-  private async completeStep(organizationId: string, step: number) {
+  private async completeStep(organizationId: string, step: number, userId?: string) {
     const status = await this.getOrCreateStatus(organizationId);
 
     const completedSteps = status.completedSteps.includes(step)
@@ -60,6 +60,7 @@ export class OnboardingService {
 
     await this.auditLog.log({
       organizationId,
+      userId,
       event: 'onboarding_step_completed',
       payload: { step, completedSteps, isComplete },
     });
@@ -67,6 +68,7 @@ export class OnboardingService {
     if (isComplete) {
       await this.auditLog.log({
         organizationId,
+        userId,
         event: 'onboarding_completed',
         payload: { completedAt: new Date().toISOString() },
       });
@@ -96,7 +98,7 @@ export class OnboardingService {
   }
 
   // POST /onboarding/step1 : Choix du plan
-  async step1(organizationId: string, dto: Step1Dto) {
+  async step1(organizationId: string, userId: string, dto: Step1Dto) {
     const plan = await this.prisma.subscriptionPlan.findUnique({
       where: { name: dto.plan },
     });
@@ -109,10 +111,11 @@ export class OnboardingService {
     });
     await this.auditLog.log({
       organizationId,
+      userId,
       event: 'subscription_plan_selected',
       payload: { planName: plan.name, planLabel: plan.label },
     });
-    const status = await this.completeStep(organizationId, 1);
+    const status = await this.completeStep(organizationId, 1, userId);
     return {
       message: 'Plan selectionne avec succes.',
       plan: { id: plan.id, name: plan.name, label: plan.label },
@@ -121,7 +124,7 @@ export class OnboardingService {
   }
 
   // POST /onboarding/step2 : Profil organisation
-  async step2(organizationId: string, dto: Step2Dto) {
+  async step2(organizationId: string, userId: string, dto: Step2Dto) {
     const updated = await this.prisma.organization.update({
       where: { id: organizationId },
       data: {
@@ -132,12 +135,12 @@ export class OnboardingService {
       },
       select: { id: true, name: true, sector: true, size: true, country: true },
     });
-    const status = await this.completeStep(organizationId, 2);
+    const status = await this.completeStep(organizationId, 2, userId);
     return { message: 'Profil organisation mis a jour.', organization: updated, status };
   }
 
   // POST /onboarding/step3 : Configuration data source Sage
-  async step3(organizationId: string, dto: Step3Dto) {
+  async step3(organizationId: string, userId: string, dto: Step3Dto) {
     const updated = await this.prisma.organization.update({
       where: { id: organizationId },
       data: {
@@ -150,15 +153,16 @@ export class OnboardingService {
     });
     await this.auditLog.log({
       organizationId,
+      userId,
       event: 'datasource_configured',
       payload: { sageType: dto.sageType, sageMode: dto.sageMode },
     });
-    const status = await this.completeStep(organizationId, 3);
+    const status = await this.completeStep(organizationId, 3, userId);
     return { message: 'Configuration Sage enregistree.', datasource: updated, status };
   }
 
   // POST /onboarding/agent-link : Lier un agent
-  async linkAgent(organizationId: string, dto: AgentLinkDto) {
+  async linkAgent(organizationId: string, userId: string, dto: AgentLinkDto) {
     const agent = await this.prisma.agent.findUnique({
       where: { token: dto.agentToken },
       select: {
@@ -184,6 +188,7 @@ export class OnboardingService {
 
     await this.auditLog.log({
       organizationId,
+      userId,
       event: 'agent_linked',
       payload: { agentId: agent.id, agentName: agent.name },
     });
@@ -200,7 +205,7 @@ export class OnboardingService {
   }
 
   // POST /onboarding/step4 : Selection des profils metiers
-  async step4(organizationId: string, dto: Step4Dto) {
+  async step4(organizationId: string, userId: string, dto: Step4Dto) {
     const validNames = AVAILABLE_PROFILES.map((p) => p.name);
     const invalid = dto.profiles.filter((p) => !validNames.includes(p));
     if (invalid.length > 0) {
@@ -212,7 +217,7 @@ export class OnboardingService {
       where: { id: organizationId },
       data: { selectedProfiles: dto.profiles },
     });
-    const status = await this.completeStep(organizationId, 4);
+    const status = await this.completeStep(organizationId, 4, userId);
     return { message: 'Profils metiers selectionnes.', selectedProfiles: dto.profiles, status };
   }
 
@@ -223,7 +228,7 @@ export class OnboardingService {
         where: { organizationId },
         data: { inviteLater: true },
       });
-      const status = await this.completeStep(organizationId, 5);
+      const status = await this.completeStep(organizationId, 5, userId);
       return { message: 'Invitations reportees. Vous pourrez inviter plus tard.', status };
     }
 
@@ -262,7 +267,7 @@ export class OnboardingService {
       },
     });
 
-    const status = await this.completeStep(organizationId, 5);
+    const status = await this.completeStep(organizationId, 5, userId);
     return { message: 'Invitations traitees.', results, status };
   }
 

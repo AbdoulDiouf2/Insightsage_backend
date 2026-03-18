@@ -12,7 +12,7 @@ import { RolesService } from './roles.service';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
-import { RequirePermissions, OrganizationId } from '../auth/decorators';
+import { RequirePermissions, OrganizationId, CurrentUser } from '../auth/decorators';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 
 @ApiTags('Roles')
@@ -39,9 +39,10 @@ export class RolesController {
   })
   create(
     @OrganizationId() organizationId: string,
+    @CurrentUser('id') userId: string,
     @Body() createRoleDto: CreateRoleDto,
   ) {
-    return this.rolesService.create(organizationId, createRoleDto);
+    return this.rolesService.create(organizationId, userId, createRoleDto);
   }
 
   @Get()
@@ -69,10 +70,11 @@ export class RolesController {
   @ApiOperation({ summary: 'Mettre à jour un rôle sur-mesure existant' })
   update(
     @OrganizationId() organizationId: string,
+    @CurrentUser('id') userId: string,
     @Param('id') id: string,
     @Body() updateRoleDto: UpdateRoleDto,
   ) {
-    return this.rolesService.update(id, organizationId, updateRoleDto);
+    return this.rolesService.update(id, organizationId, userId, updateRoleDto);
   }
 
   @Delete(':id')
@@ -81,7 +83,11 @@ export class RolesController {
   @ApiOperation({
     summary: 'Supprimer un rôle personnalisé de votre organisation',
   })
-  remove(@OrganizationId() organizationId: string, @Param('id') id: string) {
-    return this.rolesService.remove(id, organizationId);
+  remove(
+    @OrganizationId() organizationId: string,
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.rolesService.remove(id, organizationId, userId);
   }
 }

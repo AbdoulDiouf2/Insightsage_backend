@@ -339,6 +339,43 @@ model Invitation {
 
 ---
 
+### SystemConfig
+
+Singleton de configuration globale de la plateforme (une seule ligne, `id = 'default'`).
+
+```prisma
+model SystemConfig {
+  id                      String   @id @default("default")
+  notificationPreferences Json?    // { notif: Record<string, boolean>, recipients: string[] }
+  updatedAt               DateTime @updatedAt
+
+  @@map("system_config")
+}
+```
+
+!!! info "Singleton pattern"
+    Toujours accédé via `prisma.systemConfig.findUnique({ where: { id: 'default' } })`.
+    L'upsert est utilisé pour la mise à jour : `upsert({ where: { id: 'default' }, update: ..., create: ... })`.
+
+**Champs `notificationPreferences` :**
+
+```json
+{
+  "notif": {
+    "newOrg":        true,
+    "agentOffline":  true,
+    "paymentFailed": true,
+    "paymentSuccess": false,
+    "errorLogs":     true
+  },
+  "recipients": ["uuid-admin-1", "uuid-admin-2"]
+}
+```
+
+Exposé via `GET/PATCH /admin/system-config` — permission `manage:all`.
+
+---
+
 ## Indexes et performances
 
 | Table | Index | Raison |

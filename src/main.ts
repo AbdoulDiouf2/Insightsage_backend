@@ -54,61 +54,31 @@ const SWAGGER_LOGIN_PAGE = `<!DOCTYPE html>
     <div class="logo">Cockpit API</div>
     <div class="sub">Documentation réservée aux membres de l'équipe</div>
 
-    <div class="field">
-      <label for="email">Email</label>
-      <input id="email" type="email" placeholder="vous@organisation.com" autocomplete="email" />
-    </div>
-    <div class="field">
-      <label for="pass">Mot de passe</label>
-      <input id="pass" type="password" placeholder="••••••••" autocomplete="current-password" />
-    </div>
-    <button id="btn" onclick="doLogin()">Se connecter →</button>
-    <div class="err" id="err"></div>
+    <form id="login-form">
+      <div class="field">
+        <label for="email">Email</label>
+        <input id="email" type="email" placeholder="vous@organisation.com" autocomplete="email" required />
+      </div>
+      <div class="field">
+        <label for="pass">Mot de passe</label>
+        <input id="pass" type="password" placeholder="••••••••" autocomplete="current-password" required />
+      </div>
+      <button id="btn" type="submit">Se connecter →</button>
+      <div class="err" id="err"></div>
+    </form>
 
     <div class="sep">ou</div>
 
-    <div class="token-area">
+    <form id="token-form" class="token-area">
       <label style="display:block;font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Access token existant</label>
-      <textarea id="tok" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."></textarea>
-      <button class="token-btn" onclick="useToken()">Utiliser ce token</button>
-    </div>
+      <textarea id="tok" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." required></textarea>
+      <button type="submit" class="token-btn">Utiliser ce token</button>
+    </form>
   </div>
   <script>
     function setToken(tok) {
       document.cookie = 'swagger_token=' + encodeURIComponent(tok) + '; path=/; SameSite=Strict';
       window.location.href = '/docs';
-    }
-
-    async function doLogin() {
-      const email = document.getElementById('email').value.trim();
-      const pass  = document.getElementById('pass').value;
-      const btn   = document.getElementById('btn');
-      const err   = document.getElementById('err');
-      err.style.display = 'none';
-      if (!email || !pass) { showErr('Email et mot de passe requis.'); return; }
-      btn.disabled = true;
-      btn.textContent = 'Connexion…';
-      try {
-        const res = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password: pass }),
-        });
-        const data = await res.json();
-        if (!res.ok) { showErr(data?.message || 'Identifiants invalides.'); return; }
-        setToken(data.accessToken);
-      } catch (e) {
-        showErr('Impossible de joindre le serveur.');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Se connecter →';
-      }
-    }
-
-    function useToken() {
-      const tok = document.getElementById('tok').value.trim();
-      if (!tok) return;
-      setToken(tok);
     }
 
     function showErr(msg) {
@@ -117,8 +87,50 @@ const SWAGGER_LOGIN_PAGE = `<!DOCTYPE html>
       el.style.display = 'block';
     }
 
-    document.addEventListener('keydown', e => {
-      if (e.key === 'Enter' && document.activeElement.id !== 'tok') doLogin();
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      const pass  = document.getElementById('pass').value;
+      const btn   = document.getElementById('btn');
+      const err   = document.getElementById('err');
+      
+      err.style.display = 'none';
+      if (!email || !pass) { showErr('Email et mot de passe requis.'); return; }
+      
+      btn.disabled = true;
+      btn.textContent = 'Connexion…';
+      
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password: pass }),
+        });
+        
+        const data = await res.json().catch(() => null);
+        
+        if (!res.ok) { 
+          showErr(data?.message ? String(data.message) : 'Identifiants invalides.'); 
+          return; 
+        }
+        if (!data || !data.accessToken) {
+          showErr('Erreur inattendue du serveur.');
+          return;
+        }
+        
+        setToken(data.accessToken);
+      } catch (err) {
+        showErr('Impossible de joindre le serveur: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Se connecter →';
+      }
+    });
+
+    document.getElementById('token-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const tok = document.getElementById('tok').value.trim();
+      if (tok) setToken(tok);
     });
   </script>
 </body>
@@ -159,6 +171,8 @@ async function bootstrap() {
   const allowedOrigins = [
     configService.get<string>('FRONTEND_URL') || 'http://localhost:3001',
     'http://localhost:5173', // Admin Frontend
+    'http://localhost:5174', // Admin Frontend (fallback)
+    'http://localhost:5175', // Admin Frontend (fallback)
     'http://localhost:3000', // Swagger/Backend itself
   ];
 

@@ -1,6 +1,8 @@
 import {
   Controller,
   Post,
+  Get,
+  Query,
   Body,
   UseGuards,
   HttpCode,
@@ -10,9 +12,11 @@ import {
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
+import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { InviteUserDto } from './dto/invite-user.dto';
 import { JwtRefreshAuthGuard } from './guards/jwt-refresh-auth.guard';
 import { PermissionsGuard } from './guards/permissions.guard';
@@ -28,6 +32,18 @@ import {
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) { }
+
+  @Public()
+  @SkipThrottle()
+  @Get('invitation-info')
+  @ApiOperation({
+    summary: 'Récupère les infos d\'une invitation par token (email, org) pour pré-remplir le formulaire',
+  })
+  @ApiResponse({ status: 200, description: 'Invitation info returned' })
+  @ApiResponse({ status: 400, description: 'Token invalide ou expiré' })
+  async getInvitationInfo(@Query('token') token: string) {
+    return this.authService.getInvitationInfo(token);
+  }
 
   @Public()
   @Throttle({ default: { ttl: 60000, limit: 10 } }) // 10 inscriptions/min par IP
@@ -47,6 +63,16 @@ export class AuthController {
       );
     }
     return this.authService.register(dto);
+  }
+
+  @Public()
+  @Throttle({ default: { ttl: 3600000, limit: 5 } }) // 5 inscriptions/heure par IP
+  @Post('signup')
+  @ApiOperation({ summary: 'Créer un compte et une organisation (auto-inscription)' })
+  @ApiResponse({ status: 201, description: 'Compte et organisation créés' })
+  @ApiResponse({ status: 400, description: 'Email déjà utilisé ou données invalides' })
+  async signup(@Body() dto: SignupDto) {
+    return this.authService.signup(dto);
   }
 
   @Public()
@@ -101,6 +127,19 @@ export class AuthController {
   @ApiOperation({ summary: 'Reset password using token' })
   async resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);
+  }
+
+  @Post('change-password')
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Modifier son propre mot de passe (utilisateur authentifié)' })
+  @ApiResponse({ status: 200, description: 'Mot de passe modifié avec succès' })
+  @ApiResponse({ status: 400, description: 'Mot de passe actuel incorrect' })
+  async changePassword(
+    @CurrentUser('id') userId: string,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    return this.authService.changePassword(userId, dto);
   }
 
   @UseGuards(PermissionsGuard)

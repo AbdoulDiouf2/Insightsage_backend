@@ -57,18 +57,26 @@ export class LogsController {
     required: false,
     description: 'Pagination offset',
   })
+  @ApiQuery({
+    name: 'events',
+    required: false,
+    description: 'Filter by multiple event types (comma-separated)',
+  })
   async getAuditLogs(
     @OrganizationId() organizationId: string,
     @Query('userId') userId?: string,
     @Query('event') event?: string,
+    @Query('events') eventsRaw?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit?: number,
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset?: number,
   ) {
+    const events = eventsRaw ? eventsRaw.split(',').filter(Boolean) : undefined;
     return this.logsService.findAll(organizationId, {
       userId,
       event,
+      events,
       startDate: startDate ? new Date(startDate) : undefined,
       endDate: endDate ? new Date(endDate) : undefined,
       limit,

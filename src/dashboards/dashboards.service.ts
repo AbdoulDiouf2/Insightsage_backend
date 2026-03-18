@@ -42,7 +42,7 @@ export class DashboardsService {
     return this.prisma.dashboard.findMany({
       where: { organizationId },
       include: {
-        _count: { select: { widgets: true } },
+        widgets: { where: { isActive: true }, orderBy: { createdAt: 'asc' } },
         user: { select: { id: true, firstName: true, lastName: true, email: true } },
       },
       orderBy: { createdAt: 'desc' },

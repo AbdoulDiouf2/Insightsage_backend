@@ -19,17 +19,20 @@ import { HealthModule } from './health/health.module';
 import { AgentsModule } from './agents/agents.module';
 import { AuditLogModule } from './logs/audit-log.module';
 import { MailerModule } from './mailer/mailer.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { TargetsModule } from './targets/targets.module';
 import { BillingModule } from './billing/billing.module';
 // import { AdminPanelModule } from './admin-panel/admin-panel.module'; // Désactivé (AdminJS)
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { TenantGuard } from './auth/guards/tenant.guard';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
 import { RedisModule } from './redis/redis.module';
 
 @Module({
   imports: [
     EventEmitterModule.forRoot(),
+    ScheduleModule.forRoot(),
     RedisModule,
     ConfigModule.forRoot({
       isGlobal: true,
@@ -64,6 +67,7 @@ import { RedisModule } from './redis/redis.module';
     AgentsModule,
     AuditLogModule,
     MailerModule,
+    NotificationsModule,
     TargetsModule,
     BillingModule,
     // AdminPanelModule, // Désactivé (AdminJS)
