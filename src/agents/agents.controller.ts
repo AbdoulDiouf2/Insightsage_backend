@@ -86,9 +86,10 @@ export class AgentsController {
   @ApiResponse({ status: 201, description: 'Token generated successfully' })
   async generateToken(
     @OrganizationId() organizationId: string,
+    @CurrentUser('id') userId: string,
     @Body() dto: GenerateTokenDto,
   ) {
-    return this.agentsService.generateAgentToken(organizationId, dto);
+    return this.agentsService.generateAgentToken(organizationId, userId, dto);
   }
 
   @Get('status')
@@ -135,8 +136,9 @@ export class AgentsController {
   async regenerateToken(
     @Param('id') id: string,
     @OrganizationId() organizationId: string,
+    @CurrentUser('id') userId: string,
   ) {
-    return this.agentsService.regenerateToken(id, organizationId);
+    return this.agentsService.regenerateToken(id, organizationId, userId);
   }
 
   @Post(':id/revoke')
@@ -157,8 +159,9 @@ export class AgentsController {
   async revokeToken(
     @Param('id') id: string,
     @OrganizationId() organizationId: string,
+    @CurrentUser('id') userId: string,
   ) {
-    return this.agentsService.revokeToken(id, organizationId);
+    return this.agentsService.revokeToken(id, organizationId, userId);
   }
 
   @Post(':id/test-connection')

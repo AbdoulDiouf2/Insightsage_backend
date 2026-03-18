@@ -234,9 +234,9 @@ model AuditLog {
   userId String?
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  @@index([organizationId])
+  @@index([organizationId, createdAt(sort: Desc)]) // requête principale : logs d'une org triés par date
+  @@index([event])                                  // filtre par type d'événement / catégorie
   @@index([userId])
-  @@index([createdAt])
   @@map("audit_logs")
 }
 

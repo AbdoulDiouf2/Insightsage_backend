@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 export interface AuditLogFilters {
   userId?: string;
   event?: string;
+  events?: string[];
   startDate?: Date;
   endDate?: Date;
   limit?: number;
@@ -18,6 +19,7 @@ export class LogsService {
     const {
       userId,
       event,
+      events,
       startDate,
       endDate,
       limit = 50,
@@ -32,7 +34,9 @@ export class LogsService {
       where.userId = userId;
     }
 
-    if (event) {
+    if (events && events.length > 0) {
+      where.event = { in: events };
+    } else if (event) {
       where.event = { contains: event, mode: 'insensitive' };
     }
 
@@ -48,6 +52,9 @@ export class LogsService {
         include: {
           user: {
             select: { id: true, email: true, firstName: true, lastName: true },
+          },
+          organization: {
+            select: { id: true, name: true },
           },
         },
         orderBy: { createdAt: 'desc' },

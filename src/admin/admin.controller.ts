@@ -25,7 +25,7 @@ import {
   UpdateKpiPackDto,
 } from './dto/kpi-store.dto';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
-import { RequirePermissions } from '../auth/decorators';
+import { RequirePermissions, CurrentUser } from '../auth/decorators';
 import {
   ApiTags,
   ApiOperation,
@@ -80,15 +80,19 @@ export class AdminController {
   @ApiOperation({ summary: 'Update organization details' })
   async updateOrganization(
     @Param('id') id: string,
+    @CurrentUser('id') adminUserId: string,
     @Body() dto: AdminUpdateOrganizationDto,
   ) {
-    return this.adminService.updateOrganization(id, dto);
+    return this.adminService.updateOrganization(id, dto, adminUserId);
   }
 
   @Delete('organizations/:id')
   @ApiOperation({ summary: 'Delete an organization and all its data' })
-  async deleteOrganization(@Param('id') id: string) {
-    return this.adminService.deleteOrganization(id);
+  async deleteOrganization(
+    @Param('id') id: string,
+    @CurrentUser('id') adminUserId: string,
+  ) {
+    return this.adminService.deleteOrganization(id, adminUserId);
   }
 
   // --- Users Management ---
@@ -120,8 +124,11 @@ export class AdminController {
 
   @Delete('users/:id')
   @ApiOperation({ summary: 'Delete a user' })
-  async deleteUser(@Param('id') id: string) {
-    return this.adminService.deleteUser(id);
+  async deleteUser(
+    @Param('id') id: string,
+    @CurrentUser('id') adminUserId: string,
+  ) {
+    return this.adminService.deleteUser(id, adminUserId);
   }
 
   // --- Audit Logs ---
@@ -440,14 +447,20 @@ export class AdminController {
   @Delete('dashboards/:id')
   @ApiOperation({ summary: 'Supprimer un dashboard (SuperAdmin)' })
   @ApiParam({ name: 'id', description: 'ID du dashboard' })
-  async deleteDashboard(@Param('id') id: string) {
-    return this.adminService.deleteDashboard(id);
+  async deleteDashboard(
+    @Param('id') id: string,
+    @CurrentUser('id') adminUserId: string,
+  ) {
+    return this.adminService.deleteDashboard(id, adminUserId);
   }
 
   @Delete('agents/:id')
   @ApiOperation({ summary: 'Supprimer un agent (SuperAdmin)' })
   @ApiParam({ name: 'id', description: 'ID de l\'agent' })
-  async deleteAgent(@Param('id') id: string) {
-    return this.adminService.deleteAgent(id);
+  async deleteAgent(
+    @Param('id') id: string,
+    @CurrentUser('id') adminUserId: string,
+  ) {
+    return this.adminService.deleteAgent(id, adminUserId);
   }
 }

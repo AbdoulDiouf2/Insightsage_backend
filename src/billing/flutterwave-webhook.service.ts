@@ -66,6 +66,10 @@ export class FlutterwaveWebhookService {
         await this.handleChargeCompleted(payload.data);
         break;
 
+      case 'charge.failed':
+        await this.handleChargeFailed(payload.data);
+        break;
+
       case 'subscription.cancelled':
         await this.handleSubscriptionCancelled(payload.data);
         break;
@@ -185,6 +189,17 @@ export class FlutterwaveWebhookService {
       });
     });
 
+    // Distinguer création vs renouvellement d'abonnement
+    const isNewSubscription = await this.prisma.billingSubscription
+      .findUnique({ where: { organizationId }, select: { status: true } })
+      .then((sub) => sub?.status === BillingStatus.TRIALING);
+
+    await this.auditLog.log({
+      organizationId,
+      event: isNewSubscription ? 'subscription_created' : 'subscription_updated',
+      payload: { planId, fwSubscriptionId, fwTransactionId },
+    });
+
     await this.auditLog.log({
       organizationId,
       event: 'payment_succeeded',
@@ -197,6 +212,28 @@ export class FlutterwaveWebhookService {
     });
 
     this.logger.log(`Paiement FW reussi pour org ${organizationId} (plan ${planId})`);
+  }
+
+  /**
+   * charge.failed
+   * Paiement échoué (carte refusée, fonds insuffisants, etc.)
+   */
+  private async handleChargeFailed(data: any) {
+    const organizationId: string | undefined = data?.meta?.organizationId;
+    if (!organizationId) return;
+
+    await this.auditLog.log({
+      organizationId,
+      event: 'payment_failed',
+      payload: {
+        fwTransactionId: data?.id ? String(data.id) : undefined,
+        amountRequested: data?.amount ?? null,
+        currency: data?.currency ?? null,
+        failureReason: data?.processor_response ?? data?.narration ?? null,
+      },
+    });
+
+    this.logger.warn(`Paiement FW échoué pour org ${organizationId}`);
   }
 
   /**

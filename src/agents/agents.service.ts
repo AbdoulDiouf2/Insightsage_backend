@@ -173,7 +173,7 @@ export class AgentsService implements OnModuleInit {
   /**
    * Génère un nouveau token agent pour une organisation (Section 2.4)
    */
-  async generateAgentToken(organizationId: string, dto: GenerateTokenDto) {
+  async generateAgentToken(organizationId: string, userId: string, dto: GenerateTokenDto) {
     const existingAgent = await this.prisma.agent.findFirst({
       where: { organizationId },
     });
@@ -199,6 +199,7 @@ export class AgentsService implements OnModuleInit {
 
     await this.auditLog.log({
       organizationId,
+      userId,
       event: 'agent_token_generated',
       payload: { agentId: agent.id, agentName: agent.name },
     });
@@ -222,7 +223,7 @@ export class AgentsService implements OnModuleInit {
   /**
    * Révoque explicitement le token d'un agent (Section 2.4)
    */
-  async revokeToken(agentId: string, organizationId: string) {
+  async revokeToken(agentId: string, organizationId: string, userId?: string) {
     const agent = await this.prisma.agent.findUnique({ where: { id: agentId } });
 
     if (!agent) {
@@ -246,6 +247,7 @@ export class AgentsService implements OnModuleInit {
 
     await this.auditLog.log({
       organizationId,
+      userId,
       event: 'agent_token_revoked',
       payload: { agentId, agentName: agent.name },
     });
@@ -263,7 +265,7 @@ export class AgentsService implements OnModuleInit {
   /**
    * Régénère le token d'un agent (remet le compteur d'expiration à zéro)
    */
-  async regenerateToken(agentId: string, organizationId: string) {
+  async regenerateToken(agentId: string, organizationId: string, userId?: string) {
     const agent = await this.prisma.agent.findUnique({ where: { id: agentId } });
 
     if (!agent) {
@@ -290,6 +292,7 @@ export class AgentsService implements OnModuleInit {
 
     await this.auditLog.log({
       organizationId,
+      userId,
       event: 'agent_token_regenerated',
       payload: { agentId, agentName: agent.name },
     });
@@ -409,6 +412,9 @@ export class AgentsService implements OnModuleInit {
         payload: { agentId: agent.id, errorCount, lastError },
       });
     }
+
+    // Le heartbeat (toutes les 30s) n'est PAS loggué en DB pour éviter l'explosion du volume.
+    // L'info de présence est déjà dans Agent.lastSeen + Agent.status.
 
     const daysUntilExpiry = this.getDaysUntilExpiry(agent.tokenExpiresAt);
     const isExpiringSoon =
@@ -716,13 +722,7 @@ export class AgentsService implements OnModuleInit {
     });
 
     if (result.count > 0) {
-      this.auditLog
-        .log({
-          organizationId: 'system',
-          event: 'agent_job_timeout',
-          payload: { count: result.count },
-        })
-        .catch(() => { });
+      this.logger.warn(`agent_job_timeout : ${result.count} job(s) marqué(s) FAILED (timeout 30s)`);
     }
 
     return { timedOutJobs: result.count };

@@ -207,7 +207,7 @@ export class AdminService {
     return organization;
   }
 
-  async updateOrganization(id: string, dto: AdminUpdateOrganizationDto) {
+  async updateOrganization(id: string, dto: AdminUpdateOrganizationDto, adminUserId?: string) {
     const organization = await this.prisma.organization.update({
       where: { id },
       data: dto,
@@ -215,6 +215,7 @@ export class AdminService {
 
     await this.auditLog.log({
       organizationId: id,
+      userId: adminUserId,
       event: 'organization_updated',
       payload: { changes: dto },
     });
@@ -222,7 +223,7 @@ export class AdminService {
     return organization;
   }
 
-  async deleteOrganization(id: string) {
+  async deleteOrganization(id: string, adminUserId?: string) {
     const organization = await this.prisma.organization.findUnique({
       where: { id },
       select: { id: true, name: true },
@@ -232,6 +233,7 @@ export class AdminService {
     if (organization) {
       await this.auditLog.log({
         organizationId: id,
+        userId: adminUserId,
         event: 'organization_deleted',
         payload: { organizationName: organization.name },
       });
@@ -326,7 +328,7 @@ export class AdminService {
     return user;
   }
 
-  async deleteUser(id: string) {
+  async deleteUser(id: string, adminUserId?: string) {
     // Fetch before delete to capture organizationId for the audit log
     const user = await this.prisma.user.findUnique({
       where: { id },
@@ -340,6 +342,7 @@ export class AdminService {
     if (user) {
       await this.auditLog.log({
         organizationId: user.organizationId,
+        userId: adminUserId,
         event: 'user_deleted',
         payload: { deletedUserId: user.id, email: user.email },
       });
@@ -835,7 +838,7 @@ export class AdminService {
     return dashboard;
   }
 
-  async deleteDashboard(id: string) {
+  async deleteDashboard(id: string, adminUserId?: string) {
     const dashboard = await this.prisma.dashboard.findUnique({
       where: { id },
       select: { id: true, name: true, organizationId: true },
@@ -851,6 +854,7 @@ export class AdminService {
 
     await this.auditLog.log({
       organizationId: dashboard.organizationId,
+      userId: adminUserId,
       event: 'dashboard_deleted',
       payload: { dashboardId: id, name: dashboard.name, method: 'admin_action' },
     });
@@ -1032,7 +1036,7 @@ export class AdminService {
     return session;
   }
 
-  async deleteAgent(id: string) {
+  async deleteAgent(id: string, adminUserId?: string) {
     const agent = await this.prisma.agent.findUnique({
       where: { id },
       select: { id: true, name: true, organizationId: true },
@@ -1053,6 +1057,7 @@ export class AdminService {
 
     await this.auditLog.log({
       organizationId: agent.organizationId,
+      userId: adminUserId,
       event: 'agent_deleted',
       payload: { agentId: id, name: agent.name, method: 'admin_action' },
     });

@@ -41,9 +41,10 @@ export class OnboardingController {
   })
   async step1(
     @OrganizationId() organizationId: string,
+    @CurrentUser('id') userId: string,
     @Body() dto: Step1Dto,
   ) {
-    return this.onboardingService.step1(organizationId, dto);
+    return this.onboardingService.step1(organizationId, userId, dto);
   }
 
   @Post('step2')
@@ -54,9 +55,10 @@ export class OnboardingController {
   })
   async step2(
     @OrganizationId() organizationId: string,
+    @CurrentUser('id') userId: string,
     @Body() dto: Step2Dto,
   ) {
-    return this.onboardingService.step2(organizationId, dto);
+    return this.onboardingService.step2(organizationId, userId, dto);
   }
 
   @Post('step3')
@@ -67,9 +69,10 @@ export class OnboardingController {
   })
   async step3(
     @OrganizationId() organizationId: string,
+    @CurrentUser('id') userId: string,
     @Body() dto: Step3Dto,
   ) {
-    return this.onboardingService.step3(organizationId, dto);
+    return this.onboardingService.step3(organizationId, userId, dto);
   }
 
   @Post('agent-link')
@@ -81,9 +84,10 @@ export class OnboardingController {
   })
   async linkAgent(
     @OrganizationId() organizationId: string,
+    @CurrentUser('id') userId: string,
     @Body() dto: AgentLinkDto,
   ) {
-    return this.onboardingService.linkAgent(organizationId, dto);
+    return this.onboardingService.linkAgent(organizationId, userId, dto);
   }
 
   @Get('profiles')
@@ -103,9 +107,10 @@ export class OnboardingController {
   })
   async step4(
     @OrganizationId() organizationId: string,
+    @CurrentUser('id') userId: string,
     @Body() dto: Step4Dto,
   ) {
-    return this.onboardingService.step4(organizationId, dto);
+    return this.onboardingService.step4(organizationId, userId, dto);
   }
 
   @Post('step5')

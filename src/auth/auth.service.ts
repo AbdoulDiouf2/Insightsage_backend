@@ -400,8 +400,9 @@ export class AuthService {
 
     await this.auditLog.log({
       organizationId: dto.organizationId,
+      userId: invitedById,
       event: 'user_invited',
-      payload: { email: dto.email, role: dto.role, invitedBy: invitedById },
+      payload: { email: dto.email, role: dto.role },
     });
 
     return { message: 'Invitation sent successfully' };
