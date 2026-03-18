@@ -237,8 +237,32 @@ export class AdminService {
       });
     }
 
-    return this.prisma.organization.delete({
-      where: { id },
+    // Suppression en cascade dans le bon ordre
+    // (seuls Agent/AgentJob/AgentLog/Dashboard n'ont pas onDelete:Cascade dans le schéma)
+    return this.prisma.$transaction(async (tx) => {
+      // 1. AgentLog + AgentJob → Agent (pas de cascade DB)
+      const agents = await tx.agent.findMany({ where: { organizationId: id }, select: { id: true } });
+      const agentIds = agents.map((a) => a.id);
+      if (agentIds.length > 0) {
+        await tx.agentLog.deleteMany({ where: { agentId: { in: agentIds } } });
+        await tx.agentJob.deleteMany({ where: { agentId: { in: agentIds } } });
+        await tx.agent.deleteMany({ where: { organizationId: id } });
+      }
+
+      // 2. Widget → Dashboard (pas de cascade DB sur Dashboard)
+      const dashboards = await tx.dashboard.findMany({ where: { organizationId: id }, select: { id: true } });
+      const dashboardIds = dashboards.map((d) => d.id);
+      if (dashboardIds.length > 0) {
+        await tx.widget.deleteMany({ where: { dashboardId: { in: dashboardIds } } });
+        await tx.dashboard.deleteMany({ where: { organizationId: id } });
+      }
+
+      // 3. Dissocier l'owner pour éviter la contrainte circulaire Organization ↔ User
+      await tx.organization.update({ where: { id }, data: { ownerId: null } });
+
+      // 4. Supprimer l'organisation — le reste cascade (User, Invitation, AuditLog,
+      //    OnboardingStatus, BillingCustomer, BillingSubscription, BillingInvoice…)
+      return tx.organization.delete({ where: { id } });
     });
   }
 
@@ -968,6 +992,15 @@ export class AdminService {
       },
     });
     return template;
+  }
+
+  async toggleNlqTemplate(id: string) {
+    const template = await (this.prisma as any).nlqTemplate.findUnique({ where: { id } });
+    if (!template) throw new NotFoundException(`NLQ Template introuvable : ${id}`);
+    return (this.prisma as any).nlqTemplate.update({
+      where: { id },
+      data: { isActive: !template.isActive },
+    });
   }
 
   async findAllNlqSessions() {

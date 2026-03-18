@@ -123,6 +123,37 @@ export class AuthService {
       throw new BadRequestException('Cet email est déjà utilisé.');
     }
 
+    // 2. Bloquer si un domaine professionnel est déjà enregistré
+    const domain = dto.email.split('@')[1]?.toLowerCase();
+    const PUBLIC_DOMAINS = [
+      'gmail.com', 'yahoo.com', 'yahoo.fr', 'hotmail.com', 'hotmail.fr',
+      'outlook.com', 'live.com', 'live.fr', 'icloud.com', 'orange.fr',
+      'wanadoo.fr', 'free.fr', 'laposte.net', 'sfr.fr', 'bbox.fr',
+      'numericable.fr', 'aol.com', 'protonmail.com', 'pm.me',
+    ];
+    if (domain && !PUBLIC_DOMAINS.includes(domain)) {
+      const existingDomainUser = await this.prisma.user.findFirst({
+        where: { email: { endsWith: `@${domain}` } },
+      });
+      if (existingDomainUser) {
+        throw new BadRequestException(
+          `Une organisation utilisant le domaine @${domain} est déjà inscrite. ` +
+          `Contactez votre administrateur pour recevoir une invitation d'accès.`,
+        );
+      }
+    }
+
+    // 3. Bloquer si le nom d'organisation est déjà pris (insensible à la casse)
+    const existingOrg = await this.prisma.organization.findFirst({
+      where: { name: { equals: dto.organizationName, mode: 'insensitive' } },
+    });
+    if (existingOrg) {
+      throw new BadRequestException(
+        `Une organisation nommée "${dto.organizationName}" est déjà inscrite. ` +
+        `Contactez votre administrateur pour recevoir une invitation d'accès.`,
+      );
+    }
+
     const passwordHash = await bcrypt.hash(dto.password, 12);
 
     // 2. Trouver le rôle système "owner"

@@ -399,6 +399,13 @@ export class AdminController {
     return this.adminService.findNlqTemplateById(id);
   }
 
+  @Patch('nlq-templates/:id/toggle')
+  @ApiOperation({ summary: 'Activer / désactiver un NLQ SQL Template' })
+  @ApiParam({ name: 'id', description: 'ID UUID du NLQ Template' })
+  async toggleNlqTemplate(@Param('id') id: string) {
+    return this.adminService.toggleNlqTemplate(id);
+  }
+
   @Get('nlq-sessions')
   @ApiOperation({
     summary: 'Lister les sessions NLQ (SuperAdmin)',

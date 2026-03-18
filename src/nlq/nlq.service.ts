@@ -60,6 +60,12 @@ export class NlqService {
             );
         }
 
+        if (!template.isActive) {
+            throw new NotFoundException(
+                `Le template SQL pour l'intention "${intentKey}" sur ${sageType} est désactivé.`
+            );
+        }
+
         return template;
     }
 
