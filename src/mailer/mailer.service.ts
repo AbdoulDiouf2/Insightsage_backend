@@ -4,6 +4,7 @@ import * as nodemailer from 'nodemailer';
 import { Transporter } from 'nodemailer';
 import * as fs from 'fs';
 import * as path from 'path';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class MailerService implements OnModuleInit {
@@ -11,7 +12,10 @@ export class MailerService implements OnModuleInit {
   private transporter: Transporter | null = null;
   private readonly smtpConfigured: boolean;
 
-  constructor(private readonly config: ConfigService) {
+  constructor(
+    private readonly config: ConfigService,
+    private readonly prisma: PrismaService,
+  ) {
     this.smtpConfigured = !!this.config.get<string>('SMTP_HOST');
   }
 
@@ -369,7 +373,17 @@ export class MailerService implements OnModuleInit {
       });
       this.logger.log(`Email envoyé à ${options.to} — "${options.subject}"`);
     } catch (error) {
-      this.logger.error(`Échec envoi email à ${options.to}: ${(error as Error).message}`);
+      const message = (error as Error).message;
+      this.logger.error(
+        `Échec envoi email à ${options.to} — "${options.subject}": ${message}`,
+        (error as Error).stack,
+      );
+      this.prisma.auditLog.create({
+        data: {
+          event: 'email_send_failed',
+          payload: { subject: options.subject, error: message },
+        },
+      }).catch(() => {});
       throw error;
     }
   }

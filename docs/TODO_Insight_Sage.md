@@ -1022,3 +1022,82 @@ Pour que Sentry joue parfaitement son rôle de "boîte noire" (capture des erreu
   - Appeler l'URL (ex: `https://api.mondomaine.com/test-sentry-crash`). L'API doit renvoyer une erreur 500.
   - Se rendre sur le Dashboard Sentry : l'erreur doit apparaître quasi-instantanément avec la ligne de code exacte (`app.controller.ts`). Un email d'alerte devrait également être envoyé.
   - Penser à retirer la route `test-sentry-crash` une fois la validation terminée !
+
+***
+
+## 14. Admin Cockpit — Améliorations UI (19/03/2026)
+
+> Série d'améliorations UX/UI appliquées sur le frontend `admin-cockpit` (React + Vite + shadcn/ui).
+
+### 14.1. Ajustements visuels globaux
+
+- [x] **Zoom réduit de 10%** : `html { font-size: 80% }` dans `src/index.css` (était 90%).
+- [x] **Largeur sidebar réduite** : `w-[260px]` → `w-[220px]` ; padding contenu ajusté en conséquence dans `MainLayout.tsx`.
+- [x] **Sidebar — mode collapse** :
+  - [x] Icônes des items nav centrées (`justify-center px-0` quand collapsed).
+  - [x] Logo centré (`justify-center` sur le conteneur logo quand collapsed).
+  - [x] Lien Settings (bas de sidebar) centré également.
+
+### 14.2. Breadcrumb dynamique dans le Header
+
+- [x] `PAGE_TITLE_MAP` dans `Header.tsx` : tableau regex → clé i18n + `parentPath` optionnel pour les pages de détail.
+- [x] Toutes les routes couvertes (dashboard, organizations, users, roles, agents, audit-logs, invitations, health, settings, subscription-plans, client-plans, billing-subscriptions, dashboards, kpi-store, nlq-store + toutes leurs pages de détail).
+- [x] Icône maison (`House`) cliquable → `/dashboard`.
+- [x] Parent cliquable (NavLink) sur les pages de détail + séparateur ChevronRight + label "Détail".
+
+### 14.3. Recherche globale — Command Palette (Ctrl+K)
+
+- [x] Installation `cmdk` v1.1.1 (`npm install cmdk --legacy-peer-deps`).
+- [x] Composant `src/components/ui/command.tsx` — wrapper cmdk v1 (API imports directs, `data-[selected=true]`).
+- [x] Composant `src/components/shared/GlobalSearch.tsx` :
+  - [x] 4 groupes : Navigation (15 pages statiques), Organisations, Utilisateurs, Agents.
+  - [x] Données temps réel via hooks React Query existants (`useOrganizations`, `useAdminUsers`, `useAgents`).
+  - [x] Filtrage client-side natif cmdk, max 5 résultats par groupe dynamique.
+  - [x] Navigation + fermeture automatique au clic.
+- [x] Bouton "Rechercher..." dans `Header.tsx` (desktop uniquement, `w-52`, badge `Ctrl+K`).
+- [x] État `searchOpen` centralisé dans `MainLayout.tsx`.
+
+### 14.4. Raccourcis clavier globaux
+
+- [x] Hook `src/hooks/use-keyboard-shortcuts.ts` — centralise tous les raccourcis :
+  - [x] `Ctrl+K` → ouvre la recherche globale.
+  - [x] `Ctrl+\` → toggle sidebar.
+  - [x] `Ctrl+Shift+L` → bascule thème clair/sombre.
+  - [x] `?` → ouvre la cheatsheet (désactivé si focus dans un input).
+  - [x] `G` + lettre → navigation directe (séquence 2 touches, timeout 500ms via `useRef`).
+- [x] **Mapping G+lettre complet (15 pages)** :
+
+  | Raccourci | Route |
+  |---|---|
+  | G+D | `/dashboard` |
+  | G+O | `/organizations` |
+  | G+U | `/users` |
+  | G+I | `/invitations` |
+  | G+R | `/roles` |
+  | G+P | `/subscription-plans` |
+  | G+C | `/client-plans` |
+  | G+F | `/billing-subscriptions` |
+  | G+T | `/dashboards` |
+  | G+K | `/kpi-store` |
+  | G+N | `/nlq-store` |
+  | G+A | `/agents` |
+  | G+L | `/audit-logs` |
+  | G+H | `/health` |
+  | G+S | `/settings` |
+
+- [x] Bouton `Keyboard` dans le Header (desktop) → dispatch event `?` pour ouvrir la cheatsheet.
+- [x] `useKeyboardShortcuts` appelé dans `MainLayout.tsx` (centralisation état `searchOpen`, `helpOpen`).
+
+### 14.5. Cheatsheet raccourcis clavier
+
+- [x] Composant `src/components/shared/KeyboardShortcutsHelp.tsx` — Dialog scrollable (`max-h-[80vh]`) :
+  - [x] Section "Général" : Ctrl+K, Ctrl+\, Ctrl+Shift+L, `?`.
+  - [x] Section "Navigation — G puis..." : les 15 raccourcis G+lettre.
+  - [x] Composants `ShortcutRow` (clés `<kbd>`) et `Section` (titre uppercase).
+
+### 14.6. Paramètres — section Raccourcis clavier
+
+- [x] `SectionKey` enrichi : `'shortcuts'` ajouté.
+- [x] Item `Keyboard` ajouté dans `NAV_GROUPS` (groupe Général, aux côtés de Notifications).
+- [x] Section inline dans `SettingsPage.tsx` : même contenu que la cheatsheet modale, affiché dans une Card.
+- [x] Clés i18n ajoutées dans `fr.ts` et `en.ts` : `sectionShortcuts`, `sectionShortcutsDesc`, `shortcutsGroupGeneral`, `shortcutsGroupNav`.

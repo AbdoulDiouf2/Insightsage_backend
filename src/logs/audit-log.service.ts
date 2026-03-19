@@ -84,7 +84,9 @@ export type AuditEventType =
   // ── Audit / Consultation données sensibles ─────────────────────────────────
   | 'audit_logs_viewed'
   | 'admin_users_listed'
-  | 'admin_organizations_listed';
+  | 'admin_organizations_listed'
+  // ── Mailer ─────────────────────────────────────────────────────────────────
+  | 'email_send_failed';
 
 /** Événements qui déclenchent une alerte admin (toggle errorLogs) */
 const ERROR_ALERT_EVENTS = new Set<AuditEventType>([
