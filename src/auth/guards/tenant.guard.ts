@@ -40,6 +40,8 @@ export class TenantGuard implements CanActivate {
 
     // Superadmins (InsightSage developers) can access cross-tenant
     if (this.isSuperAdmin(user)) {
+      // Marquer la requête pour que l'AuditInterceptor trace l'accès cross-tenant
+      request.isSuperAdminAccess = true;
       return true;
     }
 

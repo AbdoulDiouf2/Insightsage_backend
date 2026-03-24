@@ -476,3 +476,125 @@ if (sentryDsn) {
 ```
 
 Laisser `SENTRY_DSN` vide en dev pour désactiver (aucun impact sur le fonctionnement).
+
+---
+
+## 14. Cache Redis des permissions (PermissionsGuard)
+
+### Problème initial
+
+`PermissionsGuard` effectuait une requête DB à chaque requête protégée pour charger `UserRoles → Role → RolePermissions → Permission`. Sur des routes fréquentes (ex: `/dashboards`), cela générait une requête Prisma supplémentaire à chaque appel.
+
+### Solution
+
+Les permissions sont mises en cache Redis sous la clé `perms:{userId}` avec un TTL de **5 minutes** :
+
+```typescript
+// permissions.guard.ts
+private async getUserPermissions(userId: string): Promise<Set<string> | null> {
+  const cacheKey = `perms:${userId}`;
+
+  // 1. Tentative lecture cache
+  const cached = await this.redis.get(cacheKey);
+  if (cached) return new Set<string>(JSON.parse(cached));
+
+  // 2. Cache miss → DB
+  const dbUser = await this.usersService.findByIdSafe(userId);
+  const permissions = new Set<string>();
+  for (const ur of dbUser.userRoles) {
+    for (const rp of ur.role.permissions) {
+      permissions.add(`${rp.permission.action}:${rp.permission.resource}`);
+    }
+  }
+
+  // 3. Mise en cache 5 min
+  await this.redis.set(cacheKey, JSON.stringify([...permissions]), { EX: 300 });
+  return permissions;
+}
+```
+
+**Stratégie fail-open** : si Redis est indisponible, le guard continue sans cache (fallback DB silencieux).
+
+!!! warning "Invalidation du cache"
+    Si les permissions d'un utilisateur sont modifiées (attribution/retrait de rôle via `PATCH /roles` ou `POST /users/:id/roles`), le cache n'est pas invalidé immédiatement. Les nouvelles permissions s'appliqueront dans un délai maximum de **5 minutes**. Pour une invalidation immédiate, supprimer manuellement la clé Redis `perms:{userId}`.
+
+---
+
+## 15. Gestion globale des erreurs (HttpExceptionFilter)
+
+### Objectif
+
+Empêcher les stack traces et détails d'erreurs internes de fuiter dans les réponses HTTP en production.
+
+### Implémentation
+
+```typescript
+// src/common/filters/http-exception.filter.ts
+@Catch()
+export class HttpExceptionFilter implements ExceptionFilter {
+  catch(exception: unknown, host: ArgumentsHost) {
+    // HttpException → réponse normalisée avec le message d'origine
+    if (exception instanceof HttpException) {
+      return res.status(status).json({ statusCode, error, message, path, timestamp });
+    }
+
+    // Erreur inattendue (500) :
+    //   - Production → message générique (aucun détail interne)
+    //   - Développement → message d'erreur complet
+    const message = this.isProd
+      ? 'Une erreur interne est survenue. Veuillez réessayer.'
+      : exception.message;
+
+    this.logger.error(`Unhandled exception on ${method} ${url}`, exception.stack);
+  }
+}
+```
+
+**Format de réponse normalisé** (toutes les erreurs) :
+
+```json
+{
+  "statusCode": 404,
+  "error": "Not Found",
+  "message": "Utilisateur introuvable",
+  "path": "/api/users/abc",
+  "timestamp": "2026-03-24T12:00:00.000Z"
+}
+```
+
+Enregistré globalement dans `main.ts` via `app.useGlobalFilters(new HttpExceptionFilter())`.
+
+---
+
+## 16. Traçabilité des accès superadmin cross-tenant
+
+### Contexte
+
+Le `TenantGuard` permet aux superadmins (permission `manage:all`) d'accéder à n'importe quel tenant sans restriction. Ces accès n'étaient pas distingués dans l'audit log des accès normaux.
+
+### Solution
+
+Le `TenantGuard` injecte un flag `isSuperAdminAccess` dans la requête lors d'un bypass :
+
+```typescript
+// tenant.guard.ts
+if (this.isSuperAdmin(user)) {
+  request.isSuperAdminAccess = true; // ← Flag pour l'AuditInterceptor
+  return true;
+}
+```
+
+L'`AuditInterceptor` inclut ce flag dans le payload de l'audit log :
+
+```typescript
+// audit.interceptor.ts — payload enrichi
+payload: {
+  source: 'http',
+  method,
+  path,
+  status: 'success',
+  ...(isSuperAdminAccess && { superadmin_cross_tenant: true }), // ← tracé
+}
+```
+
+**Résultat** : les audit logs des superadmins contiennent `superadmin_cross_tenant: true`, permettant de filtrer et auditer tous les accès cross-tenant depuis l'interface admin.

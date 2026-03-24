@@ -106,7 +106,10 @@ export class AuditInterceptor implements NestInterceptor {
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const ctx = context.switchToHttp();
-    const req = ctx.getRequest<Request & { user?: { id: string; organizationId: string } }>();
+    const req = ctx.getRequest<Request & {
+      user?: { id: string; organizationId: string };
+      isSuperAdminAccess?: boolean;
+    }>();
 
     const method = req.method;
     const path = req.url.split('?')[0]; // strip query string
@@ -119,6 +122,7 @@ export class AuditInterceptor implements NestInterceptor {
     const organizationId = req.user?.organizationId;
     const ipAddress = req.ip ?? (req.socket?.remoteAddress);
     const userAgent = req.headers['user-agent'];
+    const isSuperAdminAccess = req.isSuperAdminAccess === true;
     const startedAt = Date.now();
 
     return next.handle().pipe(
@@ -137,6 +141,7 @@ export class AuditInterceptor implements NestInterceptor {
             status: 'success',
             entityId: response?.id ?? undefined,
             body: this.sanitizeBody(req.body),
+            ...(isSuperAdminAccess && { superadmin_cross_tenant: true }),
           },
         });
       }),
@@ -156,6 +161,7 @@ export class AuditInterceptor implements NestInterceptor {
             statusCode: error?.status ?? error?.statusCode ?? 500,
             errorMessage: error?.message,
             body: this.sanitizeBody(req.body),
+            ...(isSuperAdminAccess && { superadmin_cross_tenant: true }),
           },
         });
         return throwError(() => error);
