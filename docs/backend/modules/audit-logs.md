@@ -262,6 +262,7 @@ await prisma.auditLog.groupBy({
 | `agent_registered` | Agent enregistré au démarrage |
 | `agent_heartbeat` | Heartbeat reçu |
 | `agent_error` | Agent en état d'erreur |
+| `agent_job_timeout` | Job SQL expiré (timeout 30s) |
 | `agent_token_revoked` | Token révoqué |
 | `agent_token_regenerated` | Token régénéré |
 | `agent_token_expired` | Token expiré (détecté) |
@@ -297,6 +298,21 @@ await prisma.auditLog.groupBy({
 | `widget_removed` | Widget supprimé |
 | `nlq_executed` | Requête NLQ exécutée |
 | `nlq_saved_to_dashboard` | Résultat NLQ sauvegardé |
+
+### Mailer
+
+| Événement | Description |
+|-----------|-------------|
+| `email_send_failed` | Échec d'envoi SMTP — loggé automatiquement par `MailerService` |
+
+!!! info "Payload `email_send_failed`"
+    ```json
+    {
+      "subject": "[Cockpit] Agent hors ligne : Sage-X3",
+      "error": "connect ECONNREFUSED 127.0.0.1:25"
+    }
+    ```
+    Le destinataire (`to`) n'est **pas stocké** en DB (conformité PII). Le sujet suffit à identifier le contexte.
 
 ---
 

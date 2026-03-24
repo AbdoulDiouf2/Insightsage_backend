@@ -726,7 +726,7 @@ export class AgentsService implements OnModuleInit {
 
     const result = await this.prisma.agentJob.updateMany({
       where: {
-        status: JobStatus.PENDING,
+        status: { in: [JobStatus.PENDING, JobStatus.RUNNING] },
         createdAt: { lt: timeoutDate },
       },
       data: {
@@ -741,6 +741,27 @@ export class AgentsService implements OnModuleInit {
     }
 
     return { timedOutJobs: result.count };
+  }
+
+  /**
+   * Fail tous les jobs PENDING/RUNNING d'une organisation lors d'une déconnexion agent.
+   */
+  async failActiveJobsForOrg(organizationId: string) {
+    const result = await this.prisma.agentJob.updateMany({
+      where: {
+        organizationId,
+        status: { in: [JobStatus.PENDING, JobStatus.RUNNING] },
+      },
+      data: {
+        status: JobStatus.FAILED,
+        errorMessage: 'Agent déconnecté : le job n\'a pas pu être complété.',
+        completedAt: new Date(),
+      },
+    });
+
+    if (result.count > 0) {
+      this.logger.warn(`failActiveJobsForOrg [${organizationId}] : ${result.count} job(s) annulé(s) suite à déconnexion agent.`);
+    }
   }
 
   // ─── Presence Management (called by Gateway) ─────────────────────────────

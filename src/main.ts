@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import * as jwt from 'jsonwebtoken';
@@ -191,6 +192,9 @@ async function bootstrap() {
     },
     credentials: true,
   });
+
+  // Global exception filter — sanitize error responses, no stack trace leak in production
+  app.useGlobalFilters(new HttpExceptionFilter());
 
   // Global validation (DTOs)
   app.useGlobalPipes(
