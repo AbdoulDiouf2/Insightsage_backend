@@ -1101,3 +1101,302 @@ Pour que Sentry joue parfaitement son rôle de "boîte noire" (capture des erreu
 - [x] Item `Keyboard` ajouté dans `NAV_GROUPS` (groupe Général, aux côtés de Notifications).
 - [x] Section inline dans `SettingsPage.tsx` : même contenu que la cheatsheet modale, affiché dans une Card.
 - [x] Clés i18n ajoutées dans `fr.ts` et `en.ts` : `sectionShortcuts`, `sectionShortcutsDesc`, `shortcutsGroupGeneral`, `shortcutsGroupNav`.
+
+---
+
+## 15. Intégrations n8n — Fonctionnalités potentielles à implémenter
+
+> Le client a n8n installé. Les 4 cas d'usage ci-dessous ont été identifiés comme les plus à forte valeur pour le projet Cockpit. Chaque point décrit le besoin, l'architecture technique, les workflows n8n à construire et les impacts sur le backend NestJS.
+
+---
+
+### 15.1. Pipeline NLQ alimenté par IA (remplacement du moteur template-based)
+
+**Contexte actuel**
+Le module `nlq/` est un squelette vide. L'approche prévue était template-based : des requêtes SQL pré-écrites paramétrées par des variables. Cette approche est rigide, couteuse à maintenir et ne répond pas aux questions libres.
+
+**Vision avec n8n + LLM**
+Remplacer le template-based par un pipeline IA complet orchestré dans n8n, où le backend NestJS joue le rôle de dispatcher et de validateur de sécurité.
+
+**Architecture du pipeline**
+
+```
+[User Frontend]
+    │ POST /nlq/query { question: string, dashboardContext: object }
+    ▼
+[NestJS NlqController]
+    │ 1. JwtAuthGuard + SubscriptionGuard (@RequiresFeature('hasNlq'))
+    │ 2. Sanitize question (longueur max, blacklist injection)
+    │ 3. Appel HTTP → n8n Webhook "nlq-pipeline"
+    ▼
+[n8n Workflow "nlq-pipeline"]
+    │
+    ├─ Node 1 : Receive Webhook
+    │     Payload : { question, orgId, schemaContext, language }
+    │
+    ├─ Node 2 : Build Prompt
+    │     Injecte le schéma Sage (tables ERP disponibles pour cet org)
+    │     Injecte les règles métier (ex: "fiscal_year commence en juillet")
+    │     Prompt système : "Tu es un assistant SQL pour Sage X3. Génère uniquement
+    │      un SELECT valide. Ne jamais utiliser DROP, UPDATE, DELETE..."
+    │
+    ├─ Node 3 : OpenAI / Claude API
+    │     Modèle : GPT-4o ou Claude Sonnet
+    │     Temperature : 0 (déterministe)
+    │     Réponse attendue : { sql: string, explanation: string }
+    │
+    ├─ Node 4 : SQL Validator
+    │     Regex check : SELECT only, no comments, no subqueries non autorisés
+    │     Si invalide → retourne { error: "unsafe_sql" }
+    │
+    ├─ Node 5 : Send SQL to Agent
+    │     POST /agents/jobs { organizationId, sql, source: "nlq" }
+    │     L'agent on-prem exécute la requête sur le Sage local
+    │
+    ├─ Node 6 : Wait for result (polling ou webhook retour)
+    │     Timeout : 30s (même limite que AgentJob)
+    │
+    └─ Node 7 : Return to NestJS
+          { sql, explanation, results: Row[], executionTimeMs }
+    ▼
+[NestJS]
+    │ 4. Audit log de la question + requête SQL générée
+    │ 5. Retourne au frontend
+    ▼
+[Frontend Dashboard]
+    Affiche le tableau de résultats + explication en langage naturel
+```
+
+**Évolutions backend NestJS nécessaires**
+- `NlqController.query()` : implémentation réelle avec appel HTTP vers n8n
+- `NlqService.buildSchemaContext()` : récupère les tables disponibles pour l'org (config agent)
+- `NlqService.auditNlqQuery()` : enregistre question + SQL + nombre de lignes dans AuditLog
+- `NlqJobService` : gestion du statut (PENDING / COMPLETED / ERROR) pour les requêtes longues
+- Nouveau champ `AgentJob.source` : `'manual' | 'nlq' | 'scheduled'`
+
+**Configuration n8n**
+- Credentials : OpenAI API Key ou Anthropic API Key (stockées dans n8n Credentials, jamais dans le code)
+- Variable d'environnement NestJS : `N8N_NLQ_WEBHOOK_URL`
+- Authentification webhook : Header secret partagé `X-Internal-Token`
+
+**Avantages vs template-based**
+- Questions libres en français ET anglais sans configuration
+- Explication automatique en langage naturel (pédagogie pour le DAF)
+- Évolution zero-code : améliorer le prompt dans n8n sans redeployer le backend
+- Multi-modèle : switcher GPT ↔ Claude ↔ Mistral dans n8n sans toucher NestJS
+
+---
+
+### 15.2. Détection d'anomalies KPI
+
+**Contexte**
+Les organisations définissent des KPI dans `KpiDefinition`. Les valeurs réelles arrivent via l'agent on-prem (requêtes SQL sur Sage). Actuellement, aucun mécanisme ne compare les valeurs aux objectifs ni ne détecte les dérives.
+
+**Vision**
+Un workflow n8n cron tourne toutes les heures (ou toutes les nuits pour les KPI journaliers). Il compare les valeurs réelles aux cibles, calcule les écarts, et déclenche des alertes si des seuils sont franchis.
+
+**Architecture du workflow n8n "kpi-anomaly-detection"**
+
+```
+[n8n Cron — toutes les heures]
+    │
+    ├─ Node 1 : Fetch Active Organizations
+    │     GET /admin/organizations?status=ACTIVE (appel interne avec token superadmin)
+    │
+    ├─ Node 2 : Pour chaque org → Fetch KPI Definitions
+    │     GET /kpis?organizationId=X (avec targets et thresholds)
+    │
+    ├─ Node 3 : Pour chaque KPI → Déclencher AgentJob
+    │     POST /agents/jobs { sql: kpi.query, organizationId }
+    │     Collecte les valeurs réelles en temps réel depuis Sage
+    │
+    ├─ Node 4 : Calcul d'anomalie
+    │     Pour chaque KPI :
+    │       deviation = (actual - target) / target * 100
+    │       Si deviation > threshold → ANOMALY
+    │     Types d'anomalies détectées :
+    │       - Dépassement budget (ex: charges > budget +10%)
+    │       - Chute de CA (ex: CA < objectif -15%)
+    │       - Ratio critique (ex: DSO > 60 jours)
+    │       - Tendance : 3 jours consécutifs en baisse
+    │
+    ├─ Node 5 : Si anomalie → POST /notifications/kpi-alert
+    │     NestJS crée une notification in-app + WebSocket push vers CockpitGateway
+    │     Format : { kpiName, actual, target, deviation, severity: 'warning'|'critical' }
+    │
+    ├─ Node 6 : Slack / Email alert (si severity = 'critical')
+    │     n8n Slack node → channel #alerts-cockpit
+    │     n8n Email node → DAF de l'organisation
+    │
+    └─ Node 7 : Audit log
+          POST /audit/log { event: 'KPI_ANOMALY_DETECTED', metadata: {...} }
+```
+
+**Niveaux de sévérité**
+| Sévérité | Seuil par défaut | Action |
+|---|---|---|
+| `info` | ±5% | Log uniquement |
+| `warning` | ±10% | Notification in-app |
+| `critical` | ±20% ou tendance 3j | Notification + Slack + Email |
+
+**Évolutions backend NestJS nécessaires**
+- Nouveau modèle Prisma `KpiAlert` : `{ id, kpiId, orgId, actual, target, deviation, severity, triggeredAt, acknowledgedAt? }`
+- `NotificationsModule` : service + WebSocket event `kpi_alert` sur CockpitGateway
+- Endpoint `POST /notifications/kpi-alert` : authentifié par token interne (pas JWT user)
+- `KpiDefinition` : nouveaux champs `targetValue`, `warningThreshold`, `criticalThreshold`, `alertEnabled`
+- Dashboard frontend : composant `KpiAlertBanner` + badge rouge sur les KPI en anomalie
+
+**Valeur métier**
+- Le DAF est alerté proactivement, sans avoir à consulter le dashboard
+- Réduction du temps de détection des dérives budgétaires (de semaines à heures)
+- Historique des anomalies pour audit et reporting mensuel
+
+---
+
+### 15.3. Moteur de segmentation et upsell
+
+**Contexte**
+`LicenseGuardianService` surveille déjà les limites (maxUsers, maxWidgets, maxKpis, maxAgentSyncPerDay). Mais rien n'est fait de ces données pour déclencher des actions commerciales ou d'engagement.
+
+**Vision**
+Un workflow n8n hebdomadaire segmente toutes les organisations par niveau d'usage, identifie les comptes "prêts à upgrader", et déclenche des séquences CRM/email ciblées.
+
+**Architecture du workflow n8n "segmentation-upsell"**
+
+```
+[n8n Cron — chaque lundi 8h00]
+    │
+    ├─ Node 1 : Fetch All Organizations + Subscriptions
+    │     GET /admin/organizations (avec plan actuel + usage stats)
+    │
+    ├─ Node 2 : Calcul du score d'usage pour chaque org
+    │     Score = somme pondérée :
+    │       - users : (currentUsers / maxUsers) * 30
+    │       - widgets : (currentWidgets / maxWidgets) * 25
+    │       - kpis : (currentKpis / maxKpis) * 25
+    │       - syncs : (avgDailySyncs / maxAgentSyncPerDay) * 20
+    │     Score normalisé 0-100
+    │
+    ├─ Node 3 : Classification en segments
+    │     - "churning" : score < 20 et plan payant → risque de désabonnement
+    │     - "stable" : score 20-60 → usage normal
+    │     - "power_user" : score 60-80 → engagement fort
+    │     - "upgrade_ready" : score > 80 OU une limite atteinte à > 90%
+    │
+    ├─ Node 4 : Actions par segment
+    │
+    │   [upgrade_ready]
+    │     → POST /crm/contact { org, segment, suggestedPlan }
+    │       (appel CRM Nafaka si disponible : HubSpot, Pipedrive, etc.)
+    │     → n8n Email node : email personnalisé au Owner
+    │       "Vous approchez de vos limites, passez au plan Business"
+    │       avec lien deep-link vers /settings/billing
+    │
+    │   [churning]
+    │     → Slack node : alerte #cs-cockpit "Compte X inactif depuis 14j"
+    │     → Task CS créée dans CRM pour prise de contact
+    │
+    │   [power_user]
+    │     → Notification in-app : "Découvrez les fonctionnalités avancées"
+    │     → Invitation à un webinar ou démo des features premium
+    │
+    └─ Node 5 : Rapport hebdo → Slack #product-cockpit
+          Résumé : { total_orgs, upgrade_ready: N, churning: N, power_users: N }
+```
+
+**Évolutions backend NestJS nécessaires**
+- `GET /admin/organizations/usage-stats` : endpoint retournant usage actuel vs limites pour chaque org
+- `POST /notifications/in-app` : endpoint générique pour push de notifications depuis n8n
+- Nouveau modèle `OrgSegment` : `{ orgId, segment, score, computedAt }` — historique pour analytics
+- Webhook interne sécurisé : `POST /internal/segment-update` avec token partagé
+
+**Valeur métier**
+- Identification automatique des comptes à convertir sans intervention manuelle
+- Réduction du churn par détection proactive de l'inactivité
+- Croissance MRR sans effort commercial supplémentaire (upsell automatisé)
+- Dashboard Nafaka : courbe de segmentation dans le temps
+
+---
+
+### 15.4. Automatisation des opérations internes Nafaka
+
+**Contexte**
+Les opérations internes de l'équipe Nafaka (onboarding client, support, release) sont manuelles et non tracées. n8n peut automatiser ces workflows sans impacter le code produit.
+
+**Vision**
+Un ensemble de workflows n8n connectés aux outils internes de l'équipe (Slack, Notion, email, GitHub) pour automatiser le cycle de vie client de bout en bout.
+
+**Workflow 1 : Onboarding automatisé nouveau client**
+
+```
+[Trigger : POST /webhooks/new-organization depuis NestJS]
+    │ (appelé dans OrganizationsService.create() via HTTP)
+    │
+    ├─ Créer workspace Notion "Client : {orgName}"
+    │     Template : fiche client (plan, contacts, config Sage, SLA)
+    │
+    ├─ Envoyer Slack message → #onboarding-cockpit
+    │     "Nouveau client {orgName} — Plan {plan} — Owner : {email}"
+    │
+    ├─ Créer task dans Notion/Linear
+    │     "Appel de bienvenue J+1 avec {ownerEmail}"
+    │
+    ├─ Email automatique Owner (J+0) : "Bienvenue chez Cockpit"
+    │     (distinct du welcome-setup envoyé par NestJS — plus commercial)
+    │
+    ├─ Email J+3 : "Avez-vous configuré votre agent ?"
+    │     (vérifie si agent lié, sinon envoie guide)
+    │
+    └─ Email J+7 : "Votre premier rapport KPI est prêt"
+          (si KPI configurés, sinon "Configurez vos premiers KPI")
+```
+
+**Workflow 2 : Alertes support et incidents**
+
+```
+[Trigger : POST /health retourne status != 'ok']
+    │ (n8n poll GET /health toutes les 5 minutes)
+    │
+    ├─ Slack #incidents : "⚠️ Health check failed — {details}"
+    ├─ PagerDuty / appel téléphonique si durée > 10min
+    └─ Création ticket support automatique
+```
+
+**Workflow 3 : Rapport mensuel automatique**
+
+```
+[n8n Cron — 1er du mois, 7h00]
+    │
+    ├─ GET /admin/stats { period: 'last_month' }
+    │     { newOrgs, churnedOrgs, totalMRR, activeAgents, nlqQueries }
+    │
+    ├─ Générer rapport PDF via n8n (HTML → PDF node)
+    │
+    ├─ Email → équipe Nafaka : rapport mensuel
+    │
+    └─ Post Slack #metrics : résumé 5 lignes avec emojis
+```
+
+**Workflow 4 : Release & changelog**
+
+```
+[Trigger : GitHub webhook sur merge vers main]
+    │
+    ├─ Extraire commits depuis merge PR
+    ├─ Appel LLM (GPT-4o) : "Génère un changelog en français"
+    ├─ Créer page Notion "Release vX.X.X — {date}"
+    └─ Slack #releases : "🚀 Nouvelle version deployée — {changelog_summary}"
+```
+
+**Configuration n8n globale pour ces workflows**
+- Variables d'environnement n8n : `NESTJS_INTERNAL_URL`, `NESTJS_INTERNAL_TOKEN`, `SLACK_WEBHOOK_URL`, `NOTION_API_KEY`, `GITHUB_WEBHOOK_SECRET`
+- Endpoints NestJS à ajouter :
+  - `POST /webhooks/new-organization` : déclenché dans `OrganizationsService.create()`
+  - `GET /admin/stats` : statistiques agrégées (orgs actives, MRR, usage)
+- Sécurité : tous les webhooks entrants NestJS ← n8n validés par `X-Internal-Token` header
+
+**Valeur métier**
+- Onboarding client 100% automatisé : zéro action manuelle pour les cas standards
+- Détection d'incidents en 5 minutes (vs découverte par le client)
+- Rapports mensuels sans effort de rédaction
+- Changelog automatique : communication produit sans friction

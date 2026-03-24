@@ -69,6 +69,7 @@ export class AgentsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (client.data.organizationId) {
       this.activeAgents.delete(client.data.organizationId);
       this.agentsService.setAgentDisconnected(client.data.organizationId);
+      this.agentsService.failActiveJobsForOrg(client.data.organizationId).catch(() => {});
       this.logger.log(`Agent disconnected: ${client.data.agentId}`);
     }
   }
