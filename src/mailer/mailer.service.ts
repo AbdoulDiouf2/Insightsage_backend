@@ -337,6 +337,36 @@ export class MailerService implements OnModuleInit {
     await this.send({ to: email, subject: `[Cockpit] Paiement reçu — ${orgName}`, html });
   }
 
+  async sendAdminTokenExpiringSoonAlert(
+    email: string,
+    firstName: string | null | undefined,
+    agentName: string,
+    orgName: string,
+    daysLeft: number,
+  ): Promise<void> {
+    const greeting = firstName ? `Bonjour ${firstName},` : 'Bonjour,';
+    const urgency = daysLeft <= 1 ? '#dc2626' : daysLeft <= 3 ? '#f97316' : '#f59e0b';
+    if (!this.smtpConfigured) {
+      this.logger.log(`[DEV] sendAdminTokenExpiringSoonAlert → ${email} | agent: ${agentName} (${orgName}) — J-${daysLeft}`);
+      return;
+    }
+    const html = this.adminHtml(
+      urgency,
+      `⏰ Token agent expire dans ${daysLeft} jour(s)`,
+      `<p>${greeting}</p>
+       <p>Le token de l'agent on-premise suivant expire dans <strong>${daysLeft} jour(s)</strong>.</p>
+       <p>Agent : <strong>${agentName}</strong></p>
+       <p>Organisation : <strong>${orgName}</strong></p>
+       <p>Sans renouvellement, l'agent sera bloqué et les tableaux de bord ne pourront plus se rafraîchir.</p>
+       <p><strong>Action requise :</strong> Régénérez le token depuis le portail d'administration, puis mettez à jour le fichier <code>config/config.yaml</code> de l'agent et redémarrez-le.</p>`,
+    );
+    await this.send({
+      to: email,
+      subject: `[Cockpit] Token agent expire dans ${daysLeft} jour(s) — ${agentName}`,
+      html,
+    });
+  }
+
   async sendAdminErrorLogAlert(
     email: string,
     firstName: string | null | undefined,
@@ -346,13 +376,27 @@ export class MailerService implements OnModuleInit {
   ): Promise<void> {
     const greeting = firstName ? `Bonjour ${firstName},` : 'Bonjour,';
     const orgLine = orgName ? `<p>Organisation : <strong>${orgName}</strong></p>` : '';
-    const detailLine = details
-      ? `<p>Détail : <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;">${details}</code></p>`
-      : '';
     if (!this.smtpConfigured) {
       this.logger.log(`[DEV] sendAdminErrorLogAlert → ${email} | event: ${eventType}${orgName ? ` (${orgName})` : ''}`);
       return;
     }
+
+    // Cas particulier : token expiré → message actionnable, pas d'alerte rouge générique
+    if (eventType === 'agent_token_expired') {
+      const html = this.adminHtml(
+        '#f97316',
+        '⚠️ Token agent expiré',
+        `<p>${greeting}</p>
+         <p>Un agent on-premise tente de se connecter avec un token expiré.</p>
+         ${orgLine}
+         <p><strong>Action requise :</strong> Régénérez le token depuis le portail d'administration, puis mettez à jour le fichier <code>config/config.yaml</code> de l'agent et redémarrez-le.</p>`,
+      );
+      return this.send({ to: email, subject: `[Cockpit] Token agent expiré — action requise`, html });
+    }
+
+    const detailLine = details
+      ? `<p>Détail : <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;">${details}</code></p>`
+      : '';
     const html = this.adminHtml(
       '#dc2626',
       '🚨 Erreur système détectée',

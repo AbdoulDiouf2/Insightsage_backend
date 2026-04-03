@@ -867,13 +867,12 @@
       "CAMV",
       "stock moyen"
     ],
-    "sqlSage100View": "VW_STOCKS",
+    "sqlSage100View": "VW_STOCKS_LOGISTIQUE",
     "sqlSage100Tables": [
       "F_ARTSTOCK",
-      "F_ARTICLE",
-      "G_ECRITUREC"
+      "F_ARTICLE"
     ],
-    "sqlSage100": "SELECT Reference_Article, Designation, Quantite_Stock, Valeur_Stock, CASE WHEN Quantite_Stock > 0 THEN Valeur_Stock / Quantite_Stock ELSE 0 END AS Valeur_Unitaire FROM VW_STOCKS WHERE Est_Sommeil=0 ORDER BY Valeur_Stock DESC",
+    "sqlSage100": "SELECT reference_article, designation, taux_rotation_stock FROM VW_STOCKS_LOGISTIQUE WHERE article_inactif=0 ORDER BY taux_rotation_stock DESC",
     "mlUsage": "Feature pour modèles de gestion prédictive des stocks (reorder point)."
   },
   {
@@ -906,13 +905,12 @@
       "invendu",
       "sans mouvement"
     ],
-    "sqlSage100View": "VW_STOCKS",
+    "sqlSage100View": "VW_STOCKS_LOGISTIQUE",
     "sqlSage100Tables": [
       "F_ARTSTOCK",
-      "F_ARTICLE",
-      "F_MOUVEMENT"
+      "F_ARTICLE"
     ],
-    "sqlSage100": "SELECT Reference_Article, Designation, Libelle_Famille, Quantite_Stock, Valeur_Stock FROM VW_STOCKS WHERE Est_Sommeil=1 AND Quantite_Stock > 0 ORDER BY Valeur_Stock DESC",
+    "sqlSage100": "SELECT reference_article, designation, libelle_famille, valeur_stock FROM VW_STOCKS_LOGISTIQUE WHERE stock_dormant=1 OR stock_obsolete=1 ORDER BY valeur_stock DESC",
     "mlUsage": "Feature pour classification articles et optimisation assortiment."
   },
   {
@@ -945,13 +943,12 @@
       "réappro",
       "out of stock days"
     ],
-    "sqlSage100View": "VW_STOCKS",
+    "sqlSage100View": "VW_STOCKS_LOGISTIQUE",
     "sqlSage100Tables": [
       "F_ARTSTOCK",
-      "F_ARTICLE",
-      "G_ECRITUREC"
+      "F_ARTICLE"
     ],
-    "sqlSage100": "SELECT Reference_Article, Designation, Quantite_Stock, Stock_Minimum, Statut_Stock, CASE WHEN Quantite_Stock <= 0 THEN 0 WHEN Quantite_Stock <= Stock_Minimum THEN 1 ELSE 2 END AS Niveau_Stock FROM VW_STOCKS WHERE Est_Sommeil=0 ORDER BY Niveau_Stock",
+    "sqlSage100": "SELECT reference_article, designation, couverture_stock_jours FROM VW_STOCKS_LOGISTIQUE WHERE article_inactif=0 ORDER BY couverture_stock_jours",
     "mlUsage": "Feature pour prévision de rupture et modèles de réapprovisionnement automatique."
   },
   {
@@ -984,12 +981,12 @@
       "disponibilité produit",
       "stock minimum"
     ],
-    "sqlSage100View": "VW_STOCKS",
+    "sqlSage100View": "VW_STOCKS_LOGISTIQUE",
     "sqlSage100Tables": [
       "F_ARTSTOCK",
       "F_ARTICLE"
     ],
-    "sqlSage100": "SELECT (COUNT(CASE WHEN Statut_Stock='Rupture' OR Quantite_Stock <= Stock_Minimum THEN 1 END) * 100.0 / NULLIF(COUNT(*),0)) AS Taux_Rupture FROM VW_STOCKS WHERE Est_Sommeil=0",
+    "sqlSage100": "SELECT (COUNT(CASE WHEN statut_stock='Rupture' THEN 1 END) * 100.0 / NULLIF(COUNT(*),0)) AS Taux_Rupture FROM VW_STOCKS_LOGISTIQUE WHERE article_inactif=0",
     "mlUsage": "Variable cible pour modèles de prédiction de rupture."
   },
   {
@@ -1022,14 +1019,124 @@
       "pricing",
       "optimisation assortiment"
     ],
-    "sqlSage100View": "VW_STOCKS",
+    "sqlSage100View": "VW_STOCKS_LOGISTIQUE",
     "sqlSage100Tables": [
       "F_ARTICLE",
-      "F_ARTSTOCK",
-      "G_ECRITUREC"
+      "F_ARTSTOCK"
     ],
-    "sqlSage100": "SELECT Reference_Article, Designation, Prix_Vente_HT, Cout_Achat_Article, (Prix_Vente_HT - Cout_Achat_Article) AS Marge_Unitaire, Taux_Marge_Pct FROM VW_STOCKS WHERE Est_Sommeil=0 ORDER BY Taux_Marge_Pct DESC",
+    "sqlSage100": "SELECT reference_article, designation, prix_vente, cout_achat, marge_article, taux_marge_pct FROM VW_STOCKS_LOGISTIQUE WHERE article_inactif=0 ORDER BY taux_marge_pct DESC",
     "mlUsage": "Feature pour recommandation de gamme et optimisation pricing dynamique."
+  },
+  {
+    "key": "s07_classe_abc_stocks",
+    "name": "Distribution ABC des Stocks",
+    "code": "KPI-S07",
+    "domain": "Stocks & Articles",
+    "category": "stocks",
+    "subcategory": "Analyse ABC",
+    "description": "Classification des articles en classes A, B ou C selon leur importance (valeur ou rotation).",
+    "usage": "Prioriser le contrôle des stocks. Optimiser les inventaires tournants. Stratégie d'approvisionnement.",
+    "unit": "nb",
+    "defaultVizType": "pie",
+    "frequency": "Mensuel",
+    "risk": "Faible",
+    "profiles": [
+      "Logistique",
+      "DAF",
+      "Responsable Achats"
+    ],
+    "sectors": [
+      "Commerce",
+      "Industrie",
+      "Distribution"
+    ],
+    "keywords": [
+      "ABC",
+      "Pareto",
+      "classement stock",
+      "importance articles"
+    ],
+    "sqlSage100View": "VW_STOCKS_LOGISTIQUE",
+    "sqlSage100Tables": [
+      "F_ARTICLE",
+      "F_ARTSTOCK"
+    ],
+    "sqlSage100": "SELECT classe_abc, COUNT(*) AS Nb_Articles, SUM(valeur_stock) AS Valeur_Totale FROM VW_STOCKS_LOGISTIQUE GROUP BY classe_abc",
+    "mlUsage": "Feature pour modèles d'optimisation de stock et segmentation produit."
+  },
+  {
+    "key": "s08_taux_service_logistique",
+    "name": "Taux de Service Logistique",
+    "code": "KPI-S08",
+    "domain": "Stocks & Articles",
+    "category": "stocks",
+    "subcategory": "Performance Logistique",
+    "description": "Taux de satisfaction des commandes en fonction du stock disponible.",
+    "usage": "Mesurer la performance logistique. Identifier les freins à la vente liés au stock.",
+    "unit": "%",
+    "defaultVizType": "card",
+    "frequency": "Hebdomadaire",
+    "risk": "Moyen",
+    "profiles": [
+      "Logistique",
+      "Direction Commerciale",
+      "DAF"
+    ],
+    "sectors": [
+      "Commerce",
+      "Industrie",
+      "Distribution"
+    ],
+    "keywords": [
+      "taux service",
+      "service level",
+      "satisfaction client",
+      "disponibilité stock"
+    ],
+    "sqlSage100View": "VW_STOCKS_LOGISTIQUE",
+    "sqlSage100Tables": [
+      "F_ARTICLE",
+      "F_ARTSTOCK"
+    ],
+    "sqlSage100": "SELECT AVG(taux_service_commandes) AS Taux_Service FROM VW_STOCKS_LOGISTIQUE WHERE article_inactif=0",
+    "mlUsage": "Variable cible pour optimisation des niveaux de service."
+  },
+  {
+    "key": "s09_valorisation_surstock",
+    "name": "Valorisation du Surstock",
+    "code": "KPI-S09",
+    "domain": "Stocks & Articles",
+    "category": "stocks",
+    "subcategory": "Optimisation BFR",
+    "description": "Valeur du stock excédentaire par rapport au stock maximum défini.",
+    "usage": "Identifier le capital immobilisé inutilement. Réduire le BFR. Ajuster les paramètres de réapprovisionnement.",
+    "unit": "€",
+    "defaultVizType": "card",
+    "frequency": "Mensuel",
+    "risk": "Moyen",
+    "profiles": [
+      "DAF",
+      "Logistique",
+      "Responsable Achats"
+    ],
+    "sectors": [
+      "Commerce",
+      "Industrie",
+      "Distribution"
+    ],
+    "keywords": [
+      "surstock",
+      "overstock",
+      "BFR",
+      "stock excédentaire"
+    ],
+    "sqlSage100View": "VW_STOCKS_LOGISTIQUE",
+    "sqlSage100Tables": [
+      "F_ARTICLE",
+      "F_ARTSTOCK"
+    ],
+    "sqlSage100": "SELECT SUM(valeur_surstock) AS Valeur_Surstock_Total FROM VW_STOCKS_LOGISTIQUE WHERE surstock=1",
+    "mlUsage": "Feature pour modèles de réduction de coût de stockage."
   },
   {
     "key": "k01_resultat_net_comptable",
@@ -1350,13 +1457,12 @@
       "lead time",
       "saisonnalité stock"
     ],
-    "sqlSage100View": "VW_STOCKS",
+    "sqlSage100View": "VW_STOCKS_LOGISTIQUE",
     "sqlSage100Tables": [
       "F_ARTSTOCK",
-      "F_ARTICLE",
-      "G_ECRITUREC"
+      "F_ARTICLE"
     ],
-    "sqlSage100": "-- Modèle: f(Stock_Actuel, Consommation_Historique, Lead_Time_F, Saisonnalité) FROM VW_STOCKS",
+    "sqlSage100": "-- Modèle: f(Stock_Actuel, Consommation_Historique, Lead_Time_F, Saisonnalité) FROM VW_STOCKS_LOGISTIQUE",
     "mlUsage": "Régression / Classification. Features: historique mouvements, délais fournisseurs."
   },
   {
@@ -4341,13 +4447,12 @@
       "stockout prediction",
       "gradient boosting stock"
     ],
-    "sqlSage100View": "VW_STOCKS (12 mois historique)",
+    "sqlSage100View": "VW_STOCKS_LOGISTIQUE (historique via synchro)",
     "sqlSage100Tables": [
       "F_ARTSTOCK",
-      "F_ARTICLE",
-      "G_ECRITUREC"
+      "F_ARTICLE"
     ],
-    "sqlSage100": "SELECT AR_Ref, P_Rupture_30j FROM VW_STOCKS -- Modèle sur: Stock_Actuel, Consomm_Histo, Saisonnalité, Lead_Time_Fournisseur",
+    "sqlSage100": "SELECT reference_article, statut_stock, couverture_stock_jours FROM VW_STOCKS_LOGISTIQUE -- Modèle sur: Stock_Actuel, Consomm_Histo, Saisonnalité, Lead_Time_Fournisseur",
     "mlUsage": "Classification / Régression de survie. Algo: Gradient Boosting. Feature engineering: tendance conso, saisonnalité."
   },
   {
@@ -4491,5 +4596,279 @@
     ],
     "sqlSage100": "-- LLM (GPT-4 / Claude) + RAG sur schéma des vues Flat + génération SQL + exécution + réponse en langage naturel",
     "mlUsage": "LLM + Text-to-SQL. Prompt engineering sur le schéma des vues. Validation sémantique de la query générée."
+  }
+,
+  {
+    "key": "com01_backlog_commercial",
+    "name": "Backlog Commercial (Carnet de Commandes)",
+    "code": "KPI-COM01",
+    "domain": "Ventes & Commandes",
+    "category": "ventes",
+    "subcategory": "Backlog",
+    "description": "Valeur totale HT des commandes clients non encore facturées ou annulées.",
+    "usage": "Visibilité sur le CA futur. Pilotage de la production et des livraisons.",
+    "unit": "€",
+    "defaultVizType": "card",
+    "frequency": "Quotidien",
+    "risk": "Faible",
+    "profiles": ["DG", "DAF", "Direction Commerciale"],
+    "sectors": ["Tous secteurs"],
+    "keywords": ["backlog", "carnet de commandes", "commandes en attente", "ventes futures"],
+    "sqlSage100View": "VW_COMMANDES",
+    "sqlSage100Tables": ["F_DOCENTETE"],
+    "sqlSage100": "SELECT SUM(Total_HT) AS Backlog FROM VW_COMMANDES WHERE Statut_Code NOT IN ('FAC', 'ANN')",
+    "mlUsage": "Feature clé pour prévision de CA à court terme (short-term forecasting)."
+  },
+  {
+    "key": "com02_taux_retard_livraison",
+    "name": "Taux de Retard de Livraison (%)",
+    "code": "KPI-COM02",
+    "domain": "Ventes & Commandes",
+    "category": "ventes",
+    "subcategory": "Performance Logistique",
+    "description": "Pourcentage de commandes non livrées dont la date de livraison prévue est dépassée.",
+    "usage": "Mesurer la qualité de service. Identifier les goulots d'étranglement logistiques.",
+    "unit": "%",
+    "defaultVizType": "card",
+    "frequency": "Hebdomadaire",
+    "risk": "Moyen",
+    "profiles": ["Logistique", "Direction Commerciale", "DG"],
+    "sectors": ["Commerce", "Industrie", "Distribution"],
+    "keywords": ["retard livraison", "OTD", "on time delivery", "performance logistique"],
+    "sqlSage100View": "VW_COMMANDES",
+    "sqlSage100Tables": ["F_DOCENTETE"],
+    "sqlSage100": "SELECT (COUNT(CASE WHEN Date_Livraison_Prevue < GETDATE() AND Statut_Code != 'FAC' THEN 1 END) * 100.0 / NULLIF(COUNT(*),0)) AS Taux_Retard FROM VW_COMMANDES",
+    "mlUsage": "Variable cible pour modèles de prédiction de retard de livraison."
+  },
+  {
+    "key": "imm01_vnc_totale",
+    "name": "Valeur Nette Comptable (VNC) Totale",
+    "code": "KPI-IMM01",
+    "domain": "Immobilisations",
+    "category": "finance",
+    "subcategory": "Actifs",
+    "description": "Valeur résiduelle de l'ensemble des actifs immobilisés après amortissements.",
+    "usage": "Évaluation de la valeur des actifs fixes au bilan. Base pour le calcul du ratio d'usure.",
+    "unit": "€",
+    "defaultVizType": "card",
+    "frequency": "Mensuel",
+    "risk": "Faible",
+    "profiles": ["DAF", "Expert-Comptable", "DG"],
+    "sectors": ["Tous secteurs"],
+    "keywords": ["VNC", "immobilisations", "actifs fixes", "valeur nette", "amortissements"],
+    "sqlSage100View": "VW_IMMOBILISATIONS",
+    "sqlSage100Tables": ["F_IMMO"],
+    "sqlSage100": "SELECT SUM(Valeur_Nette_Comptable) AS VNC_Totale FROM VW_IMMOBILISATIONS",
+    "mlUsage": "Feature pour modèles de valorisation d'entreprise."
+  },
+  {
+    "key": "imm02_taux_usure_immo",
+    "name": "Taux d'Usure des Immobilisations (%)",
+    "code": "KPI-IMM02",
+    "domain": "Immobilisations",
+    "category": "finance",
+    "subcategory": "Gestion des Actifs",
+    "description": "Proportion des actifs déjà amortis par rapport à leur valeur d'acquisition.",
+    "usage": "Anticiper le besoin de renouvellement du parc machine ou des équipements.",
+    "unit": "%",
+    "defaultVizType": "card",
+    "frequency": "Annuel",
+    "risk": "Moyen",
+    "profiles": ["DAF", "Directeur Technique", "DG"],
+    "sectors": ["Industrie", "BTP", "Transport"],
+    "keywords": ["taux usure", "obsolescence", "renouvellement actifs", "amortissement cumulé"],
+    "sqlSage100View": "VW_IMMOBILISATIONS",
+    "sqlSage100Tables": ["F_IMMO"],
+    "sqlSage100": "SELECT (SUM(Dotations_Eco_Cumul) * 100.0 / NULLIF(SUM(Valeur_Acquisition),0)) AS Taux_Usure FROM VW_IMMOBILISATIONS",
+    "mlUsage": "Feature pour modèles de planification de Capex (investissements)."
+  },
+  {
+    "key": "imm03_investissements_annee",
+    "name": "Investissements de l'Année (Capex)",
+    "code": "KPI-IMM03",
+    "domain": "Immobilisations",
+    "category": "finance",
+    "subcategory": "Investissements",
+    "description": "Montant total des nouvelles acquisitions d'immobilisations sur l'exercice en cours.",
+    "usage": "Suivre le budget d'investissement (Capex). Analyser la stratégie de croissance.",
+    "unit": "€",
+    "defaultVizType": "card",
+    "frequency": "Trimestriel",
+    "risk": "Faible",
+    "profiles": ["DAF", "DG", "CFO"],
+    "sectors": ["Tous secteurs"],
+    "keywords": ["investissements", "Capex", "acquisition immo", "croissance externe"],
+    "sqlSage100View": "VW_IMMOBILISATIONS",
+    "sqlSage100Tables": ["F_IMMO"],
+    "sqlSage100": "SELECT SUM(Valeur_Acquisition) AS Capex_YTD FROM VW_IMMOBILISATIONS WHERE Annee_Acquisition = YEAR(GETDATE())",
+    "mlUsage": "Feature pour analyse de corrélation Investissement / Croissance du CA."
+  },
+  {
+    "key": "ana01_ca_par_axe",
+    "name": "CA par Axe Analytique",
+    "code": "KPI-ANA01",
+    "domain": "Performance Analytique",
+    "category": "analytique",
+    "subcategory": "Revenus",
+    "description": "Répartition du chiffre d'affaires par Business Unit, Projet ou Département.",
+    "usage": "Mesurer la rentabilité par segment d'activité. Identifier les BU performantes.",
+    "unit": "€",
+    "defaultVizType": "bar",
+    "frequency": "Mensuel",
+    "risk": "Faible",
+    "profiles": ["DAF", "Contrôleur de gestion", "Responsable BU"],
+    "sectors": ["Services", "Multi-activités", "Sociétés de projet"],
+    "keywords": ["ca analytique", "marge BU", "revenus projet", "analytique compta"],
+    "sqlSage100View": "VW_ANALYTIQUE",
+    "sqlSage100Tables": ["F_COMPTEA"],
+    "sqlSage100": "SELECT Libelle_Analytique, SUM(Credit) - SUM(Debit) AS CA_Analytique FROM VW_ANALYTIQUE WHERE Categorie_BI='Produits' GROUP BY Libelle_Analytique ORDER BY CA_Analytique DESC",
+    "mlUsage": "Feature pour clustering de BU et optimisation de l'allocation des ressources."
+  },
+  {
+    "key": "rh05_poids_charges_patronales",
+    "name": "Poids des Charges Patronales (%)",
+    "code": "KPI-RH05",
+    "domain": "Ressources Humaines",
+    "category": "rh",
+    "subcategory": "Coûts RH",
+    "description": "Ratio des cotisations patronales par rapport au salaire brut total.",
+    "usage": "Analyser la structure des coûts sociaux. Prévision budgétaire de masse salariale.",
+    "unit": "%",
+    "defaultVizType": "card",
+    "frequency": "Mensuel",
+    "risk": "Faible",
+    "profiles": ["DRH", "DAF", "Comptable"],
+    "sectors": ["Tous secteurs"],
+    "keywords": ["charges patronales", "cotisations", "coût social", "poids social"],
+    "sqlSage100View": "VW_PAIE",
+    "sqlSage100Tables": ["T_PAIE"],
+    "sqlSage100": "SELECT (SUM(Cotisations_Patronales) * 100.0 / NULLIF(SUM(Salaire_Brut),0)) AS Poids_Charges FROM VW_PAIE",
+    "mlUsage": "Feature pour simulation d'impact de réformes sociales."
+  },
+  {
+    "key": "rh06_cout_total_employeur_mensuel",
+    "name": "Coût Total Employeur Mensuel",
+    "code": "KPI-RH06",
+    "domain": "Ressources Humaines",
+    "category": "rh",
+    "subcategory": "Masse Salariale",
+    "description": "Masse salariale totale chargée (Brut + Cotisations Patronales) par mois.",
+    "usage": "Suivi de l'évolution de la dépense RH principale. Pilotage du budget RH.",
+    "unit": "€",
+    "defaultVizType": "line",
+    "frequency": "Mensuel",
+    "risk": "Faible",
+    "profiles": ["DAF", "DRH", "DG"],
+    "sectors": ["Tous secteurs"],
+    "keywords": ["coût total employeur", "masse salariale", "dépense RH", "évolution salaires"],
+    "sqlSage100View": "VW_PAIE",
+    "sqlSage100Tables": ["T_PAIE"],
+    "sqlSage100": "SELECT Annee, Mois, SUM(Cout_Total_Employeur) AS Masse_Salariale FROM VW_PAIE GROUP BY Annee, Mois ORDER BY Annee DESC, Mois DESC",
+    "mlUsage": "Feature pour prévision budgétaire de masse salariale (time series)."
+  },
+  {
+    "key": "t11_burn_rate_mensuel",
+    "name": "Burn Rate Mensuel (Cash Burn)",
+    "code": "KPI-T11",
+    "domain": "Trésorerie & Flux",
+    "category": "tresorerie",
+    "subcategory": "Survie / Liquidité",
+    "description": "Consommation moyenne de cash par mois sur les périodes de flux négatifs.",
+    "usage": "Évaluer la 'piste' (runway) de l'entreprise avant épuisement de la trésorerie. Vital pour les startups.",
+    "unit": "€ / mois",
+    "defaultVizType": "card",
+    "frequency": "Mensuel",
+    "risk": "Critique",
+    "profiles": ["DG", "CFO", "Investisseur"],
+    "sectors": ["Startups", "Services", "Technologie"],
+    "keywords": ["burn rate", "cash burn", "consommation cash", "runway", "liquidité"],
+    "sqlSage100View": "VW_TRESORERIE",
+    "sqlSage100Tables": ["G_ECRITUREC"],
+    "sqlSage100": "SELECT ABS(AVG(Flux_Net)) AS Burn_Rate FROM VW_TRESORERIE WHERE Flux_Net < 0",
+    "mlUsage": "Variable critique pour modèles de prédiction de faillite (insolvabilité)."
+  },
+  {
+    "key": "a05_repartition_dettes_groupe_externe",
+    "name": "Dettes Groupe vs Externes",
+    "code": "KPI-A05",
+    "domain": "Fournisseurs & Achats",
+    "category": "fournisseurs",
+    "subcategory": "Passifs",
+    "description": "Répartition des dettes fournisseurs entre les entités du groupe et les fournisseurs externes.",
+    "usage": "Piloter la trésorerie intra-groupe. Identifier la dépendance financière externe.",
+    "unit": "€",
+    "defaultVizType": "pie",
+    "frequency": "Mensuel",
+    "risk": "Moyen",
+    "profiles": ["DAF", "Trésorier Central", "DG"],
+    "sectors": ["Tous secteurs (Groupe)"],
+    "keywords": ["dettes groupe", "interco", "dettes externes", "passifs tiers"],
+    "sqlSage100View": "VW_FOURNISSEURS",
+    "sqlSage100Tables": ["F_COMPTET"],
+    "sqlSage100": "SELECT SUM(dettes_groupe) AS Dettes_Groupe, SUM(dettes_externes) AS Dettes_Externes FROM VW_FOURNISSEURS",
+    "mlUsage": "Feature pour consolidation financière et optimisation du cash pooling."
+  },
+  {
+    "key": "c09_taux_lettrage_clients",
+    "name": "Taux de Lettrage Clients (%)",
+    "code": "KPI-C09",
+    "domain": "Clients & Recouvrement",
+    "category": "clients",
+    "subcategory": "Qualité Comptable",
+    "description": "Indice de rapprochement des paiements clients avec les factures correspondantes.",
+    "usage": "Mesurer la qualité de la tenue comptable. Accélérer la visibilité sur les impayés réels.",
+    "unit": "%",
+    "defaultVizType": "card",
+    "frequency": "Mensuel",
+    "risk": "Faible",
+    "profiles": ["Comptable", "DAF", "Expert-Comptable"],
+    "sectors": ["Tous secteurs"],
+    "keywords": ["taux lettrage clients", "rapprochement clients", "qualité comptable", "clôture"],
+    "sqlSage100View": "VW_CLIENTS",
+    "sqlSage100Tables": ["G_ECRITUREC"],
+    "sqlSage100": "SELECT (COUNT(CASE WHEN Est_Lettre=1 THEN 1 END) * 100.0 / NULLIF(COUNT(*),0)) AS Taux_Lettrage FROM VW_CLIENTS",
+    "mlUsage": "Feature de qualité de donnée pour tout modèle prédictif basé sur le poste client."
+  },
+  {
+    "key": "c10_creances_critiques_120j",
+    "name": "Créances Critiques (> 120 jours)",
+    "code": "KPI-C10",
+    "domain": "Clients & Recouvrement",
+    "category": "clients",
+    "subcategory": "Risque Client",
+    "description": "Montant total des créances non réglées depuis plus de 4 mois.",
+    "usage": "Identifier les créances à passer en douteux. Priorités absolues pour le service contentieux.",
+    "unit": "€",
+    "defaultVizType": "card",
+    "frequency": "Hebdomadaire",
+    "risk": "Critique",
+    "profiles": ["Recouvrement", "DAF", "DG"],
+    "sectors": ["Tous secteurs"],
+    "keywords": ["créances critiques", "impayés 120j", "contentieux", "douteux", "risque perte"],
+    "sqlSage100View": "VW_CLIENTS",
+    "sqlSage100Tables": ["G_ECRITUREC"],
+    "sqlSage100": "SELECT SUM(Montant) AS Montant_Critique FROM VW_CLIENTS WHERE Age_Jours > 120 AND Est_Lettre=0",
+    "mlUsage": "Variable cible pour modèles de prédiction de défaut de paiement."
+  },
+  {
+    "key": "f11_ratio_autonomie_financiere",
+    "name": "Ratio d'Autonomie Financière",
+    "code": "KPI-F11",
+    "domain": "Finance & Rentabilité",
+    "category": "finance",
+    "subcategory": "Structure Financière",
+    "description": "Proportion des capitaux propres dans le total du bilan de l'entreprise.",
+    "usage": "Évaluer l'indépendance de l'entreprise vis-à-vis des prêteurs. Score banquier.",
+    "unit": "ratio",
+    "defaultVizType": "card",
+    "frequency": "Trimestriel",
+    "risk": "Faible",
+    "profiles": ["DAF", "DG", "Banquier"],
+    "sectors": ["Tous secteurs"],
+    "keywords": ["autonomie financière", "solvabilité", "capitaux propres", "ratio bilan"],
+    "sqlSage100View": "VW_GRAND_LIVRE_GENERAL",
+    "sqlSage100Tables": ["G_ECRITUREC"],
+    "sqlSage100": "SELECT (SUM(CASE WHEN Racine_2='10' THEN Solde_Signe ELSE 0 END) / NULLIF(SUM(CASE WHEN Classe_Compte IN ('1','2','3','4','5') THEN ABS(Solde_Signe) ELSE 0 END),0)) AS Ratio_Autonomie FROM VW_GRAND_LIVRE_GENERAL",
+    "mlUsage": "Feature de solvabilité pour rating financier."
   }
 ]

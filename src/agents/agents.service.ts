@@ -50,6 +50,7 @@ export class AgentsService implements OnModuleInit {
     setInterval(() => {
       this.markStaleAgentsOffline().catch(() => { });
       this.cleanupStaleJobs().catch(() => { });
+      this.warnExpiringTokens().catch(() => { });
     }, 60000);
   }
 
@@ -554,6 +555,31 @@ export class AgentsService implements OnModuleInit {
     }
 
     return { markedOffline: result.count };
+  }
+
+  /**
+   * Envoie des alertes email aux admins J-7, J-3, J-1 avant l'expiration d'un token agent.
+   * Appelé toutes les minutes par le cron interne ; le cooldown de 23h dans NotificationsService
+   * garantit qu'un seul email est envoyé par seuil par agent.
+   */
+  async warnExpiringTokens() {
+    const sevenDaysFromNow = new Date(Date.now() + TOKEN_EXPIRY_WARNING_DAYS * 24 * 3600 * 1000);
+    const agents = await this.prisma.agent.findMany({
+      where: {
+        isRevoked: false,
+        tokenExpiresAt: { gt: new Date(), lte: sevenDaysFromNow },
+      },
+      include: { organization: { select: { name: true } } },
+    });
+
+    for (const agent of agents) {
+      const daysLeft = this.getDaysUntilExpiry(agent.tokenExpiresAt);
+      if (daysLeft !== null && [7, 3, 1].includes(daysLeft)) {
+        this.notifications
+          .notifyTokenExpiringSoon(agent.id, agent.name, agent.organization.name, daysLeft)
+          .catch(() => {});
+      }
+    }
   }
 
   // ─── WebSocket & Real-Time Support ──────────────────────────────────────────
