@@ -464,6 +464,17 @@ export class AdminController {
     return this.adminService.deleteAgent(id, adminUserId);
   }
 
+  // ─── Onboarding Overview ──────────────────────────────────────────────────────
+
+  @Get('onboarding')
+  @ApiOperation({
+    summary: 'Vue d\'ensemble de l\'onboarding de tous les clients',
+    description: 'Retourne le statut d\'onboarding de toutes les organisations avec détection des clients bloqués, agent lié et résumé des étapes.',
+  })
+  async getOnboardingOverview() {
+    return this.adminService.getOnboardingOverview();
+  }
+
   // ── System config ────────────────────────────────────────────────────────────
 
   @Get('system-config')

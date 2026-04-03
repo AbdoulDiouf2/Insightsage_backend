@@ -506,9 +506,12 @@ export class AdminService {
     // Agents
     const agents = await this.prisma.agent.findMany();
     const activeAgents = agents.filter((a) => a.status === 'online').length;
-    const errorAgents = agents.filter((a) => a.status === 'error').length;
+    const expiredTokenAgents = agents.filter(
+      (a) => !a.isRevoked && a.tokenExpiresAt && a.tokenExpiresAt < now,
+    ).length;
+    const errorAgents = agents.filter((a) => a.status === 'error').length + expiredTokenAgents;
     const offlineAgents = agents.filter(
-      (a) => a.status !== 'online' && a.status !== 'error',
+      (a) => a.status !== 'online' && a.status !== 'error' && !(a.tokenExpiresAt && a.tokenExpiresAt < now),
     ).length;
 
     const agents30DaysAgo = await this.prisma.agent.count({
@@ -549,11 +552,13 @@ export class AdminService {
     }));
 
     // Agents distribution by status
+    const technicalErrorAgents = agents.filter((a) => a.status === 'error').length;
     const agentsDistribution = [
       { name: 'Online', value: activeAgents, color: '#22c55e' },
       { name: 'Hors ligne', value: offlineAgents, color: '#94a3b8' },
-      { name: 'Erreur', value: errorAgents, color: '#ef4444' },
-    ];
+      { name: 'Token expiré', value: expiredTokenAgents, color: '#f97316' },
+      { name: 'Erreur', value: technicalErrorAgents, color: '#ef4444' },
+    ].filter((s) => s.value > 0);
 
     // --- NEW: Store Inventory ---
     const [kpiCount, packCount, widgetCount, intentCount, nlqTemplateCount] = await Promise.all([
@@ -634,6 +639,7 @@ export class AdminService {
       errorAgents: {
         value: errorAgents,
         trend: '0',
+        expiredTokens: expiredTokenAgents,
       },
       recentActivity,
       agentsDistribution,
@@ -1068,6 +1074,94 @@ export class AdminService {
     });
 
     return deleted;
+  }
+
+  // ─── Onboarding Overview ──────────────────────────────────────────────────────
+
+  async getOnboardingOverview() {
+    const orgs = await this.prisma.organization.findMany({
+      select: {
+        id: true,
+        name: true,
+        sector: true,
+        country: true,
+        createdAt: true,
+        subscriptionPlan: { select: { name: true, label: true } },
+        owner: { select: { email: true, firstName: true, lastName: true } },
+        onboardingStatus: {
+          select: {
+            currentStep: true,
+            completedSteps: true,
+            isComplete: true,
+            inviteLater: true,
+            updatedAt: true,
+          },
+        },
+        agents: {
+          where: { isRevoked: false },
+          select: { id: true, name: true, status: true, lastSeen: true, tokenExpiresAt: true },
+          orderBy: { lastSeen: 'desc' },
+          take: 1,
+        },
+        _count: { select: { users: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const rows = orgs.map((org) => {
+      const status = org.onboardingStatus;
+      const agent = org.agents[0] ?? null;
+
+      // Durée depuis dernière activité onboarding
+      const daysSinceUpdate = status
+        ? Math.floor((Date.now() - new Date(status.updatedAt).getTime()) / 86_400_000)
+        : null;
+
+      // Étape bloquante = étape courante non complétée depuis > 3 jours
+      const isStuck = status && !status.isComplete && daysSinceUpdate !== null && daysSinceUpdate > 3;
+
+      return {
+        organizationId: org.id,
+        organizationName: org.name,
+        sector: org.sector,
+        country: org.country,
+        plan: org.subscriptionPlan ?? null,
+        owner: org.owner ?? null,
+        userCount: org._count.users,
+        createdAt: org.createdAt,
+        onboarding: status
+          ? {
+              currentStep: status.currentStep,
+              completedSteps: status.completedSteps,
+              isComplete: status.isComplete,
+              inviteLater: status.inviteLater,
+              updatedAt: status.updatedAt,
+              daysSinceUpdate,
+              isStuck,
+            }
+          : null,
+        agent: agent
+          ? {
+              id: agent.id,
+              name: agent.name,
+              status: agent.status,
+              lastSeen: agent.lastSeen,
+              tokenExpiresAt: agent.tokenExpiresAt,
+            }
+          : null,
+      };
+    });
+
+    const summary = {
+      total: rows.length,
+      completed: rows.filter((r) => r.onboarding?.isComplete).length,
+      inProgress: rows.filter((r) => r.onboarding && !r.onboarding.isComplete).length,
+      notStarted: rows.filter((r) => !r.onboarding).length,
+      stuck: rows.filter((r) => r.onboarding?.isStuck).length,
+      withAgentOnline: rows.filter((r) => r.agent?.status === 'online').length,
+    };
+
+    return { summary, organizations: rows };
   }
 
   // ── System config (singleton) ────────────────────────────────────────────────
