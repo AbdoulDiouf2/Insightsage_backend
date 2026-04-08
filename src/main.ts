@@ -155,12 +155,13 @@ async function bootstrap() {
   // Security headers — doit être placé AVANT enableCors
   app.use(
     helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
           styleSrc: ["'self'", "'unsafe-inline'"],
           scriptSrc: ["'self'", "'unsafe-inline'"], // Swagger UI en a besoin
-          imgSrc: ["'self'", 'data:'],
+          imgSrc: ["'self'", 'data:', '*', 'http:', 'https:'],
         },
       },
     }),

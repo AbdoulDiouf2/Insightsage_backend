@@ -49,6 +49,7 @@ model Organization {
   billingCustomer     BillingCustomer?
   billingSubscription BillingSubscription?
   billingInvoices     BillingInvoice[]
+  bugs                Bug[]
 
   @@map("organizations")
 }
@@ -84,6 +85,9 @@ model User {
   invitationsCreated Invitation[] @relation("InvitationsCreated")
   nlqSessions        NlqSession[]
   agentJobs          AgentJob[]
+  bugsSubmitted      Bug[]          @relation("BugSubmitter")
+  bugsAssigned       Bug[]          @relation("BugAssignee")
+  bugComments        BugComment[]
 
   @@index([organizationId])
   @@map("users")
@@ -640,4 +644,78 @@ model SystemConfig {
   updatedAt               DateTime @updatedAt
 
   @@map("system_config")
+}
+
+// ─── Bugs / Task Tracking ─────────────────────────────────────────────────────
+
+model Bug {
+  id                String   @id @default(uuid())
+  bugId             String   @unique // Format: BR-YYYYMMDD-XXX
+  title             String
+  bug_type          String[]
+  module            String
+  priority          String   @default("moyenne") // "critique" | "haute" | "moyenne" | "basse" | "a_analyser"
+  severity          Int      @default(3)
+  status            String   @default("nouveau") // "nouveau" | "en_analyse" | "en_cours" | "en_test" | "resolu" | "ferme"
+  
+  // Environment
+  url               String?
+  browser           String?
+  os                String?
+  screen            String?
+  
+  // Business context
+  entity_code       String?
+  fiscal_year       Int?
+  period_start      String?
+  period_end        String?
+  
+  // Details
+  description       String   @db.Text
+  steps_to_reproduce String[]
+  expected_behavior String?  @db.Text
+  actual_behavior   String?  @db.Text
+  frequency         String   // "toujours" | "souvent" | "parfois" | "une_seule_fois" | "intermittent"
+  impact            String   // "production_bloquee", etc.
+  users_impacted    String?
+  workaround        Boolean  @default(false)
+  workaround_desc   String?  @db.Text
+  
+  // Logs & Attachments
+  tags              String[]
+  attachments       String[] // URLs (S3)
+  console_errors    String?  @db.Text
+  
+  // Metadata
+  notify_emails     String[]
+  submittedById     String   @map("submitted_by_id")
+  submittedBy       User     @relation("BugSubmitter", fields: [submittedById], references: [id])
+  organizationId    String?
+  organization      Organization? @relation(fields: [organizationId], references: [id])
+  
+  assignedToId      String?  @map("assigned_to_id")
+  assignedTo        User?    @relation("BugAssignee", fields: [assignedToId], references: [id])
+
+  comments          BugComment[]
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([status])
+  @@map("bugs")
+}
+
+model BugComment {
+  id         String   @id @default(uuid())
+  bugId      String
+  bug        Bug      @relation(fields: [bugId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id])
+  content    String   @db.Text
+  isInternal Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([bugId])
+  @@map("bug_comments")
 }

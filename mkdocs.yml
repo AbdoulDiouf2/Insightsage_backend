@@ -165,6 +165,7 @@ nav:
       - Objectifs KPI: backend/modules/targets.md
       - Facturation & Paiements: backend/modules/billing.md
       - NLQ (Langage naturel): backend/modules/nlq.md
+      - Bug Tracker: backend/modules/bug-tracker.md
   - Frontend — Admin Cockpit:
     - Architecture: frontend/architecture.md
     - Design System: frontend/design-system.md
