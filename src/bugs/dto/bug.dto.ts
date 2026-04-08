@@ -125,3 +125,8 @@ export class AddCommentDto {
   @IsOptional()
   isInternal?: boolean = false;
 }
+
+export class AssignBugDto {
+  @IsString()
+  userId: string;
+}

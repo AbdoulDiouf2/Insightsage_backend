@@ -83,6 +83,9 @@ export class BugsService {
         assignedTo: {
           select: {
             id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
           },
         },
       },

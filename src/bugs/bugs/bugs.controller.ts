@@ -1,11 +1,11 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Body, 
-  Patch, 
-  Param, 
-  Query, 
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Query,
   UseGuards,
   UseInterceptors,
   UploadedFile
@@ -13,11 +13,12 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { BugsService } from './bugs.service';
 import { StorageService } from '../../storage/storage.service';
-import { CreateBugDto, UpdateBugStatusDto, AddCommentDto } from '../dto/bug.dto';
+import { CreateBugDto, UpdateBugStatusDto, AddCommentDto, AssignBugDto } from '../dto/bug.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { Roles } from '../../auth/decorators/roles.decorator';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { OrganizationId } from '../../auth/decorators/organization.decorator';
-import type { User } from '@prisma/client';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 
 @ApiTags('Bugs')
@@ -97,12 +98,14 @@ export class BugsController {
   }
 
   @Patch(':id/assign')
-  @ApiOperation({ summary: 'Assigner un bug à un développeur' })
+  @UseGuards(RolesGuard)
+  @Roles('superadmin')
+  @ApiOperation({ summary: 'Assigner un bug à un développeur (admin only)' })
   assign(
     @Param('id') id: string,
-    @CurrentUser() user: any,
+    @Body() assignBugDto: AssignBugDto,
   ) {
-    return this.bugsService.assign(id, user.id);
+    return this.bugsService.assign(id, assignBugDto.userId);
   }
 
   @Post(':id/comments')

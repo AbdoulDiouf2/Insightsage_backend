@@ -475,6 +475,20 @@ export class AdminController {
     return this.adminService.getOnboardingOverview();
   }
 
+  // ── KPI Health Stats ──────────────────────────────────────────────────────────
+
+  @Get('kpi-health')
+  @ApiOperation({ summary: 'Statistiques de santé des KPIs sur les 7 derniers jours' })
+  async getKpiHealthStats() {
+    return this.adminService.getKpiHealthStats();
+  }
+
+  @Get('kpi-health/:id')
+  @ApiOperation({ summary: 'Détail de santé d\'un KPI avec historique des sessions' })
+  async getKpiHealthDetail(@Param('id') id: string) {
+    return this.adminService.getKpiHealthDetail(id);
+  }
+
   // ── System config ────────────────────────────────────────────────────────────
 
   @Get('system-config')
