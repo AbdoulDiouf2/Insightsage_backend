@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateBugDto, UpdateBugStatusDto, AddCommentDto } from '../dto/bug.dto';
 import { StorageService } from '../../storage/storage.service';
+import { NotificationsService } from '../../notifications/notifications.service';
 
 @Injectable()
 export class BugsService {
@@ -10,6 +11,7 @@ export class BugsService {
   constructor(
     private prisma: PrismaService,
     private storageService: StorageService,
+    private notificationsService: NotificationsService,
   ) {}
 
   async create(createBugDto: CreateBugDto, userId: string, organizationId: string) {
@@ -35,7 +37,7 @@ export class BugsService {
       }
     }
 
-    return this.prisma.bug.create({
+    const bug = await this.prisma.bug.create({
       data: {
         ...createBugDto,
         attachments,
@@ -43,7 +45,24 @@ export class BugsService {
         submittedById: userId,
         organizationId: createBugDto.organizationId !== undefined ? createBugDto.organizationId : organizationId,
       },
+      include: {
+        submittedBy: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
     });
+
+    // Notify admins
+    this.notificationsService.notifyNewBug(bug, bug.organizationId ?? undefined).catch((err) => {
+      this.logger.error(`Failed to notify admins for bug ${bug.bugId}: ${err.message}`);
+    });
+
+    return bug;
   }
 
   async findAll(organizationId?: string, filters?: any) {

@@ -409,6 +409,61 @@ export class MailerService implements OnModuleInit {
     await this.send({ to: email, subject: `[Cockpit] Erreur : ${eventType}`, html });
   }
 
+  async sendAdminBugReportAlert(
+    email: string,
+    firstName: string | null | undefined,
+    id: string, // UUID interne
+    bugId: string, // ID lisible (BR-...)
+    title: string,
+    orgName: string | undefined,
+    priority: string,
+    submittedBy: string,
+  ): Promise<void> {
+    const greeting = firstName ? `Bonjour ${firstName},` : 'Bonjour,';
+    const orgLine = orgName ? `<p>Organisation : <strong>${orgName}</strong></p>` : '';
+    
+    // Couleur de l'entête selon la priorité
+    const priorityColors: Record<string, string> = {
+      'critique': '#dc2626',
+      'haute': '#ef4444',
+      'moyenne': '#f97316',
+      'basse': '#3b82f6',
+      'a_analyser': '#64748b'
+    };
+    const headerColor = priorityColors[priority] || '#64748b';
+
+    if (!this.smtpConfigured) {
+      this.logger.log(`[DEV] sendAdminBugReportAlert → ${email} | bug: ${bugId} | priority: ${priority}`);
+      return;
+    }
+
+    const html = this.adminHtml(
+      headerColor,
+      `🐛 Nouveau bug signalé : ${bugId}`,
+      `<p>${greeting}</p>
+       <p>Un nouveau signalement de bug vient d'être soumis.</p>
+       <p>Titre : <strong>${title}</strong></p>
+       <p>Priorité : <strong style="text-transform: capitalize;">${priority}</strong></p>
+       ${orgLine}
+       <p>Signalé par : <strong>${submittedBy}</strong></p>
+       <p style="margin-top: 24px;">
+         <a href="${this.config.get<string>('FRONTEND_ADMIN_URL') || this.config.get<string>('FRONTEND_URL')}/bug-tracker/${id}" style="
+           display: inline-block; padding: 10px 20px;
+           background: ${headerColor}; color: white; text-decoration: none; border-radius: 6px;
+           font-weight: bold;
+         ">
+           Voir le bug dans le cockpit
+         </a>
+       </p>`,
+    );
+
+    await this.send({ 
+      to: email, 
+      subject: `[Cockpit] Bug ${bugId} : ${title}`, 
+      html 
+    });
+  }
+
   private async send(options: { to: string; subject: string; html: string }): Promise<void> {
     try {
       await this.transporter!.sendMail({
