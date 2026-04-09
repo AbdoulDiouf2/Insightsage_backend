@@ -73,6 +73,11 @@ export class BugsService {
       this.logger.error(`Failed to notify admins for bug ${bug.bugId}: ${err.message}`);
     });
 
+    // Confirm receipt to submitter
+    this.notificationsService.notifyBugSubmitted(bug, bug.submittedBy).catch((err) => {
+      this.logger.error(`Failed to notify submitter for new bug ${bug.bugId}: ${err.message}`);
+    });
+
     return bug;
   }
 
@@ -144,10 +149,22 @@ export class BugsService {
   }
 
   async updateStatus(id: string, updateBugStatusDto: UpdateBugStatusDto) {
-    return this.prisma.bug.update({
+    const bug = await this.prisma.bug.findUnique({
+      where: { id },
+      include: {
+        submittedBy: { select: { email: true, firstName: true, lastName: true } },
+      },
+    });
+    const updated = await this.prisma.bug.update({
       where: { id },
       data: { status: updateBugStatusDto.status },
     });
+    if (updateBugStatusDto.status === 'resolu' && bug?.submittedBy) {
+      this.notificationsService.notifyBugResolved(updated, bug.submittedBy).catch((err) => {
+        this.logger.error(`Failed to notify submitter for bug ${updated.bugId}: ${err.message}`);
+      });
+    }
+    return updated;
   }
 
   async assign(id: string, userId: string) {
@@ -168,6 +185,18 @@ export class BugsService {
     });
   }
 
+  async getRecentComments(since: Date) {
+    return this.prisma.bugComment.findMany({
+      where: { createdAt: { gt: since } },
+      include: {
+        author: { select: { id: true, firstName: true, lastName: true } },
+        bug: { select: { id: true, bugId: true, title: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+  }
+
   async getStats() {
     const total = await this.prisma.bug.count();
     const byStatus = await this.prisma.bug.groupBy({
@@ -183,12 +212,27 @@ export class BugsService {
       _count: true,
     });
 
+    const resolvedBugs = await this.prisma.bug.findMany({
+      where: { status: 'resolu' },
+      select: { createdAt: true, updatedAt: true },
+    });
+    const avgResolutionTimeDays =
+      resolvedBugs.length > 0
+        ? Math.round(
+            (resolvedBugs.reduce((sum, b) => {
+              return sum + (b.updatedAt.getTime() - b.createdAt.getTime()) / (1000 * 60 * 60 * 24);
+            }, 0) /
+              resolvedBugs.length) *
+              10,
+          ) / 10
+        : 0;
+
     return {
       total,
       byStatus: Object.fromEntries(byStatus.map((s) => [s.status, s._count])),
       byPriority: Object.fromEntries(byPriority.map((p) => [p.priority, p._count])),
       byModule: Object.fromEntries(byModule.map((m) => [m.module, m._count])),
-      avgResolutionTimeDays: 0, // A calculer si besoin
+      avgResolutionTimeDays,
     };
   }
 }

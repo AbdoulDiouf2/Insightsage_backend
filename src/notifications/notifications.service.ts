@@ -41,8 +41,8 @@ export class NotificationsService {
 
     let recipientIds = prefs?.recipients ?? [];
 
-    // Fallback : si aucun destinataire n'est configuré, on cible tous les superadmins
-    if (recipientIds.length === 0) {
+    // Fallback : uniquement si jamais configuré (recipients undefined), pas si explicitement vidé ([])
+    if (prefs?.recipients === undefined && recipientIds.length === 0) {
       const superadmins = await this.prisma.userRole.findMany({
         where: { role: { name: 'superadmin' } },
         select: { userId: true },
@@ -180,6 +180,32 @@ export class NotificationsService {
     );
     this.markAlertSent(cooldownKey);
     this.logger.log(`[notifyErrorLog] Alertes envoyées pour événement "${eventType}" à ${users.length} admin(s)`);
+  }
+
+  async notifyBugSubmitted(bug: any, submitter: any): Promise<void> {
+    if (!submitter?.email) return;
+    const { notif } = await this.getConfig();
+    if (notif.bugReports === false) return;
+    const emails = [submitter.email, ...(bug.notify_emails ?? [])].filter(Boolean);
+    await Promise.allSettled(
+      emails.map((email: string) =>
+        this.mailer.sendBugSubmittedEmail(email, submitter.firstName, bug.bugId, bug.title),
+      ),
+    );
+    this.logger.log(`[notifyBugSubmitted] Confirmation envoyée pour bug "${bug.bugId}" à ${emails.length} destinataire(s)`);
+  }
+
+  async notifyBugResolved(bug: any, submitter: { email: string; firstName?: string | null }): Promise<void> {
+    if (!submitter?.email) return;
+    const { notif } = await this.getConfig();
+    if (notif.bugReports === false) return;
+    const emails = [submitter.email, ...(bug.notify_emails ?? [])].filter(Boolean);
+    await Promise.allSettled(
+      emails.map((email: string) =>
+        this.mailer.sendBugResolvedEmail(email, submitter.firstName ?? undefined, bug.bugId, bug.title),
+      ),
+    );
+    this.logger.log(`[notifyBugResolved] Notification envoyée pour bug "${bug.bugId}" à ${emails.length} destinataire(s)`);
   }
 
   async notifyNewBug(bug: any, organizationId?: string): Promise<void> {

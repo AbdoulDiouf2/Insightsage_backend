@@ -8,7 +8,10 @@ import {
   Query,
   UseGuards,
   UseInterceptors,
-  UploadedFile
+  UploadedFile,
+  ParseFilePipe,
+  MaxFileSizeValidator,
+  FileTypeValidator,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { BugsService } from './bugs.service';
@@ -46,7 +49,17 @@ export class BugsController {
       },
     },
   })
-  async uploadFile(@UploadedFile() file: Express.Multer.File) {
+  async uploadFile(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }),
+          new FileTypeValidator({ fileType: /image\/(jpeg|png|gif|webp|svg\+xml)/ }),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+  ) {
     const url = await this.storageService.uploadFile(file);
     return { url };
   }
@@ -80,6 +93,13 @@ export class BugsController {
   @ApiOperation({ summary: 'Statistiques des bugs (Admin seulement)' })
   getStats() {
     return this.bugsService.getStats();
+  }
+
+  @Get('comments/recent')
+  @ApiOperation({ summary: 'Commentaires récents pour le centre de notifications' })
+  getRecentComments(@Query('since') since?: string) {
+    const sinceDate = since ? new Date(since) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    return this.bugsService.getRecentComments(sinceDate);
   }
 
   @Get(':id')

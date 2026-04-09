@@ -409,6 +409,52 @@ export class MailerService implements OnModuleInit {
     await this.send({ to: email, subject: `[Cockpit] Erreur : ${eventType}`, html });
   }
 
+  async sendBugSubmittedEmail(
+    email: string,
+    firstName: string | null | undefined,
+    bugId: string,
+    title: string,
+  ): Promise<void> {
+    const greeting = firstName ? `Bonjour ${firstName},` : 'Bonjour,';
+    if (!this.smtpConfigured) {
+      this.logger.log(`[DEV] sendBugSubmittedEmail → ${email} | bug: ${bugId}`);
+      return;
+    }
+    const html = this.adminHtml(
+      '#3b66ac',
+      `📋 Votre signalement ${bugId} a bien été reçu`,
+      `<p>${greeting}</p>
+       <p>Nous avons bien reçu votre signalement et notre équipe technique va le prendre en charge.</p>
+       <p>Référence : <strong>${bugId}</strong></p>
+       <p>Titre : <strong>${title}</strong></p>
+       <p>Vous serez notifié par email dès que le problème sera résolu.</p>`,
+    );
+    await this.send({ to: email, subject: `[Cockpit] Signalement reçu — ${bugId}`, html });
+  }
+
+  async sendBugResolvedEmail(
+    email: string,
+    firstName: string | null | undefined,
+    bugId: string,
+    title: string,
+  ): Promise<void> {
+    const greeting = firstName ? `Bonjour ${firstName},` : 'Bonjour,';
+    if (!this.smtpConfigured) {
+      this.logger.log(`[DEV] sendBugResolvedEmail → ${email} | bug: ${bugId}`);
+      return;
+    }
+    const html = this.adminHtml(
+      '#22c55e',
+      `✅ Votre signalement ${bugId} a été résolu`,
+      `<p>${greeting}</p>
+       <p>Nous avons le plaisir de vous informer que votre signalement a été traité et marqué comme <strong>résolu</strong>.</p>
+       <p>Référence : <strong>${bugId}</strong></p>
+       <p>Titre : <strong>${title}</strong></p>
+       <p>Si vous constatez que le problème persiste, n'hésitez pas à soumettre un nouveau signalement.</p>`,
+    );
+    await this.send({ to: email, subject: `[Cockpit] Signalement ${bugId} résolu`, html });
+  }
+
   async sendAdminBugReportAlert(
     email: string,
     firstName: string | null | undefined,
