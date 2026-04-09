@@ -709,14 +709,15 @@ model Bug {
 }
 
 model BugComment {
-  id         String   @id @default(uuid())
-  bugId      String
-  bug        Bug      @relation(fields: [bugId], references: [id], onDelete: Cascade)
-  authorId   String
-  author     User     @relation(fields: [authorId], references: [id])
-  content    String   @db.Text
-  isInternal Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  id               String   @id @default(uuid())
+  bugId            String
+  bug              Bug      @relation(fields: [bugId], references: [id], onDelete: Cascade)
+  authorId         String
+  author           User     @relation(fields: [authorId], references: [id])
+  content          String   @db.Text
+  isInternal       Boolean  @default(false)
+  mentionedUserIds String[] @default([]) // newly added field for tracking mentions
+  createdAt        DateTime @default(now())
 
   @@index([bugId])
   @@map("bug_comments")

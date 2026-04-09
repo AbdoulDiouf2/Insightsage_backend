@@ -175,14 +175,27 @@ export class BugsService {
   }
 
   async addComment(id: string, addCommentDto: AddCommentDto, userId: string) {
-    return this.prisma.bugComment.create({
+    const comment = await this.prisma.bugComment.create({
       data: {
         bugId: id,
         authorId: userId,
         content: addCommentDto.content,
         isInternal: addCommentDto.isInternal,
+        mentionedUserIds: addCommentDto.mentionedUserIds || [],
       },
+      include: {
+        author: { select: { firstName: true, lastName: true, email: true } },
+        bug: true,
+      }
     });
+
+    if (comment.mentionedUserIds.length > 0) {
+      this.notificationsService.notifyBugMention(comment.bug, comment.author, comment.mentionedUserIds).catch((err) => {
+        this.logger.error(`Failed to notify mentions for bug ${comment.bug.bugId}: ${err.message}`);
+      });
+    }
+
+    return comment;
   }
 
   async getRecentComments(since: Date) {

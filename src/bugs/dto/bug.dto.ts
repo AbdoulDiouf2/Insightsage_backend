@@ -132,6 +132,11 @@ export class AddCommentDto {
   @IsBoolean()
   @IsOptional()
   isInternal?: boolean = false;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  mentionedUserIds?: string[];
 }
 
 export class AssignBugDto {

@@ -510,6 +510,44 @@ export class MailerService implements OnModuleInit {
     });
   }
 
+  async sendBugMentionAlert(
+    email: string,
+    firstName: string | null | undefined,
+    id: string,
+    bugId: string,
+    title: string,
+    authorName: string
+  ): Promise<void> {
+    const greeting = firstName ? `Bonjour ${firstName},` : 'Bonjour,';
+    if (!this.smtpConfigured) {
+      this.logger.log(`[DEV] sendBugMentionAlert → ${email} | bug: ${bugId} | par: ${authorName}`);
+      return;
+    }
+
+    const html = this.adminHtml(
+      '#8b5cf6', // Violet icon color for mentions
+      `💬 Vous avez été mentionné(e)`,
+      `<p>${greeting}</p>
+       <p><strong>${authorName}</strong> vous a mentionné(e) dans un commentaire sur le bug <strong>${bugId}</strong>.</p>
+       <p>Titre : <strong>${title}</strong></p>
+       <p style="margin-top: 24px;">
+         <a href="${this.config.get<string>('FRONTEND_ADMIN_URL') || this.config.get<string>('FRONTEND_URL')}/bug-tracker/${id}" style="
+           display: inline-block; padding: 10px 20px;
+           background: #8b5cf6; color: white; text-decoration: none; border-radius: 6px;
+           font-weight: bold;
+         ">
+           Voir le commentaire
+         </a>
+       </p>`
+    );
+
+    await this.send({
+      to: email,
+      subject: `[Cockpit] Mention dans le bug ${bugId}`,
+      html
+    });
+  }
+
   private async send(options: { to: string; subject: string; html: string }): Promise<void> {
     try {
       await this.transporter!.sendMail({
