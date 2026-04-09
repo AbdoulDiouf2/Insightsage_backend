@@ -43,6 +43,14 @@ export class CreateBugDto {
 
   @IsString()
   @IsOptional()
+  path?: string;
+
+  @IsString()
+  @IsOptional()
+  userAgent?: string;
+
+  @IsString()
+  @IsOptional()
   entity_code?: string;
 
   @IsInt()

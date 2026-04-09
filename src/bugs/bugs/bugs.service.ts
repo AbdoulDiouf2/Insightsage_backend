@@ -18,14 +18,25 @@ export class BugsService {
     // Generate bugId: BR-YYYYMMDD-XXX
     const now = new Date();
     const today = now.toISOString().slice(0, 10).replace(/-/g, '');
-    const count = await this.prisma.bug.count({
+    const lastBug = await this.prisma.bug.findFirst({
       where: {
         bugId: {
           startsWith: `BR-${today}`,
         },
       },
+      orderBy: {
+        bugId: 'desc',
+      },
     });
-    const bugId = `BR-${today}-${(count + 1).toString().padStart(3, '0')}`;
+
+    let nextNumber = 1;
+    if (lastBug) {
+      const lastPart = lastBug.bugId.split('-').pop();
+      if (lastPart) {
+        nextNumber = parseInt(lastPart, 10) + 1;
+      }
+    }
+    const bugId = `BR-${today}-${nextNumber.toString().padStart(3, '0')}`;
 
     // Handle attachments
     let attachments = createBugDto.attachments || [];
@@ -88,6 +99,12 @@ export class BugsService {
             email: true,
           },
         },
+        organization: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -104,6 +121,9 @@ export class BugsService {
         },
         assignedTo: {
           select: { id: true, firstName: true, lastName: true, email: true },
+        },
+        organization: {
+          select: { id: true, name: true },
         },
         comments: {
           include: {

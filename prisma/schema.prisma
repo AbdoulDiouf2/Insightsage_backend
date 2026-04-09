@@ -663,6 +663,8 @@ model Bug {
   browser           String?
   os                String?
   screen            String?
+  path              String?
+  userAgent         String?
   
   // Business context
   entity_code       String?
