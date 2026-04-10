@@ -38,9 +38,21 @@ export class NotificationsService {
       notif?: Record<string, boolean>;
       recipients?: string[];
     } | null;
+
+    let recipientIds = prefs?.recipients ?? [];
+
+    // Fallback : uniquement si jamais configuré (recipients undefined), pas si explicitement vidé ([])
+    if (prefs?.recipients === undefined && recipientIds.length === 0) {
+      const superadmins = await this.prisma.userRole.findMany({
+        where: { role: { name: 'superadmin' } },
+        select: { userId: true },
+      });
+      recipientIds = superadmins.map((sa) => sa.userId);
+    }
+
     return {
       notif: prefs?.notif ?? {},
-      recipients: prefs?.recipients ?? [],
+      recipients: recipientIds,
     };
   }
 
@@ -168,5 +180,77 @@ export class NotificationsService {
     );
     this.markAlertSent(cooldownKey);
     this.logger.log(`[notifyErrorLog] Alertes envoyées pour événement "${eventType}" à ${users.length} admin(s)`);
+  }
+
+  async notifyBugSubmitted(bug: any, submitter: any): Promise<void> {
+    if (!submitter?.email) return;
+    const { notif } = await this.getConfig();
+    if (notif.bugReports === false) return;
+    const emails = [submitter.email, ...(bug.notify_emails ?? [])].filter(Boolean);
+    await Promise.allSettled(
+      emails.map((email: string) =>
+        this.mailer.sendBugSubmittedEmail(email, submitter.firstName, bug.bugId, bug.title),
+      ),
+    );
+    this.logger.log(`[notifyBugSubmitted] Confirmation envoyée pour bug "${bug.bugId}" à ${emails.length} destinataire(s)`);
+  }
+
+  async notifyBugResolved(bug: any, submitter: { email: string; firstName?: string | null }): Promise<void> {
+    if (!submitter?.email) return;
+    const { notif } = await this.getConfig();
+    if (notif.bugReports === false) return;
+    const emails = [submitter.email, ...(bug.notify_emails ?? [])].filter(Boolean);
+    await Promise.allSettled(
+      emails.map((email: string) =>
+        this.mailer.sendBugResolvedEmail(email, submitter.firstName ?? undefined, bug.bugId, bug.title),
+      ),
+    );
+    this.logger.log(`[notifyBugResolved] Notification envoyée pour bug "${bug.bugId}" à ${emails.length} destinataire(s)`);
+  }
+
+  async notifyNewBug(bug: any, organizationId?: string): Promise<void> {
+    const { notif, recipients } = await this.getConfig();
+    
+    // On active par défaut si non précisé, ou si explicitement true
+    if (notif.bugReports === false || !recipients.length) return;
+
+    const orgName = organizationId ? await this.resolveOrgName(organizationId) : undefined;
+    const users = await this.resolveRecipients(recipients);
+    
+    const submittedBy = bug.submittedBy 
+      ? `${bug.submittedBy.firstName} ${bug.submittedBy.lastName} (${bug.submittedBy.email})`
+      : 'Utilisateur inconnu';
+
+    await Promise.allSettled(
+      users.map((u) =>
+        this.mailer.sendAdminBugReportAlert(
+          u.email,
+          u.firstName,
+          bug.id,
+          bug.bugId,
+          bug.title,
+          orgName,
+          bug.priority,
+          submittedBy
+        ),
+      ),
+    );
+    this.logger.log(`[notifyNewBug] Alertes envoyées pour bug "${bug.bugId}" à ${users.length} admin(s)`);
+  }
+
+  async notifyBugMention(bug: any, author: { firstName?: string | null; lastName?: string | null; email: string }, mentionedIds: string[]): Promise<void> {
+    const users = await this.resolveRecipients(mentionedIds);
+    if (!users.length) return;
+
+    const authorName = author.firstName 
+      ? `${author.firstName} ${author.lastName || ''}`.trim() 
+      : author.email;
+
+    await Promise.allSettled(
+      users.map(u => 
+        this.mailer.sendBugMentionAlert(u.email, u.firstName, bug.id, bug.bugId, bug.title, authorName)
+      )
+    );
+    this.logger.log(`[notifyBugMention] Alertes envoyées pour modification "${bug.bugId}" à ${users.length} admin(s)`);
   }
 }

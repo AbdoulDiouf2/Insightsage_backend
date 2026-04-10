@@ -53,6 +53,11 @@ const AUDIT_ROUTES: Array<[string, RegExp, AuditEventType]> = [
   ['POST', /^\/agents\/[^/]+\/revoke$/, 'agent_token_revoked'],
   ['POST', /^\/agents\/[^/]+\/test-connection$/, 'agent_connection_tested'],
 
+  // ── Agent v1 (installeur Electron + sync) ────────────────────────────────
+  ['POST', /^\/v1\/agent\/validate$/, 'agent_registered'],
+  ['POST', /^\/v1\/agent\/ingest$/, 'agent_query_executed'],
+  ['POST', /^\/v1\/agent\/[^/]+\/command$/, 'agent_query_executed'],
+
   // ── Onboarding ───────────────────────────────────────────────────────────
   ['POST', /^\/onboarding\/step1$/, 'onboarding_step_completed'],
   ['POST', /^\/onboarding\/step2$/, 'onboarding_step_completed'],

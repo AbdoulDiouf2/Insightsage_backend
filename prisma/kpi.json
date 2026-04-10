@@ -139,7 +139,7 @@
     "unit": "FCFA",
     "defaultVizType": "bar",
     "keywords": ["top clients", "top 10 ca", "clients pareto"],
-    "sqlSage100": "SELECT TOP 10 Client_ID, SUM(Montant_HT) AS CA_Client FROM {{database_name}}.dbo.VW_Finances_Clients_Flat GROUP BY Client_ID ORDER BY CA_Client DESC",
+    "sqlSage100": "SELECT TOP 10 MAX(c.nom_client) AS Nom_Client, f.Code_Client, SUM(f.Montant_HT) AS CA_Client FROM VW_Finances_Clients_Flat f LEFT JOIN VW_CLIENTS c ON f.Code_Client = c.client GROUP BY f.Code_Client ORDER BY CA_Client DESC",
     "sqlSageX3": ""
   },
   {

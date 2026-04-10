@@ -140,7 +140,13 @@ const SWAGGER_LOGIN_PAGE = `<!DOCTYPE html>
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    bodyParser: true,
+  });
+
+  // Augmenter la limite pour les payloads d'ingest agent (batches jusqu'à 5000 lignes)
+  app.use(require('express').json({ limit: '50mb' }));
+  app.use(require('express').urlencoded({ extended: true, limit: '50mb' }));
   const configService = app.get(ConfigService);
 
   // Sentry — Error monitoring (initialiser dès que configService est disponible)
@@ -155,12 +161,13 @@ async function bootstrap() {
   // Security headers — doit être placé AVANT enableCors
   app.use(
     helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
           styleSrc: ["'self'", "'unsafe-inline'"],
           scriptSrc: ["'self'", "'unsafe-inline'"], // Swagger UI en a besoin
-          imgSrc: ["'self'", 'data:'],
+          imgSrc: ["'self'", 'data:', '*', 'http:', 'https:'],
         },
       },
     }),

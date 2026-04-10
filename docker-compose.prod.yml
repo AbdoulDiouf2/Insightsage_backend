@@ -1,0 +1,133 @@
+networks:
+  cockpit_net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  certbot_conf:
+  certbot_www:
+
+services:
+
+  # ─── Nginx — Reverse proxy + SSL (Let's Encrypt via Certbot) ─────────────────
+  # Entry point unique : port 80 (redirect HTTPS) + port 443 (SSL)
+  nginx:
+    image: nginx:1.27-alpine
+    platform: linux/amd64
+    container_name: cockpit_nginx
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - certbot_conf:/etc/letsencrypt:ro
+      - certbot_www:/var/www/certbot:ro
+    depends_on:
+      api:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    networks:
+      - cockpit_net
+
+  # ─── Certbot — Gestion certificats SSL Let's Encrypt ─────────────────────────
+  # Renouvellement automatique toutes les 12h (certs valides 90j)
+  # Première génération : voir section "Initialisation SSL" dans deployment.md
+  certbot:
+    image: certbot/certbot:latest
+    platform: linux/amd64
+    container_name: cockpit_certbot
+    restart: unless-stopped
+    volumes:
+      - certbot_conf:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    entrypoint: /bin/sh -c 'trap exit TERM; while :; do certbot renew --quiet; sleep 12h & wait $${!}; done'
+    networks:
+      - cockpit_net
+
+  # ─── NestJS Backend ──────────────────────────────────────────────────────────
+  # Non exposé vers l'hôte — accessible uniquement via nginx
+  api:
+    build: .
+    platform: linux/amd64
+    container_name: cockpit_api
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    expose:
+      - '3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/api/health || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - cockpit_net
+
+  # ─── React Frontend ──────────────────────────────────────────────────────────
+  # Build multi-stage Node → Nginx — non exposé, accessible via nginx (/)
+  frontend:
+    build:
+      context: ../Client-cockpit
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: https://${DOMAIN:-cockpit.nafaka.tech}/api
+        VITE_ENV: production
+    platform: linux/amd64
+    container_name: cockpit_frontend
+    restart: unless-stopped
+    expose:
+      - '80'
+    networks:
+      - cockpit_net
+
+  # ─── PostgreSQL ──────────────────────────────────────────────────────────────
+  # Non exposé vers l'hôte en prod — DB accessible uniquement par l'api
+  postgres:
+    image: postgres:16-alpine
+    platform: linux/amd64
+    container_name: cockpit_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cockpit}
+      POSTGRES_USER: ${POSTGRES_USER:-cockpit_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant dans .env.prod}
+    expose:
+      - '5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-cockpit_user} -d ${POSTGRES_DB:-cockpit}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cockpit_net
+
+  # ─── Redis ───────────────────────────────────────────────────────────────────
+  # Non exposé vers l'hôte en prod
+  redis:
+    image: redis:7-alpine
+    platform: linux/amd64
+    container_name: cockpit_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD manquant dans .env.prod}
+    expose:
+      - '6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD}', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cockpit_net

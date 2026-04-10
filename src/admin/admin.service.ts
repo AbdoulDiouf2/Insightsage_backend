@@ -1164,6 +1164,141 @@ export class AdminService {
     return { summary, organizations: rows };
   }
 
+  // ── KPI Health Stats ─────────────────────────────────────────────────────────
+
+  async getKpiHealthStats() {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const kpis = await this.prisma.kpiDefinition.findMany({
+      orderBy: { category: 'asc' },
+    });
+
+    const sessions = await this.prisma.nlqSession.findMany({
+      where: {
+        createdAt: { gte: sevenDaysAgo },
+        intentKey: { not: null },
+      },
+      select: {
+        intentKey: true,
+        organizationId: true,
+        jobId: true,
+      },
+    });
+
+    const jobIds = sessions.map((s) => s.jobId).filter(Boolean) as string[];
+    const jobs = await this.prisma.agentJob.findMany({
+      where: { id: { in: jobIds } },
+      select: { id: true, status: true, errorMessage: true },
+    });
+    const jobsById = new Map(jobs.map((j) => [j.id, j]));
+
+    return kpis.map((kpi) => {
+      const kpiSessions = sessions.filter((s) => s.intentKey === kpi.key && s.jobId);
+      const kpiJobs = kpiSessions
+        .map((s) => ({ session: s, job: jobsById.get(s.jobId!) }))
+        .filter((x) => x.job !== undefined);
+
+      const total = kpiJobs.length;
+      const completed = kpiJobs.filter((x) => x.job!.status === 'COMPLETED').length;
+      const failed = kpiJobs.filter((x) => x.job!.status === 'FAILED');
+
+      const successRate = total > 0 ? Math.round((completed / total) * 100) : null;
+      const activeOrganizations = new Set(
+        kpiJobs
+          .filter((x) => x.job!.status === 'COMPLETED')
+          .map((x) => x.session.organizationId),
+      ).size;
+
+      const lastError =
+        failed.length > 0 ? (failed[failed.length - 1].job!.errorMessage ?? null) : null;
+
+      let status: 'Healthy' | 'Warning' | 'Error' | 'Unknown';
+      if (successRate === null) {
+        status = 'Unknown';
+      } else if (successRate >= 80) {
+        status = 'Healthy';
+      } else if (successRate >= 50) {
+        status = 'Warning';
+      } else {
+        status = 'Error';
+      }
+
+      return {
+        id: kpi.id,
+        key: kpi.key,
+        name: kpi.name,
+        category: kpi.category,
+        successRate,
+        activeOrganizations,
+        lastError,
+        status,
+        totalJobs: total,
+      };
+    });
+  }
+
+  async getKpiHealthDetail(kpiId: string) {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const kpi = await this.prisma.kpiDefinition.findUnique({ where: { id: kpiId } });
+    if (!kpi) throw new NotFoundException('KPI not found');
+
+    const sessions = await this.prisma.nlqSession.findMany({
+      where: { intentKey: kpi.key, createdAt: { gte: sevenDaysAgo } },
+      include: {
+        organization: { select: { id: true, name: true } },
+        user: { select: { id: true, email: true, firstName: true, lastName: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const jobIds = sessions.map((s) => s.jobId).filter(Boolean) as string[];
+    const jobs = await this.prisma.agentJob.findMany({
+      where: { id: { in: jobIds } },
+      select: { id: true, status: true, errorMessage: true, startedAt: true, completedAt: true },
+    });
+    const jobsById = new Map(jobs.map((j) => [j.id, j]));
+
+    const enriched = sessions.map((s) => {
+      const job = s.jobId ? jobsById.get(s.jobId) : null;
+      return {
+        id: s.id,
+        createdAt: s.createdAt,
+        organization: s.organization,
+        user: s.user,
+        jobStatus: job ? job.status : 'NO_JOB',
+        errorMessage: job ? (job.errorMessage ?? null) : (s.errorMessage ?? null),
+        latencyMs: s.latencyMs,
+        completedAt: job?.completedAt ?? null,
+      };
+    });
+
+    // Only count sessions that actually have a resolved job (mirrors getKpiHealthStats logic)
+    const withJob = enriched.filter((s) => s.jobStatus !== 'NO_JOB');
+    const total = withJob.length;
+    const completed = withJob.filter((s) => s.jobStatus === 'COMPLETED').length;
+    const failed = enriched.filter((s) => s.jobStatus === 'FAILED');
+    const successRate = total > 0 ? Math.round((completed / total) * 100) : null;
+    const activeOrganizations = new Set(
+      enriched.filter((s) => s.jobStatus === 'COMPLETED').map((s) => s.organization?.id),
+    ).size;
+    const lastError = failed.length > 0 ? (failed[0].errorMessage ?? null) : null;
+
+    let status: 'Healthy' | 'Warning' | 'Error' | 'Unknown';
+    if (successRate === null) status = 'Unknown';
+    else if (successRate >= 80) status = 'Healthy';
+    else if (successRate >= 50) status = 'Warning';
+    else status = 'Error';
+
+    return {
+      kpi,
+      health: { successRate, activeOrganizations, lastError, status, totalJobs: total, completedJobs: completed },
+      sessions: enriched,
+    };
+  }
+
   // ── System config (singleton) ────────────────────────────────────────────────
 
   async getSystemConfig() {

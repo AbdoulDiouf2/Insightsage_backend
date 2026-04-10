@@ -22,15 +22,22 @@ import { MailerModule } from './mailer/mailer.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { TargetsModule } from './targets/targets.module';
 import { BillingModule } from './billing/billing.module';
-// import { AdminPanelModule } from './admin-panel/admin-panel.module'; // Désactivé (AdminJS)
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { TenantGuard } from './auth/guards/tenant.guard';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { RedisModule } from './redis/redis.module';
+import { BugsModule } from './bugs/bugs.module';
+import { StorageModule } from './storage/storage.module';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 
 @Module({
   imports: [
+    ServeStaticModule.forRoot({
+      rootPath: join(process.cwd(), 'uploads'),
+      serveRoot: '/uploads',
+    }),
     EventEmitterModule.forRoot(),
     ScheduleModule.forRoot(),
     RedisModule,
@@ -43,12 +50,10 @@ import { RedisModule } from './redis/redis.module';
             ? '.env.prod'
             : ['.env.dev', '.env'],
     }),
-    // Rate limiting global : 60 requêtes/minute par IP par défaut
-    // Les endpoints sensibles surchargent cette valeur avec @Throttle()
     ThrottlerModule.forRoot([
       {
-        ttl: 60000,  // fenêtre de 1 minute
-        limit: 60,   // 60 requêtes max par IP par défaut
+        ttl: 60000,
+        limit: 60,
       },
     ]),
     PrismaModule,
@@ -70,13 +75,10 @@ import { RedisModule } from './redis/redis.module';
     NotificationsModule,
     TargetsModule,
     BillingModule,
-    // AdminPanelModule, // Désactivé (AdminJS)
+    BugsModule,
+    StorageModule,
   ],
   providers: [
-    // Global guards applied in order:
-    // 1. ThrottlerGuard - Rate limiting (avant tout le reste)
-    // 2. JwtAuthGuard  - Authentification (skipped for @Public() routes)
-    // 3. TenantGuard   - Isolation multi-tenant
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
@@ -89,7 +91,6 @@ import { RedisModule } from './redis/redis.module';
       provide: APP_GUARD,
       useClass: TenantGuard,
     },
-    // Global audit interceptor — logs every HTTP action to audit_logs
     {
       provide: APP_INTERCEPTOR,
       useClass: AuditInterceptor,

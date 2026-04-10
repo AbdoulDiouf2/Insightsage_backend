@@ -13,6 +13,9 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { RegisterAgentDto } from './dto/register-agent.dto';
 import { HeartbeatDto } from './dto/heartbeat.dto';
 import { GenerateTokenDto } from './dto/generate-token.dto';
+import { ValidateAgentDto } from './dto/validate-agent.dto';
+import { IngestDto } from './dto/ingest.dto';
+import { HeartbeatV1Dto } from './dto/heartbeat-v1.dto';
 import { randomBytes } from 'crypto';
 import { JobStatus } from '@prisma/client';
 import { SqlSecurityService } from './sql-security.service';
@@ -802,6 +805,222 @@ export class AgentsService implements OnModuleInit {
 
   isAgentConnected(organizationId: string): boolean {
     return this.connectedAgents.has(organizationId);
+  }
+
+  // ─── Agent v1 — Endpoints installeur Electron ────────────────────────────────
+
+  /**
+   * Validation du token à l'installation (Step 5 installeur Electron).
+   * Appelé sans JWT, le token agent est dans le body.
+   */
+  async validateAgent(dto: ValidateAgentDto, ipAddress?: string) {
+    const agent = await this.prisma.agent.findUnique({
+      where: { token: dto.token },
+      include: {
+        organization: {
+          select: {
+            id: true,
+            name: true,
+            subscriptionPlan: { select: { name: true } },
+          },
+        },
+      },
+    });
+
+    if (!agent) {
+      return { valid: false, error: 'Token invalide ou inexistant' };
+    }
+
+    if (agent.isRevoked) {
+      return { valid: false, error: 'Token révoqué — régénérez un token depuis le portail' };
+    }
+
+    if (agent.tokenExpiresAt && agent.tokenExpiresAt < new Date()) {
+      return { valid: false, error: 'Token expiré — régénérez un token depuis le portail' };
+    }
+
+    // Enregistrer les infos machine de l'installeur
+    await this.prisma.agent.update({
+      where: { id: agent.id },
+      data: {
+        machineId: dto.machineId ?? agent.machineId,
+        sqlServer: dto.sqlServer ?? agent.sqlServer,
+        status: 'online',
+        lastSeen: new Date(),
+      },
+    });
+
+    await this.auditLog.log({
+      organizationId: agent.organizationId,
+      event: 'agent_registered',
+      payload: {
+        agentId: agent.id,
+        source: 'electron_installer',
+        machineId: dto.machineId,
+        sqlServer: dto.sqlServer,
+        sageTables: dto.sageTables,
+        ipAddress,
+      },
+      ipAddress,
+    });
+
+    return {
+      valid: true,
+      agentId: agent.id,
+      clientName: agent.organization.name,
+      plan: agent.organization.subscriptionPlan?.name ?? 'unknown',
+      organizationId: agent.organizationId,
+    };
+  }
+
+  /**
+   * Architecture Zero-Copy : les données ERP ne sont jamais stockées dans le cloud.
+   * Seules les métadonnées de sync (compteurs, watermarks) sont conservées.
+   * Les données réelles sont fournies à la demande via WebSocket (execute_sql).
+   */
+  async ingestData(agentId: string, organizationId: string, dto: IngestDto) {
+    // Mise à jour des stats de l'agent uniquement (pas de stockage des lignes)
+    await this.prisma.agent.update({
+      where: { id: agentId },
+      data: {
+        lastSeen: new Date(),
+        lastSync: new Date(),
+        rowsSynced: { increment: BigInt(dto.row_count) },
+        sageVersion: dto.schema_version ?? undefined,
+      },
+    });
+
+    return {
+      accepted: true,
+      processed: dto.row_count,
+      watermark_ack: dto.watermark_max ?? null,
+    };
+  }
+
+  /**
+   * Retourne la configuration de synchronisation pour l'agent.
+   * Peut être mise à jour à distance sans réinstaller l'agent.
+   */
+  async getAgentConfig(agentId: string, organizationId: string) {
+    const org = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: {
+        subscriptionPlan: { select: { name: true, hasNlq: true, maxAgentSyncPerDay: true } },
+      },
+    });
+
+    // Config de synchronisation par vue (définie dans ARCHITECTURE_AGENT_ONPREMISES.md)
+    const syncIntervals = [
+      { view: 'VW_KPI_SYNTESE',         interval: 5,   mode: 'FULL' },
+      { view: 'VW_METADATA_AGENT',      interval: 5,   mode: 'FULL' },
+      { view: 'VW_GRAND_LIVRE_GENERAL', interval: 15,  mode: 'INCREMENTAL' },
+      { view: 'VW_CLIENTS',             interval: 15,  mode: 'INCREMENTAL' },
+      { view: 'VW_FOURNISSEURS',        interval: 15,  mode: 'INCREMENTAL' },
+      { view: 'VW_TRESORERIE',          interval: 15,  mode: 'INCREMENTAL' },
+      { view: 'VW_COMMANDES',           interval: 30,  mode: 'INCREMENTAL' },
+      { view: 'VW_ANALYTIQUE',          interval: 30,  mode: 'INCREMENTAL' },
+      { view: 'VW_STOCKS',              interval: 60,  mode: 'INCREMENTAL' },
+      { view: 'VW_FINANCE_GENERAL',     interval: 60,  mode: 'INCREMENTAL' },
+      { view: 'VW_IMMOBILISATIONS',     interval: 360, mode: 'FULL' },
+      { view: 'VW_PAIE',                interval: 360, mode: 'FULL' },
+    ];
+
+    return {
+      sync_intervals: syncIntervals,
+      views_enabled: syncIntervals.map((c) => c.view),
+      features: {
+        nlq: org?.subscriptionPlan?.hasNlq ?? false,
+        plan: org?.subscriptionPlan?.name ?? 'unknown',
+        maxSyncPerDay: org?.subscriptionPlan?.maxAgentSyncPerDay ?? null,
+      },
+    };
+  }
+
+  /**
+   * Heartbeat v1 — format allégé sans token dans le body (auth par Bearer header).
+   * Retourne les commandes distantes en attente (ex: FORCE_FULL_SYNC).
+   */
+  async heartbeatV1(agentId: string, organizationId: string, dto: HeartbeatV1Dto) {
+    const agent = await this.prisma.agent.findUnique({ where: { id: agentId } });
+    if (!agent) throw new NotFoundException('Agent introuvable');
+
+    // Consommer la commande en attente (one-shot)
+    const commands: string[] = agent.pendingCommand ? [agent.pendingCommand] : [];
+
+    await this.prisma.agent.update({
+      where: { id: agentId },
+      data: {
+        status: dto.status ?? 'online',
+        lastSeen: new Date(),
+        lastSync: dto.lastSync ? new Date(dto.lastSync) : agent.lastSync,
+        rowsSynced: dto.nbRecordsTotal != null ? BigInt(dto.nbRecordsTotal) : agent.rowsSynced,
+        pendingCommand: null, // Effacer la commande après envoi
+      },
+    });
+
+    return {
+      ok: true,
+      serverTime: new Date().toISOString(),
+      nextHeartbeat: 300, // 5 minutes (au lieu de 30s — le push est le canal principal)
+      commands,
+    };
+  }
+
+  /**
+   * Déclenche une commande distante sur un agent (ex: forcer une resync complète).
+   * Utilisé par le portail admin. La commande sera transmise au prochain heartbeat.
+   */
+  async sendCommand(agentId: string, organizationId: string, command: string) {
+    const agent = await this.prisma.agent.findUnique({ where: { id: agentId } });
+    if (!agent) throw new NotFoundException('Agent introuvable');
+    if (agent.organizationId !== organizationId) throw new ForbiddenException('Accès refusé');
+
+    await this.prisma.agent.update({
+      where: { id: agentId },
+      data: { pendingCommand: command },
+    });
+
+    return { queued: true, command, message: `Commande "${command}" sera transmise au prochain heartbeat` };
+  }
+
+  /**
+   * Retourne l'historique des batches de synchronisation d'un agent.
+   */
+  async getAgentSyncBatches(agentId: string, organizationId: string) {
+    const agent = await this.prisma.agent.findUnique({ where: { id: agentId } });
+    if (!agent) throw new NotFoundException('Agent introuvable');
+    if (agent.organizationId !== organizationId) throw new ForbiddenException('Accès refusé');
+
+    const batches = await this.prisma.agentSyncBatch.findMany({
+      where: { agentId, organizationId },
+      orderBy: { processedAt: 'desc' },
+      take: 100,
+    });
+
+    // Convertir les BigInt en string pour la sérialisation JSON
+    return batches.map((b) => ({
+      ...b,
+      watermarkMin: b.watermarkMin?.toString() ?? null,
+      watermarkMax: b.watermarkMax?.toString() ?? null,
+    }));
+  }
+
+  /**
+   * Retourne le dernier snapshot de données pour une vue et une organisation.
+   */
+  async getViewSnapshot(organizationId: string, viewName: string) {
+    const snapshot = await this.prisma.agentViewSnapshot.findUnique({
+      where: { organizationId_viewName: { organizationId, viewName } },
+    });
+
+    if (!snapshot) {
+      throw new NotFoundException(`Aucun snapshot disponible pour la vue "${viewName}"`);
+    }
+
+    return {
+      ...snapshot,
+      watermarkMax: snapshot.watermarkMax?.toString() ?? null,
+    };
   }
 
   /**

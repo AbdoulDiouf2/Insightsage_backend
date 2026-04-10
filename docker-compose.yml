@@ -1,20 +1,83 @@
+networks:
+  cockpit_net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  pgadmin_data:
+
 services:
+
+  # ─── Nginx — Reverse proxy (entry point) ─────────────────────────────────────
+  # Expose :80 (et :443 quand SSL activé)
+  # Route /api/ → api, /socket.io/ → api (WS), / → frontend
+  nginx:
+    image: nginx:1.27-alpine
+    platform: linux/amd64
+    container_name: cockpit_nginx
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # Décommenter quand les certs SSL sont disponibles :
+      # - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      api:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    networks:
+      - cockpit_net
+
   # ─── NestJS Backend ──────────────────────────────────────────────────────────
+  # Pas exposé directement — accessible uniquement via nginx (/api/, /socket.io/)
   api:
     build: .
+    platform: linux/amd64
     container_name: cockpit_api
     restart: unless-stopped
     env_file:
       - .env
-    ports:
-      - '3000:3000'
+    expose:
+      - '3000'
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/api/health || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - cockpit_net
+
+  # ─── React Frontend ──────────────────────────────────────────────────────────
+  # Build multi-stage Node → Nginx — accessible uniquement via nginx (/)
+  frontend:
+    build:
+      context: ../Client-cockpit
+      dockerfile: Dockerfile
+      args:
+        # En prod, remplacer par l'URL du domaine réel
+        VITE_API_URL: ${FRONTEND_API_URL:-http://localhost/api}
+        VITE_ENV: ${VITE_ENV:-production}
+    platform: linux/amd64
+    container_name: cockpit_frontend
+    restart: unless-stopped
+    expose:
+      - '80'
+    networks:
+      - cockpit_net
 
   # ─── PostgreSQL ──────────────────────────────────────────────────────────────
+  # Port 5432 exposé pour accès DBA direct (ex: depuis DBeaver, Prisma Studio)
+  # Retirer le mapping port en prod si accès DB non requis depuis l'hôte
   postgres:
     image: postgres:16-alpine
     platform: linux/amd64
@@ -33,16 +96,19 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - cockpit_net
 
   # ─── Redis ───────────────────────────────────────────────────────────────────
+  # Pas exposé vers l'hôte — accessible uniquement par l'api via cockpit_net
   redis:
     image: redis:7-alpine
     platform: linux/amd64
     container_name: cockpit_redis
     restart: unless-stopped
     command: redis-server --appendonly yes --requirepass cockpit_redis_pass
-    ports:
-      - '6379:6379'
+    expose:
+      - '6379'
     volumes:
       - redis_data:/data
     healthcheck:
@@ -50,13 +116,18 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - cockpit_net
 
-  # ─── pgAdmin — Interface web PostgreSQL ─────────────────────────────────────
+  # ─── pgAdmin — Interface web PostgreSQL ──────────────────────────────────────
+  # Profil "tools" — démarrer avec : docker compose --profile tools up -d
   pgadmin:
     image: dpage/pgadmin4:latest
     platform: linux/amd64
     container_name: cockpit_pgadmin
     restart: unless-stopped
+    profiles:
+      - tools
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@cockpit.io
       PGADMIN_DEFAULT_PASSWORD: cockpit_admin
@@ -69,8 +140,68 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      - cockpit_net
 
-volumes:
-  postgres_data:
-  redis_data:
-  pgadmin_data:
+  # ─── Redis Commander — Interface web Redis ────────────────────────────────────
+  # Profil "tools" — démarrer avec : docker compose --profile tools up -d
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    platform: linux/amd64
+    container_name: cockpit_redis_commander
+    restart: unless-stopped
+    profiles:
+      - tools
+    environment:
+      REDIS_HOSTS: 'local:redis:6379:0:cockpit_redis_pass'
+    ports:
+      - '8081:8081'
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - cockpit_net
+
+  # ─── Mailhog — Serveur SMTP local (test emails) ───────────────────────────────
+  # Profil "tools" — démarrer avec : docker compose --profile tools up -d
+  # Dans .env backend : SMTP_HOST=mailhog  SMTP_PORT=1025  SMTP_USER=  SMTP_PASS=
+  # Interface web emails : http://localhost:8025
+  mailhog:
+    image: mailhog/mailhog:latest
+    platform: linux/amd64
+    container_name: cockpit_mailhog
+    restart: unless-stopped
+    profiles:
+      - tools
+    ports:
+      - '1025:1025'   # SMTP
+      - '8025:8025'   # Interface web
+    networks:
+      - cockpit_net
+
+  # ─── MkDocs Material — Documentation interne ─────────────────────────────────
+  # Profil "docs" — démarrer avec : docker compose --profile docs up -d
+  # Accès DEV  : http://localhost:8080  (mkdocs serve avec hot-reload)
+  # Accès PROD : passer à mkdocs build + nginx (voir commentaire ci-dessous)
+  #
+  # ⚠ Pour la PRODUCTION : remplacer l'entrypoint par un build statique servi
+  #   via nginx à docs.votre-domaine.com (ajouter un server block dans nginx.conf)
+  #   entrypoint: sh -c "pip install mkdocs-print-site-plugin -q && mkdocs build"
+  #   puis monter ./site dans un container nginx séparé.
+  docs:
+    image: squidfunk/mkdocs-material:latest
+    platform: linux/amd64
+    container_name: cockpit_docs
+    restart: unless-stopped
+    profiles:
+      - docs
+    entrypoint: >
+      sh -c "pip install mkdocs-print-site-plugin --quiet && mkdocs serve --dev-addr=0.0.0.0:8080"
+    ports:
+      - '8080:8080'
+    volumes:
+      - ./docs:/docs/docs:ro
+      - ./mkdocs.yml:/docs/mkdocs.yml:ro
+    working_dir: /docs
+    networks:
+      - cockpit_net

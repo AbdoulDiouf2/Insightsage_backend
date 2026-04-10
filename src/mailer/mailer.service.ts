@@ -409,6 +409,145 @@ export class MailerService implements OnModuleInit {
     await this.send({ to: email, subject: `[Cockpit] Erreur : ${eventType}`, html });
   }
 
+  async sendBugSubmittedEmail(
+    email: string,
+    firstName: string | null | undefined,
+    bugId: string,
+    title: string,
+  ): Promise<void> {
+    const greeting = firstName ? `Bonjour ${firstName},` : 'Bonjour,';
+    if (!this.smtpConfigured) {
+      this.logger.log(`[DEV] sendBugSubmittedEmail → ${email} | bug: ${bugId}`);
+      return;
+    }
+    const html = this.adminHtml(
+      '#3b66ac',
+      `📋 Votre signalement ${bugId} a bien été reçu`,
+      `<p>${greeting}</p>
+       <p>Nous avons bien reçu votre signalement et notre équipe technique va le prendre en charge.</p>
+       <p>Référence : <strong>${bugId}</strong></p>
+       <p>Titre : <strong>${title}</strong></p>
+       <p>Vous serez notifié par email dès que le problème sera résolu.</p>`,
+    );
+    await this.send({ to: email, subject: `[Cockpit] Signalement reçu — ${bugId}`, html });
+  }
+
+  async sendBugResolvedEmail(
+    email: string,
+    firstName: string | null | undefined,
+    bugId: string,
+    title: string,
+  ): Promise<void> {
+    const greeting = firstName ? `Bonjour ${firstName},` : 'Bonjour,';
+    if (!this.smtpConfigured) {
+      this.logger.log(`[DEV] sendBugResolvedEmail → ${email} | bug: ${bugId}`);
+      return;
+    }
+    const html = this.adminHtml(
+      '#22c55e',
+      `✅ Votre signalement ${bugId} a été résolu`,
+      `<p>${greeting}</p>
+       <p>Nous avons le plaisir de vous informer que votre signalement a été traité et marqué comme <strong>résolu</strong>.</p>
+       <p>Référence : <strong>${bugId}</strong></p>
+       <p>Titre : <strong>${title}</strong></p>
+       <p>Si vous constatez que le problème persiste, n'hésitez pas à soumettre un nouveau signalement.</p>`,
+    );
+    await this.send({ to: email, subject: `[Cockpit] Signalement ${bugId} résolu`, html });
+  }
+
+  async sendAdminBugReportAlert(
+    email: string,
+    firstName: string | null | undefined,
+    id: string, // UUID interne
+    bugId: string, // ID lisible (BR-...)
+    title: string,
+    orgName: string | undefined,
+    priority: string,
+    submittedBy: string,
+  ): Promise<void> {
+    const greeting = firstName ? `Bonjour ${firstName},` : 'Bonjour,';
+    const orgLine = orgName ? `<p>Organisation : <strong>${orgName}</strong></p>` : '';
+    
+    // Couleur de l'entête selon la priorité
+    const priorityColors: Record<string, string> = {
+      'critique': '#dc2626',
+      'haute': '#ef4444',
+      'moyenne': '#f97316',
+      'basse': '#3b82f6',
+      'a_analyser': '#64748b'
+    };
+    const headerColor = priorityColors[priority] || '#64748b';
+
+    if (!this.smtpConfigured) {
+      this.logger.log(`[DEV] sendAdminBugReportAlert → ${email} | bug: ${bugId} | priority: ${priority}`);
+      return;
+    }
+
+    const html = this.adminHtml(
+      headerColor,
+      `🐛 Nouveau bug signalé : ${bugId}`,
+      `<p>${greeting}</p>
+       <p>Un nouveau signalement de bug vient d'être soumis.</p>
+       <p>Titre : <strong>${title}</strong></p>
+       <p>Priorité : <strong style="text-transform: capitalize;">${priority}</strong></p>
+       ${orgLine}
+       <p>Signalé par : <strong>${submittedBy}</strong></p>
+       <p style="margin-top: 24px;">
+         <a href="${this.config.get<string>('FRONTEND_ADMIN_URL') || this.config.get<string>('FRONTEND_URL')}/bug-tracker/${id}" style="
+           display: inline-block; padding: 10px 20px;
+           background: ${headerColor}; color: white; text-decoration: none; border-radius: 6px;
+           font-weight: bold;
+         ">
+           Voir le bug dans le cockpit
+         </a>
+       </p>`,
+    );
+
+    await this.send({ 
+      to: email, 
+      subject: `[Cockpit] Bug ${bugId} : ${title}`, 
+      html 
+    });
+  }
+
+  async sendBugMentionAlert(
+    email: string,
+    firstName: string | null | undefined,
+    id: string,
+    bugId: string,
+    title: string,
+    authorName: string
+  ): Promise<void> {
+    const greeting = firstName ? `Bonjour ${firstName},` : 'Bonjour,';
+    if (!this.smtpConfigured) {
+      this.logger.log(`[DEV] sendBugMentionAlert → ${email} | bug: ${bugId} | par: ${authorName}`);
+      return;
+    }
+
+    const html = this.adminHtml(
+      '#8b5cf6', // Violet icon color for mentions
+      `💬 Vous avez été mentionné(e)`,
+      `<p>${greeting}</p>
+       <p><strong>${authorName}</strong> vous a mentionné(e) dans un commentaire sur le bug <strong>${bugId}</strong>.</p>
+       <p>Titre : <strong>${title}</strong></p>
+       <p style="margin-top: 24px;">
+         <a href="${this.config.get<string>('FRONTEND_ADMIN_URL') || this.config.get<string>('FRONTEND_URL')}/bug-tracker/${id}" style="
+           display: inline-block; padding: 10px 20px;
+           background: #8b5cf6; color: white; text-decoration: none; border-radius: 6px;
+           font-weight: bold;
+         ">
+           Voir le commentaire
+         </a>
+       </p>`
+    );
+
+    await this.send({
+      to: email,
+      subject: `[Cockpit] Mention dans le bug ${bugId}`,
+      html
+    });
+  }
+
   private async send(options: { to: string; subject: string; html: string }): Promise<void> {
     try {
       await this.transporter!.sendMail({

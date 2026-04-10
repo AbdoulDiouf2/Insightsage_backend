@@ -45,10 +45,13 @@ model Organization {
   onboardingStatus OnboardingStatus?
   agentLogs        AgentLog[]
   nlqSessions      NlqSession[]
+  agentSyncBatches AgentSyncBatch[]
+  agentViewSnapshots AgentViewSnapshot[]
   targets             Target[]
   billingCustomer     BillingCustomer?
   billingSubscription BillingSubscription?
   billingInvoices     BillingInvoice[]
+  bugs                Bug[]
 
   @@map("organizations")
 }
@@ -84,6 +87,9 @@ model User {
   invitationsCreated Invitation[] @relation("InvitationsCreated")
   nlqSessions        NlqSession[]
   agentJobs          AgentJob[]
+  bugsSubmitted      Bug[]          @relation("BugSubmitter")
+  bugsAssigned       Bug[]          @relation("BugAssignee")
+  bugComments        BugComment[]
 
   @@index([organizationId])
   @@map("users")
@@ -321,11 +327,19 @@ model Agent {
   isRevoked      Boolean   @default(false) // révocation explicite par l'admin
   revokedAt      DateTime? // timestamp de révocation
 
+  // Agent v1 — metadata installeur
+  machineId      String?   // Identifiant unique machine (node-machine-id)
+  sageVersion    String?   // Version Sage détectée : "v21plus" | "v15v17" | "fallback"
+  sqlServer      String?   // Instance SQL Server (ex: "MONSERVEUR\SAGE")
+  pendingCommand String?   // Commande en attente pour le prochain heartbeat (ex: "FORCE_FULL_SYNC")
+
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
 
-  jobs           AgentJob[]
-  agentLogs      AgentLog[]
+  jobs               AgentJob[]
+  agentLogs          AgentLog[]
+  syncBatches        AgentSyncBatch[]
+  viewSnapshots      AgentViewSnapshot[]
 
   @@index([organizationId])
   @@index([token])
@@ -487,6 +501,53 @@ model AgentLog {
   @@map("agent_logs")
 }
 
+// ─── Agent v1 — Synchronisation incrémentale ─────────────────────────────────
+
+// Historique de chaque batch de synchronisation envoyé par l'agent
+model AgentSyncBatch {
+  id             String   @id @default(uuid())
+  organizationId String
+  agentId        String
+  viewName       String   // ex: "VW_GRAND_LIVRE_GENERAL"
+  syncMode       String   // "INCREMENTAL" | "FULL"
+  watermarkMin   BigInt?  // cbMarq de départ (INCREMENTAL)
+  watermarkMax   BigInt?  // cbMarq max du batch (nouveau watermark après sync)
+  rowCount       Int      @default(0)
+  schemaVersion  String?  // "v21plus" | "v15v17" | "fallback"
+  processedAt    DateTime @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  agent          Agent        @relation(fields: [agentId], references: [id])
+
+  @@index([organizationId])
+  @@index([agentId])
+  @@index([viewName])
+  @@index([processedAt])
+  @@map("agent_sync_batches")
+}
+
+// Dernier snapshot de chaque vue par organisation (upsert à chaque sync)
+model AgentViewSnapshot {
+  id             String   @id @default(uuid())
+  organizationId String
+  agentId        String
+  viewName       String   // ex: "VW_GRAND_LIVRE_GENERAL"
+  watermarkMax   BigInt?  // dernier cbMarq synchronisé
+  rowCount       Int      @default(0)
+  data           Json     // Données brutes de la vue (tableau de lignes)
+  syncMode       String
+  schemaVersion  String?
+  updatedAt      DateTime @updatedAt
+  createdAt      DateTime @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  agent          Agent        @relation(fields: [agentId], references: [id])
+
+  @@unique([organizationId, viewName])
+  @@index([organizationId])
+  @@map("agent_view_snapshots")
+}
+
 // Seed data pour RBAC
 model SeedData {
   id   String @id @default(uuid())
@@ -640,4 +701,81 @@ model SystemConfig {
   updatedAt               DateTime @updatedAt
 
   @@map("system_config")
+}
+
+// ─── Bugs / Task Tracking ─────────────────────────────────────────────────────
+
+model Bug {
+  id                String   @id @default(uuid())
+  bugId             String   @unique // Format: BR-YYYYMMDD-XXX
+  title             String
+  bug_type          String[]
+  module            String
+  priority          String   @default("moyenne") // "critique" | "haute" | "moyenne" | "basse" | "a_analyser"
+  severity          Int      @default(3)
+  status            String   @default("nouveau") // "nouveau" | "en_analyse" | "en_cours" | "en_test" | "resolu" | "ferme"
+  
+  // Environment
+  url               String?
+  browser           String?
+  os                String?
+  screen            String?
+  path              String?
+  userAgent         String?
+  
+  // Business context
+  entity_code       String?
+  fiscal_year       Int?
+  period_start      String?
+  period_end        String?
+  
+  // Details
+  description       String   @db.Text
+  steps_to_reproduce String[]
+  expected_behavior String?  @db.Text
+  actual_behavior   String?  @db.Text
+  frequency         String   // "toujours" | "souvent" | "parfois" | "une_seule_fois" | "intermittent"
+  impact            String   // "production_bloquee", etc.
+  users_impacted    String?
+  workaround        Boolean  @default(false)
+  workaround_desc   String?  @db.Text
+  
+  // Logs & Attachments
+  tags              String[]
+  attachments       String[] // URLs (S3)
+  console_errors    String?  @db.Text
+  
+  // Metadata
+  notify_emails     String[]
+  submittedById     String   @map("submitted_by_id")
+  submittedBy       User     @relation("BugSubmitter", fields: [submittedById], references: [id])
+  organizationId    String?
+  organization      Organization? @relation(fields: [organizationId], references: [id])
+  
+  assignedToId      String?  @map("assigned_to_id")
+  assignedTo        User?    @relation("BugAssignee", fields: [assignedToId], references: [id])
+
+  comments          BugComment[]
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([status])
+  @@map("bugs")
+}
+
+model BugComment {
+  id               String   @id @default(uuid())
+  bugId            String
+  bug              Bug      @relation(fields: [bugId], references: [id], onDelete: Cascade)
+  authorId         String
+  author           User     @relation(fields: [authorId], references: [id])
+  content          String   @db.Text
+  isInternal       Boolean  @default(false)
+  mentionedUserIds String[] @default([]) // newly added field for tracking mentions
+  createdAt        DateTime @default(now())
+
+  @@index([bugId])
+  @@map("bug_comments")
 }

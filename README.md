@@ -53,7 +53,7 @@ Sections couvertes : Architecture · API Reference · Sécurité · Base de donn
 | Sécurité | Helmet (CSP) + bcrypt ×12 + SHA-256 token hashing + `timingSafeEqual` |
 | Logs | AuditLogService global — masquage PII automatique + alertes admin `ERROR_ALERT_EVENTS` |
 | Monitoring | Sentry (conditionnel via `SENTRY_DSN`) |
-| Tests | Jest + couverture Istanbul |
+| Stockage | Cloudflare R2 (S3) avec fallback local FS-Extra |
 | Docs | MkDocs Material 9.x |
 
 ---
@@ -62,6 +62,8 @@ Sections couvertes : Architecture · API Reference · Sécurité · Base de donn
 
 ```
 src/
+├── bugs/           # Ticketing technique & Signalement bug (BR-YYYYMMDD-XXX)
+├── storage/        # Service hybride Cloudflare R2 / S3 / Local FS
 ├── auth/           # JWT, refresh, invitations, reset password
 ├── users/          # Profils, équipe (DAF)
 ├── organizations/  # Cycle de vie d'un tenant

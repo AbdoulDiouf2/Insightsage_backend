@@ -1,11 +1,11 @@
 ---
 title: Module Agents
-description: Gestion du cycle de vie des agents de synchronisation Sage ERP
+description: Gestion du cycle de vie des agents de synchronisation Sage 100
 ---
 
 # Module Agents
 
-Le module Agents gère les agents on-premise qui servent de pont entre Sage ERP et l'API InsightSage. Il couvre la génération de tokens, l'enregistrement, le heartbeat et la surveillance du statut.
+Le module Agents gère les agents on-premise qui servent de pont entre Sage 100 et la plateforme Cockpit. Il couvre la génération de tokens, la validation à l'installation, le heartbeat périodique (toutes les 5 min), l'ingestion des données synchronisées et la surveillance du statut.
 
 ## Structure
 
@@ -109,7 +109,7 @@ await prisma.agent.update({
 
 #### `processHeartbeat(dto)`
 
-Appelé toutes les 30 secondes par l'agent. Met à jour `lastSeen` et le statut :
+Appelé toutes les **5 minutes** par l'agent. Met à jour `lastSeen`, le statut et les statistiques de sync :
 
 ```typescript
 // Si errorCount > 0 → status = 'error'
@@ -204,15 +204,26 @@ Les résultats renvoyés par l'agent sont automatiquement transformés par le ba
 
 ## Controller — Endpoints
 
+### Endpoints Agent → Plateforme (token agent)
+
 | Méthode | Route | Auth | Description |
 |---------|-------|------|-------------|
-| `POST` | `/agents/register` | Public | Enregistrement agent |
-| `POST` | `/agents/heartbeat` | Public | Heartbeat 30s |
-| `POST` | `/agents/generate-token` | `manage:agents` | Générer token |
+| `POST` | `/api/v1/agent/validate` | Public | Validation token à l'installation |
+| `POST` | `/api/v1/agent/heartbeat` | `AgentTokenGuard` | Heartbeat toutes les 5 min |
+| `POST` | `/api/v1/agent/ingest` | `AgentTokenGuard` | Ingestion batch données (5 000 lignes max) |
+| `GET`  | `/api/v1/agent/config` | `AgentTokenGuard` | Config distante (intervalles, vues activées) |
+
+### Endpoints Admin (JWT utilisateur)
+
+| Méthode | Route | Auth | Description |
+|---------|-------|------|-------------|
+| `POST` | `/agents/generate-token` | `manage:agents` | Générer un token agent |
 | `GET` | `/agents/status` | `read:agents` | Statut de tous les agents |
 | `GET` | `/agents/:id` | `read:agents` | Détails d'un agent |
 | `POST` | `/agents/:id/regenerate-token` | `manage:agents` | Régénérer token |
 | `POST` | `/agents/:id/revoke` | `manage:agents` | Révoquer token |
+| `POST` | `/agents/:id/command` | `manage:agents` | Envoyer commande (`FORCE_FULL_SYNC`) |
+| `GET` | `/agents/:id/sync-batches` | `read:agents` | Historique des batches ingest |
 
 ---
 
@@ -243,23 +254,40 @@ class RegisterAgentDto {
 
 ```typescript
 class HeartbeatDto {
-  @IsString()
-  agentToken: string;
+  // Header Authorization: Bearer isag_...
+  // (extrait par AgentTokenGuard — pas dans le corps)
+
+  @IsOptional() @IsIn(['online', 'error'])
+  status?: string;           // 'online' par défaut
 
   @IsOptional() @IsString()
-  organizationId?: string;
-
-  @IsOptional() @IsString()
-  agentVersion?: string;
-
-  @IsOptional() @IsIn(['online', 'offline', 'error'])
-  status?: string;
+  lastSync?: string;         // ISO 8601 de la dernière sync réussie
 
   @IsOptional() @IsNumber()
-  errorCount?: number;
+  nbRecordsTotal?: number;   // Total de lignes envoyées depuis le démarrage
+}
+```
+
+!!! info "Intervalle heartbeat"
+    L'agent envoie un heartbeat toutes les **5 minutes** (cron `*/5 * * * *`).
+    Un agent est marqué `offline` si `lastSeen` dépasse 2 minutes — cette contrainte est gérée
+    par `markStaleAgentsOffline()` qui tourne indépendamment.
+
+### ValidateDto (installation)
+
+```typescript
+class ValidateAgentDto {
+  @IsString()
+  token: string;             // isag_...
+
+  @IsOptional() @IsEmail()
+  email?: string;            // Email de l'utilisateur Cockpit
 
   @IsOptional() @IsString()
-  lastError?: string;
+  machineId?: string;        // Identifiant machine (node-machine-id)
+
+  @IsOptional() @IsArray()
+  sageTables?: string[];     // Tables Sage 100 détectées
 }
 ```
 
@@ -300,6 +328,17 @@ Tous les événements sont loggés via `AuditLogService` :
 | `online` | 🟢 Vert | Heartbeat récent (< 2 min) |
 | `offline` | ⚫ Gris | Heartbeat absent > 2 min |
 | `error` | 🔴 Rouge | Heartbeat reçu avec `status: error` |
+
+### Dashboard local de l'agent
+
+En complément du portail Cockpit, l'agent expose un dashboard HTML sur la machine cliente :
+
+```
+http://127.0.0.1:8444/        → Interface HTML (auto-refresh 10s)
+http://127.0.0.1:8444/health  → JSON machine-readable
+```
+
+Ce dashboard affiche le statut en temps réel : connexion SQL Server, connexion plateforme, uptime, et l'état de chacune des 12 vues synchronisées (mode, intervalle, dernier sync, nb lignes).
 
 ### Champs calculés (réponse API)
 
