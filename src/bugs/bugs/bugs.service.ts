@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateBugDto, UpdateBugStatusDto, AddCommentDto } from '../dto/bug.dto';
 import { StorageService } from '../../storage/storage.service';
@@ -155,6 +155,15 @@ export class BugsService {
         submittedBy: { select: { email: true, firstName: true, lastName: true } },
       },
     });
+
+    if (!bug) {
+      throw new NotFoundException(`Bug with ID ${id} not found`);
+    }
+
+    if (updateBugStatusDto.status === 'resolu' && !bug.assignedToId) {
+      throw new BadRequestException('Un bug doit être assigné avant de pouvoir être résolu.');
+    }
+
     const updated = await this.prisma.bug.update({
       where: { id },
       data: { status: updateBugStatusDto.status },
