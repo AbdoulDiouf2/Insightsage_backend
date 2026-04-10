@@ -874,53 +874,12 @@ export class AgentsService implements OnModuleInit {
   }
 
   /**
-   * Réception d'un batch de données synchronisées depuis l'agent.
-   * Stocke les métadonnées dans AgentSyncBatch et le snapshot dans AgentViewSnapshot.
+   * Architecture Zero-Copy : les données ERP ne sont jamais stockées dans le cloud.
+   * Seules les métadonnées de sync (compteurs, watermarks) sont conservées.
+   * Les données réelles sont fournies à la demande via WebSocket (execute_sql).
    */
   async ingestData(agentId: string, organizationId: string, dto: IngestDto) {
-    const watermarkMin = dto.watermark_min != null ? BigInt(Math.floor(dto.watermark_min)) : null;
-    const watermarkMax = dto.watermark_max != null ? BigInt(Math.floor(dto.watermark_max)) : null;
-
-    // 1. Enregistrer le batch (historique)
-    await this.prisma.agentSyncBatch.create({
-      data: {
-        organizationId,
-        agentId,
-        viewName: dto.view_name,
-        syncMode: dto.sync_mode,
-        watermarkMin,
-        watermarkMax,
-        rowCount: dto.row_count,
-        schemaVersion: dto.schema_version,
-      },
-    });
-
-    // 2. Upsert le snapshot de la vue (dernière valeur connue)
-    await this.prisma.agentViewSnapshot.upsert({
-      where: {
-        organizationId_viewName: { organizationId, viewName: dto.view_name },
-      },
-      create: {
-        organizationId,
-        agentId,
-        viewName: dto.view_name,
-        watermarkMax,
-        rowCount: dto.row_count,
-        data: dto.rows as any,
-        syncMode: dto.sync_mode,
-        schemaVersion: dto.schema_version,
-      },
-      update: {
-        agentId,
-        watermarkMax,
-        rowCount: dto.row_count,
-        data: dto.rows as any,
-        syncMode: dto.sync_mode,
-        schemaVersion: dto.schema_version ?? undefined,
-      },
-    });
-
-    // 3. Mettre à jour les stats de l'agent
+    // Mise à jour des stats de l'agent uniquement (pas de stockage des lignes)
     await this.prisma.agent.update({
       where: { id: agentId },
       data: {
