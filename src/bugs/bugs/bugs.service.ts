@@ -167,7 +167,7 @@ export class BugsService {
     return updated;
   }
 
-  async assign(id: string, userId: string) {
+  async assign(id: string, userId: string | null) {
     return this.prisma.bug.update({
       where: { id },
       data: { assignedToId: userId },

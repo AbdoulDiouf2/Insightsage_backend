@@ -141,5 +141,6 @@ export class AddCommentDto {
 
 export class AssignBugDto {
   @IsString()
-  userId: string;
+  @IsOptional()
+  userId?: string | null;
 }
