@@ -1,6 +1,6 @@
 ---
 title: Dépannage de l'Agent
-description: Diagnostic et résolution des problèmes courants de l'agent
+description: Diagnostic et résolution des problèmes courants de l'agent Cockpit
 ---
 
 # Dépannage de l'Agent
@@ -9,55 +9,61 @@ description: Diagnostic et résolution des problèmes courants de l'agent
 
 ```mermaid
 graph TD
-    START["Agent hors ligne ?"] --> CHECK1{"Status dans\nAdmin Cockpit ?"}
-    CHECK1 -->|"pending"| FIX1["❶ Agent jamais démarré\n→ Lancer main.py / Service"]
-    CHECK1 -->|"offline"| CHECK2{"Logs agent\ndisponibles ?"}
-    CHECK1 -->|"error"| CHECK3{"lastError\nprésent ?"}
+    START["Agent hors ligne ?"] --> CHECK1{"Statut dans\nle portail ?"}
+    CHECK1 -->|"pending"| FIX1["❶ Service pas encore démarré\n→ Vérifier services.msc"]
+    CHECK1 -->|"offline"| CHECK2{"Dashboard local\naccessible ?"}
+    CHECK1 -->|"error"| CHECK4{"Erreur dans\nles logs ?"}
 
-    CHECK2 -->|"Non"| FIX2["❷ Processus crashé\n→ Redémarrer le service"]
-    CHECK2 -->|"Oui"| CHECK4{"Erreur dans\nles logs ?"}
+    CHECK2 -->|"Non\n(connexion refusée)"| FIX2["❷ Service arrêté\n→ Redémarrer CockpitAgent"]
+    CHECK2 -->|"Oui\n(badge rouge)"| CHECK3{"sqlConnected\nou platformConnected ?"}
 
-    CHECK4 -->|"SQL"| FIX3["❸ Problème SQL Server\n→ Voir section SQL"]
-    CHECK4 -->|"HTTPS/403"| FIX4["❹ Token révoqué/expiré\n→ Régénérer token"]
-    CHECK4 -->|"HTTPS/timeout"| FIX5["❺ Problème réseau\n→ Vérifier proxy/firewall"]
+    CHECK3 -->|"sqlConnected: false"| FIX3["❸ Problème SQL Server\n→ Voir section SQL"]
+    CHECK3 -->|"platformConnected: false"| FIX4["❹ Problème réseau/token\n→ Voir section API"]
 
-    CHECK3 -->|"Oui"| FIX6["❻ Erreur SQL ou sync\n→ Voir errorCount"]
+    CHECK4 -->|"SQL"| FIX5["❸ Problème SQL Server"]
+    CHECK4 -->|"401/403"| FIX6["❺ Token révoqué/expiré\n→ Régénérer token"]
+    CHECK4 -->|"Timeout/SSL"| FIX7["❹ Problème réseau"]
 ```
 
 ---
 
-## Lire les logs de l'agent
+## Accès au dashboard local
 
-=== "Python Service"
-    ```bash
-    # Logs en temps réel
-    Get-Content .\logs\agent-2026-03-02.log -Wait
+La première chose à faire est d'ouvrir le dashboard de l'agent :
 
-    # 100 dernières lignes
-    Get-Content .\logs\agent-2026-03-02.log -Tail 100
+```
+http://127.0.0.1:8444/
+```
 
-    # Filtrer les erreurs
-    Select-String "ERROR" .\logs\*.log
-    ```
+Le dashboard affiche en temps réel :
 
-=== "Docker"
-    ```bash
-    # Logs en temps réel
-    docker logs cockpit-agent-prod -f
+- **Badge vert/rouge** → statut global
+- **sqlConnected** → connexion SQL Server active
+- **platformConnected** → dernier heartbeat réussi
+- **Tableau des vues** → dernière sync et nb lignes par vue
 
-    # 100 dernières lignes
-    docker logs cockpit-agent-prod --tail 100
+Pour le JSON brut (monitoring, scripts) :
 
-    # Avec timestamps
-    docker logs cockpit-agent-prod -f --timestamps
-    ```
+```powershell
+Invoke-WebRequest http://127.0.0.1:8444/health | ConvertFrom-Json
+```
 
-=== "Windows Event Viewer"
-    ```
-    Démarrer → Observateur d'événements
-    → Journaux Windows → Application
-    → Filtrer par source : "CockpitAgent"
-    ```
+---
+
+## Lire les logs
+
+Les logs sont dans `%ProgramData%\CockpitAgent\logs\` :
+
+```powershell
+# Logs en temps réel
+Get-Content "$env:ProgramData\CockpitAgent\logs\cockpit-agent-$(Get-Date -f yyyy-MM-dd).log" -Wait
+
+# 100 dernières lignes
+Get-Content "$env:ProgramData\CockpitAgent\logs\cockpit-agent-$(Get-Date -f yyyy-MM-dd).log" -Tail 100
+
+# Filtrer les erreurs
+Select-String "ERROR" "$env:ProgramData\CockpitAgent\logs\*.log"
+```
 
 ---
 
@@ -65,174 +71,181 @@ graph TD
 
 ### ❶ Agent en statut `pending` — jamais en ligne
 
-**Symptôme :** L'agent reste `pending` après génération du token.
+**Symptôme :** L'agent reste `pending` après installation.
 
 **Causes et solutions :**
 
 | Cause | Solution |
 |-------|---------|
-| Agent pas encore démarré | Lancer `python main.py` ou `net start CockpitAgent` |
-| Mauvais `AGENT_TOKEN` dans `.env` | Vérifier le token copié (pas de espaces) |
-| Port 443 bloqué | Tester `curl https://api.cockpit.nafaka.tech/health` |
+| Service pas démarré | `services.msc` → CockpitAgent → Démarrer |
+| Erreur à l'installation | Relancer `Cockpit Agent Setup.exe` en tant qu'Administrateur |
+| Port 8444 déjà occupé | `netstat -ano \| findstr :8444` → tuer le processus conflictuel |
 
 ---
 
-### ❷ Agent passe de `online` à `offline` répétitivement
+### ❷ Dashboard inaccessible (`ERR_CONNECTION_REFUSED`)
 
-**Symptôme :** Status alterne online/offline toutes les quelques minutes.
+Le service `CockpitAgent` est arrêté ou en crash.
 
-**Causes :**
+```powershell
+# Vérifier l'état
+sc query CockpitAgent
 
-```
-[ERROR] 2026-03-02 10:15:32 - Heartbeat failed: ConnectionError
-[ERROR] 2026-03-02 10:15:32 - requests.exceptions.ConnectionError: HTTPSConnectionPool
-```
+# Démarrer
+sc start CockpitAgent
 
-**Solutions :**
-
-1. Vérifier la connectivité continue :
-   ```bash
-   ping api.cockpit.nafaka.tech
-   curl -v https://api.cockpit.nafaka.tech/health
-   ```
-
-2. Si proxy : configurer `HTTP_PROXY` et `HTTPS_PROXY` dans `.env`
-
-3. Vérifier le certificat SSL :
-   ```bash
-   python -c "import ssl; print(ssl.get_default_verify_paths())"
-   ```
-
----
-
-### ❸ Erreur de connexion SQL Server
-
-**Symptômes courants :**
-
-```
-[ERROR] pyodbc.Error: ('08001', 'Unable to connect to data source')
-[ERROR] pyodbc.OperationalError: Could not connect to SQL Server
-[ERROR] pyodbc.InterfaceError: ('IM002', '[IM002] Data source name not found')
+# Voir les logs de démarrage Windows
+Get-EventLog -LogName Application -Source "CockpitAgent" -Newest 20
 ```
 
-**Checklist de diagnostic :**
+Si le service démarre puis crashe immédiatement :
 
-- [ ] SQL Server est-il démarré ? (`services.msc → SQL Server (SAGE_INSTANCE)`)
-- [ ] Le protocole TCP/IP est-il activé ? (SQL Server Configuration Manager)
-- [ ] Le port SQL Server est-il accessible ?
-    ```powershell
-    Test-NetConnection -ComputerName localhost -Port 1433
-    ```
-- [ ] Le driver ODBC est-il installé ?
-    ```powershell
-    Get-OdbcDriver -Name "ODBC Driver 17 for SQL Server"
-    # Si absent : télécharger depuis Microsoft
-    ```
-- [ ] Les credentials SQL sont-ils corrects ?
-    ```sql
-    -- Tester dans SSMS
-    SELECT SYSTEM_USER  -- Devrait retourner 'cockpit_agent'
-    ```
-- [ ] L'utilisateur a-t-il les droits SELECT ?
-    ```sql
-    SELECT * FROM fn_my_permissions(NULL, 'DATABASE') WHERE permission_name = 'SELECT';
-    ```
-
-**Drivers ODBC disponibles :**
-
-```env
-# Variantes selon la version installée
-SQL_DRIVER=ODBC Driver 17 for SQL Server
-SQL_DRIVER=ODBC Driver 18 for SQL Server
-SQL_DRIVER=SQL Server Native Client 11.0
+```powershell
+# Lancer manuellement pour voir l'erreur
+& "C:\Users\<user>\AppData\Local\Programs\Cockpit Agent\resources\service\cockpit-agent-service.exe"
 ```
 
 ---
 
-### ❹ Token révoqué ou expiré (HTTP 401/403)
+### ❸ `sqlConnected: false` — Problème SQL Server
 
 **Symptôme dans les logs :**
 
 ```
-[ERROR] 2026-03-02 10:00:00 - Registration failed: 401 Unauthorized
-[ERROR] Response: {"message": "Token révoqué ou expiré", "statusCode": 401}
+[ERROR] Connexion SQL Server : MONSRV/BIJOU — ConnectionError: Failed to connect
+[ERROR] Login failed for user 'cockpit_agent'
+```
+
+**Checklist :**
+
+- [ ] SQL Server est-il démarré ? (`services.msc → SQL Server (INSTANCE)`)
+- [ ] Le protocole TCP/IP est-il activé ? (SQL Server Configuration Manager)
+- [ ] Port accessible ?
+  ```powershell
+  Test-NetConnection -ComputerName MONSRV -Port 1433
+  ```
+- [ ] Driver ODBC 17 installé ? (requis pour Windows Auth)
+  ```powershell
+  Get-OdbcDriver -Name "ODBC Driver 17 for SQL Server"
+  ```
+- [ ] Credentials corrects ?
+
+  Si le mot de passe a changé, relancez l'installeur (étape 2) pour mettre à jour le credential dans Windows Credential Manager.
+
+  ```powershell
+  # Voir le credential actuel
+  cmdkey /list | Select-String "Cockpit"
+  ```
+
+---
+
+### ❹ `platformConnected: false` — Problème réseau ou API
+
+**Symptôme dans les logs :**
+
+```
+[WARN] [scheduler] Heartbeat échoué : connect ECONNREFUSED / ETIMEDOUT
+[WARN] [engine] Impossible de récupérer la config distante
+```
+
+**Checklist :**
+
+```powershell
+# DNS résolu ?
+Resolve-DnsName api.cockpit.app
+
+# Port 443 joignable ?
+Test-NetConnection api.cockpit.app -Port 443
+
+# Proxy configuré sur Windows ?
+netsh winhttp show proxy
+```
+
+Si un proxy est requis :
+
+```powershell
+netsh winhttp set proxy proxy-server="http=proxy.acme.com:8080"
+# puis redémarrer le service
+sc stop CockpitAgent && sc start CockpitAgent
+```
+
+---
+
+### ❺ Token révoqué ou expiré (HTTP 401)
+
+**Symptôme dans les logs :**
+
+```
+[ERROR] [uploader] Ingest échoué : 401 — Token révoqué ou expiré
+[ERROR] [uploader] Heartbeat échoué : 401 Unauthorized
 ```
 
 **Solution :**
 
-1. Dans **Admin Cockpit** → **Agents** → Votre agent
-2. Cliquez **Régénérer le token**
-3. Copiez le nouveau token
-4. Mettez à jour `.env` : `AGENT_TOKEN=isag_nouveau_token`
-5. Redémarrez l'agent
+1. Dans **Portail Cockpit → Agents → votre agent** → **Régénérer le token**
+2. Relancez `Cockpit Agent Setup.exe` en tant qu'Administrateur
+3. Passez à l'étape 5 (Activation) et saisissez le nouveau token
+4. Le service est réinstallé avec le nouveau token chiffré
 
 ---
 
-### ❺ Erreur HTTPS/SSL
+### ❻ Les vues ne se synchronisent pas
 
-```
-[ERROR] SSLError: [SSL: CERTIFICATE_VERIFY_FAILED]
-```
+**Symptôme :** `platformConnected: true` mais les vues restent à `lastSync: null` dans le dashboard.
 
-**Solutions :**
+**Causes possibles :**
 
-=== "Python"
-    ```bash
-    # Mettre à jour les certificats
-    pip install --upgrade certifi
+| Cause | Vérification |
+|-------|-------------|
+| Vue non déployée | Relancer l'étape 4 du wizard |
+| Colonne watermark absente | `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'VW_KPI_SYNTESE'` — vérifier `Watermark_Sync` |
+| Intervalle pas encore écoulé | Attendre le prochain cycle (5 min pour VW_KPI_SYNTESE) |
+| Erreur SQL sur la vue | Chercher `[engine] Erreur sync` dans les logs |
 
-    # Vérifier
-    python -c "import certifi; print(certifi.where())"
-    ```
+**Forcer une synchronisation complète** (réinitialise tous les watermarks) :
 
-=== "Windows (certificats système)"
-    ```powershell
-    # Exporter et mettre à jour les certificats Windows
-    # Vérifier que le certificat Nafaka Tech est dans le store
-    certmgr.msc
-    ```
+Via le portail Cockpit → Agents → votre agent → **Forcer une resync**
+
+Cette action envoie la commande `FORCE_FULL_SYNC` au prochain heartbeat (délai max 5 min).
 
 ---
 
-### ❻ Agent en statut `error` — Erreurs SQL
+### ❼ Service se lance avec le mauvais exécutable
 
-**Symptôme :** `status: error` avec `errorCount > 0`.
+Si `sc qc CockpitAgent` affiche un chemin incorrect (ex: electron.exe au lieu du .exe service) :
 
-**Logs typiques :**
-
+```powershell
+# Supprimer et réinstaller proprement
+sc stop CockpitAgent
+sc delete CockpitAgent
+# Relancer Cockpit Agent Setup.exe en tant qu'Administrateur
 ```
-[ERROR] SQL query failed: Invalid column name 'MONTANT_HT'
-[ERROR] Table 'dbo.VENTET_CUSTOM' not found
-```
-
-**Solutions :**
-
-1. Vérifier la version de Sage et les noms de tables/colonnes
-2. Contacter le support Nafaka Tech avec le `lastError` exact
-3. Vérifier que le compte SQL a accès aux vues/tables nécessaires
 
 ---
 
-## Commandes de diagnostic utiles
+## Commandes de diagnostic
 
-```bash
-# Vérifier l'état de l'agent via l'API
-curl -H "Authorization: Bearer TOKEN" \
-  https://api.cockpit.nafaka.tech/api/agents/STATUS_ID
+```powershell
+# Statut du service Windows
+sc query CockpitAgent
 
-# Tester la connexion à l'API
-curl https://api.cockpit.nafaka.tech/api/health
+# Chemin du binaire enregistré
+sc qc CockpitAgent
 
-# Tester la résolution DNS
-nslookup api.cockpit.nafaka.tech
+# Port 8444 ouvert et processus
+netstat -ano | findstr :8444
 
-# Tester le port 443
-Test-NetConnection api.cockpit.nafaka.tech -Port 443  # PowerShell
-telnet api.cockpit.nafaka.tech 443                    # Windows
+# Health check JSON
+Invoke-WebRequest http://127.0.0.1:8444/health | ConvertFrom-Json
 
-# Lister les drivers ODBC installés
-Get-OdbcDriver | Select-Object Name  # PowerShell
-odbcinst -q -d                       # Linux
+# Credential SQL stocké
+cmdkey /list | Select-String "Cockpit"
+
+# Logs récents
+Get-Content "$env:ProgramData\CockpitAgent\logs\cockpit-agent-$(Get-Date -f yyyy-MM-dd).log" -Tail 50
+
+# Événements Windows Service
+Get-EventLog -LogName System -Source "Service Control Manager" -Newest 20 | Where-Object { $_.Message -like "*Cockpit*" }
 ```
 
 ---
@@ -240,13 +253,11 @@ odbcinst -q -d                       # Linux
 ## Support
 
 !!! info "Contacter le support Nafaka Tech"
-    Avant de contacter le support, préparez :
+    Avant de contacter le support, fournissez :
 
-    1. **Logs complets** de la dernière heure (fichier `agent-YYYY-MM-DD.log`)
-    2. **Version de l'agent** : `python main.py --version`
-    3. **OS et version** : Windows 11, SQL Server 2019...
-    4. **Message d'erreur exact** depuis `lastError` dans le Admin Cockpit
-    5. **Résultat du test** : `python main.py --test`
+    1. **Logs complets** de la dernière heure (`cockpit-agent-YYYY-MM-DD.log`)
+    2. **JSON health** : `Invoke-WebRequest http://127.0.0.1:8444/health`
+    3. **OS et SQL Server** : `winver` + `SELECT @@VERSION`
+    4. **Version de l'agent** visible dans le dashboard local
 
     Email : `support@nafaka.tech`
-    GitHub Issues : `https://github.com/Nafaka-tech/cockpit-agent/issues`

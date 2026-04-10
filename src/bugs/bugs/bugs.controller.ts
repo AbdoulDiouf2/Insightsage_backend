@@ -125,7 +125,7 @@ export class BugsController {
     @Param('id') id: string,
     @Body() assignBugDto: AssignBugDto,
   ) {
-    return this.bugsService.assign(id, assignBugDto.userId);
+    return this.bugsService.assign(id, assignBugDto.userId ?? null);
   }
 
   @Post(':id/comments')

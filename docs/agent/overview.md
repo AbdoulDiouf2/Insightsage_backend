@@ -1,194 +1,219 @@
 ---
 title: Vue d'ensemble de l'Agent
-description: L'agent — pont sécurisé entre Sage ERP et l'API InsightSage
+description: L'agent Cockpit — pont sécurisé entre Sage 100 et la plateforme Cockpit
 ---
 
-# L'Agent — Pont Sécurisé
+# L'Agent Cockpit — Pont Sécurisé
 
-L'Agent est un processus léger déployé **on-premise** chez le client. Son rôle est d'établir un tunnel sécurisé et unidirectionnel entre le serveur Sage ERP du client et l'infrastructure cloud InsightSage.
+L'Agent Cockpit est un **service Windows** déployé on-premise chez le client. Son rôle est de lire les données Sage 100 via SQL Server et de les synchroniser vers la plateforme SaaS Cockpit en push HTTPS. Aucune donnée brute ne transite dans le cloud — uniquement les agrégats des vues BI déployées localement.
 
 ## Principe de fonctionnement
 
 ```mermaid
 graph LR
     subgraph Site Client ["🏢 Site Client (On-Premise)"]
-        SAGE["🖥️ Sage ERP\nSQL Server\n(local network)"]
-        AGT["🤖 Agent\nPython / Docker\nOutbound HTTPS uniquement"]
-        SAGE -->|"SQL SELECT\n(localhost/LAN)"| AGT
+        SAGE["🖥️ SQL Server\nBase Sage 100"]
+        VIEWS["📊 12 Vues BI\n(déployées à l'install)"]
+        SVC["⚙️ Service Windows\nCockpitAgent"]
+        DASH["🌐 Dashboard local\nhttp://127.0.0.1:8444/"]
+        SAGE --> VIEWS
+        VIEWS -->|"SELECT + watermark"| SVC
+        SVC --> DASH
     end
 
-    subgraph Cloud ["☁️ Cloud (InsightSage)"]
-        API["⚙️ InsightSage API\nHTTPS 443"]
+    subgraph Cloud ["☁️ Cloud Cockpit"]
+        API["api.cockpit.app\nHTTPS 443"]
     end
 
-    AGT -->|"HTTPS + Bearer token\n→ Outbound only\n← Aucune connexion entrante"| API
-
-    style SAGE fill:#1e293b,stroke:#475569
-    style AGT fill:#0f3d3d,stroke:#0d9488,color:#2dd4bf
-    style API fill:#0f172a,stroke:#0d9488
+    SVC -->|"POST /ingest\nPOST /heartbeat\n→ Outbound uniquement"| API
 ```
 
 ### Points clés de sécurité
 
 | Aspect | Implémentation |
 |--------|----------------|
-| **Direction** | Outbound uniquement (Agent → API) — jamais entrant |
-| **Protocole** | HTTPS/TLS 1.3 — chiffré de bout en bout |
-| **Authentification** | Bearer token `isag_<64hex>` avec TTL 30 jours |
-| **Révocation** | Instantanée via `POST /agents/:id/revoke` |
-| **SQL** | `SELECT` uniquement — aucun accès en écriture sur Sage |
+| **Direction** | Outbound uniquement (Agent → API) — aucun port entrant |
+| **Protocole** | HTTPS/TLS — chiffré de bout en bout |
+| **Authentification** | Bearer token `isag_<48hex>` avec TTL 30 jours |
+| **Token chiffré** | AES-256-GCM lié au machine ID (inutilisable sur une autre machine) |
+| **Mot de passe SQL** | Stocké dans Windows Credential Manager — jamais en clair |
+| **SQL** | `SELECT` uniquement sur les vues BI — aucun accès en écriture Sage |
 | **Réseau** | Seul le port 443 sortant est requis |
 
 ---
 
-## Architecture interne de l'Agent
+## Architecture interne
 
 ```mermaid
 graph TD
-    subgraph Agent["Agent (Python)"]
-        MAIN["main.py\n(entrypoint)"]
-        REG["register.py\nPOST /agents/register"]
-        HB["heartbeat.py\nPOST /agents/heartbeat\n(toutes les 30s)"]
-        SYNC["sync.py\nSELECT → POST /agents/sync"]
-        SQL["sql_connector.py\npyodbc → SQL Server"]
-        CONFIG["config.py\nENV vars + token"]
+    subgraph Agent["Service Windows — CockpitAgent"]
+        IDX["index.js\nPoint d'entrée + shutdown"]
+        SCH["scheduler.js\nnode-schedule"]
+        ENG["engine.js\nMoteur de sync"]
+        UPL["uploader.js\nPOST /ingest + heartbeat"]
+        SQL["connection.js\nPool mssql (SQL Auth ou Windows Auth)"]
+        WM["watermark.js\nCurseur cbMarq"]
+        HLT["health.js\nHTTP :8444"]
+        CFG["config.js\nconfig.json"]
+        CRED["credential-store.js\nkeytar (Windows Cred. Manager)"]
+        TOK["token.js\nAES-256-GCM"]
     end
 
-    MAIN --> REG
-    MAIN --> HB
-    MAIN --> SYNC
-    SYNC --> SQL
-    REG --> CONFIG
-    HB --> CONFIG
+    IDX --> SCH
+    IDX --> HLT
+    SCH -->|"toutes les minutes"| ENG
+    SCH -->|"toutes les 5 min"| UPL
+    ENG --> SQL
+    ENG --> WM
+    ENG --> UPL
+    ENG --> HLT
+    UPL --> TOK
+    SQL --> CRED
+    IDX --> CFG
 ```
 
 ---
 
 ## Cycle de vie complet
 
-### 1. Génération du token (Admin Cockpit)
+### 1. Installation (wizard Electron)
+
+L'installeur `Cockpit Agent Setup.exe` guide l'administrateur en 6 étapes :
 
 ```mermaid
 sequenceDiagram
-    participant SA as SuperAdmin / Owner
-    participant COCKPIT as Admin Cockpit
-    participant API as InsightSage API
+    participant ADM as Administrateur
+    participant WIZ as Wizard Electron
+    participant DB as SQL Server (Sage)
+    participant API as api.cockpit.app
 
-    SA->>COCKPIT: Clique "Générer un token"
-    COCKPIT->>API: POST /agents/generate-token { name: "agent-prod" }
-    API-->>COCKPIT: { token: "isag_xxx...", expiresAt: "+30j" }
-    COCKPIT-->>SA: Affiche token ⚠️ (une seule fois)
-    SA->>SA: Copie le token → configure l'agent
+    ADM->>WIZ: Lance Setup.exe (en tant qu'Administrateur)
+    WIZ->>DB: Test connexion SQL (sql:test)
+    WIZ->>DB: Détection version Sage (sql:detect)
+    WIZ->>DB: Déploiement 12 vues BI (sql:deploy)
+    WIZ->>API: POST /api/v1/agent/validate { email, token, machineId }
+    API-->>WIZ: { valid: true, agentId, clientName }
+    WIZ->>WIZ: Sauvegarde token chiffré (.cockpit_token)
+    WIZ->>WIZ: Installe service Windows CockpitAgent
+    WIZ->>WIZ: Health check http://127.0.0.1:8444/health (timeout 30s)
 ```
 
-!!! danger "Token à usage unique d'affichage"
-    Le token est affiché **une seule fois** lors de la génération.
-    Copiez-le immédiatement et configurez-le dans les variables d'environnement de l'agent.
+### 2. Démarrage du service
 
-### 2. Démarrage de l'agent
+Au démarrage, le service :
+1. Lance le serveur health HTTP sur `:8444`
+2. Démarre le scheduler (sync 1min / heartbeat 5min)
+3. Récupère la config distante en arrière-plan (`GET /api/v1/agent/config`)
+
+### 3. Cycle de synchronisation (toutes les minutes)
 
 ```mermaid
 sequenceDiagram
-    participant AGT as Agent
-    participant API as InsightSage API
-    participant DB as PostgreSQL
+    participant SCH as Scheduler
+    participant ENG as Engine
+    participant SQL as SQL Server
+    participant API as api.cockpit.app
 
-    AGT->>AGT: Charge AGENT_TOKEN depuis .env
-    AGT->>API: POST /agents/register { token, sage_type, version }
-    API->>DB: Cherche agent par token
-    API->>DB: Vérifie isRevoked = false
-    API->>DB: Vérifie tokenExpiresAt > NOW()
-    API->>DB: UPDATE status = 'online', lastSeen = NOW()
-    API-->>AGT: { orgId, syncConfig, agentId }
-    AGT->>AGT: Démarre les boucles heartbeat + sync
+    SCH->>ENG: run() — tick 1 min
+    loop Pour chaque vue (si intervalle écoulé)
+        ENG->>SQL: SELECT watermark depuis PLATEFORME_PARAMS
+        ENG->>SQL: SELECT TOP 5000 WHERE Watermark_Sync > @watermark
+        ENG->>API: POST /api/v1/agent/ingest { viewName, rows, ... }
+        API-->>ENG: { accepted: true, watermark_ack }
+        ENG->>SQL: UPDATE watermark dans PLATEFORME_PARAMS
+        ENG->>ENG: setViewStatus() → health dashboard
+    end
 ```
 
-### 3. Heartbeat (30 secondes)
+### 4. Heartbeat (toutes les 5 minutes)
 
-```typescript
-// Corps du heartbeat
-POST /agents/heartbeat
+```
+POST /api/v1/agent/heartbeat
 {
-  "agentToken": "isag_xxx...",
-  "status": "online",    // "online" | "error"
-  "errorCount": 0,
-  "lastError": null
+  "status": "online",
+  "lastSync": "2026-04-10T14:30:00.000Z",
+  "nbRecordsTotal": 145230
 }
 ```
 
-### 4. Détection d'agent hors ligne
+La plateforme peut répondre avec des commandes :
 
-```mermaid
-graph LR
-    HB["Heartbeat reçu\n→ lastSeen = NOW()"] --> CHECK
-    CHECK{"lastSeen > 2 min ?"}
-    CHECK -->|Non| ONLINE["status = online"]
-    CHECK -->|Oui| OFFLINE["status = offline\n(Cron interne API)"]
-
-    style ONLINE fill:#064e3b,stroke:#22c55e,color:#22c55e
-    style OFFLINE fill:#1c1917,stroke:#78716c,color:#a8a29e
+```json
+{ "ok": true, "commands": ["FORCE_FULL_SYNC"] }
 ```
 
 ---
 
-## États de l'agent
+## Mécanisme watermark (cbMarq)
+
+Sage 100 ajoute un champ `cbMarq` (entier auto-incrémenté) à toutes ses tables. Les vues l'exposent sous l'alias `Watermark_Sync`. L'agent persiste le dernier cbMarq traité dans `PLATEFORME_PARAMS` et ne re-lit que les lignes supérieures au curseur — synchronisation incrémentale **sans aucune modification de la base Sage**.
+
+---
+
+## 12 Vues synchronisées
+
+| Vue | Intervalle | Mode |
+|-----|-----------|------|
+| `VW_KPI_SYNTESE` | 5 min | FULL |
+| `VW_METADATA_AGENT` | 5 min | FULL |
+| `VW_GRAND_LIVRE_GENERAL` | 15 min | INCRÉMENTAL |
+| `VW_CLIENTS` | 15 min | INCRÉMENTAL |
+| `VW_FOURNISSEURS` | 15 min | INCRÉMENTAL |
+| `VW_TRESORERIE` | 15 min | INCRÉMENTAL |
+| `VW_COMMANDES` | 30 min | INCRÉMENTAL |
+| `VW_ANALYTIQUE` | 30 min | INCRÉMENTAL |
+| `VW_STOCKS` | 60 min | INCRÉMENTAL |
+| `VW_FINANCE_GENERAL` | 60 min | INCRÉMENTAL |
+| `VW_IMMOBILISATIONS` | 6 h | FULL |
+| `VW_PAIE` | 6 h | FULL |
+
+Les intervalles peuvent être surchargés par la config distante (`GET /api/v1/agent/config`).
+
+---
+
+## Dashboard de statut local
+
+Le service expose une interface web sur `http://127.0.0.1:8444/` (auto-refresh 10s) :
+
+- Badge statut global (Opérationnel / En erreur)
+- Uptime, connexion SQL Server, connexion plateforme
+- Tableau de toutes les vues avec dernier sync et nb lignes
+
+```
+GET http://127.0.0.1:8444/        → Dashboard HTML
+GET http://127.0.0.1:8444/health  → JSON machine-readable
+```
+
+---
+
+## États de l'agent (plateforme)
 
 | État | Couleur | Condition |
 |------|---------|-----------|
-| `pending` | 🟡 Jaune | Token généré, agent jamais démarré |
+| `pending` | 🟡 Jaune | Token validé, service pas encore démarré |
 | `online` | 🟢 Vert | Dernier heartbeat < 2 minutes |
 | `offline` | ⚫ Gris | Dernier heartbeat > 2 minutes |
 | `error` | 🔴 Rouge | Dernier heartbeat avec `status: error` |
 
 ---
 
+## Permissions SQL requises (Sage 100)
+
+| Droit | Opération | Quand |
+|-------|-----------|-------|
+| `db_datareader` | SELECT sur tables Sage | En continu (sync) |
+| `db_ddladmin` | CREATE VIEW, CREATE TABLE | À l'installation uniquement |
+
+Le compte n'a **aucun** droit INSERT, UPDATE, DELETE sur les données Sage.
+
+---
+
 ## Gestion de l'expiration du token
 
-L'API calcule les champs suivants pour chaque agent :
-
-```typescript
-const daysUntilExpiry = tokenExpiresAt
-  ? Math.ceil((tokenExpiresAt.getTime() - Date.now()) / 86400000)
-  : null;
-
-const isExpiringSoon = daysUntilExpiry !== null && daysUntilExpiry <= 7;
-```
+- Durée : 30 jours depuis la génération
+- Alerte proactive : J-7, J-3, J-1 (email automatique)
+- Renouvellement : **Portail Cockpit → Agents → Régénérer le token** puis réinstaller l'agent
 
 !!! warning "Token expirant bientôt"
-    Quand `isExpiringSoon = true`, le dashboard Admin Cockpit affiche une alerte.
-    Procédez à une régénération via `POST /agents/:id/regenerate-token` avant l'expiration.
-
----
-
-## Permissions SQL requises (Sage ERP)
-
-L'agent se connecte à SQL Server avec un compte **limité en lecture** :
-
-```sql
--- Créer un utilisateur dédié pour l'agent
-CREATE LOGIN cockpit_agent WITH PASSWORD = 'StrongPassword123!';
-CREATE USER cockpit_agent FOR LOGIN cockpit_agent;
-
--- Accorder SELECT sur les tables Sage
-GRANT SELECT ON SCHEMA::dbo TO cockpit_agent;
-
--- OU plus granulaire (recommandé)
-GRANT SELECT ON dbo.VENTET TO cockpit_agent;
-GRANT SELECT ON dbo.BPCUSTOMER TO cockpit_agent;
-GRANT SELECT ON dbo.ITMMASTER TO cockpit_agent;
-```
-
-!!! success "Principe du moindre privilège"
-    L'agent ne nécessite **aucun** droit INSERT, UPDATE, DELETE ou DDL sur la base Sage.
-
----
-
-## Métriques collectées par l'agent
-
-| Métrique | Table Sage X3 | Description |
-|----------|--------------|-------------|
-| Chiffre d'affaires | `VENTET` | Lignes de vente |
-| DSO / DMP | `BPCUSTOMER` + `VENTET` | Délai moyen de paiement |
-| AR Aging | `GESBPC` | Balance âgée clients |
-| Stock | `STOJOU` + `ITMMASTER` | Niveaux de stock |
-| Commandes | `PORDER` | Pipeline commandes |
+    Quand `isExpiringSoon = true`, le portail Cockpit affiche une alerte orange.
+    Procédez à une régénération avant l'expiration pour éviter toute interruption de sync.

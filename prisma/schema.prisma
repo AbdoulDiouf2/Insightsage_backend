@@ -45,6 +45,8 @@ model Organization {
   onboardingStatus OnboardingStatus?
   agentLogs        AgentLog[]
   nlqSessions      NlqSession[]
+  agentSyncBatches AgentSyncBatch[]
+  agentViewSnapshots AgentViewSnapshot[]
   targets             Target[]
   billingCustomer     BillingCustomer?
   billingSubscription BillingSubscription?
@@ -325,11 +327,19 @@ model Agent {
   isRevoked      Boolean   @default(false) // révocation explicite par l'admin
   revokedAt      DateTime? // timestamp de révocation
 
+  // Agent v1 — metadata installeur
+  machineId      String?   // Identifiant unique machine (node-machine-id)
+  sageVersion    String?   // Version Sage détectée : "v21plus" | "v15v17" | "fallback"
+  sqlServer      String?   // Instance SQL Server (ex: "MONSERVEUR\SAGE")
+  pendingCommand String?   // Commande en attente pour le prochain heartbeat (ex: "FORCE_FULL_SYNC")
+
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
 
-  jobs           AgentJob[]
-  agentLogs      AgentLog[]
+  jobs               AgentJob[]
+  agentLogs          AgentLog[]
+  syncBatches        AgentSyncBatch[]
+  viewSnapshots      AgentViewSnapshot[]
 
   @@index([organizationId])
   @@index([token])
@@ -489,6 +499,53 @@ model AgentLog {
   @@index([level])
   @@index([timestamp])
   @@map("agent_logs")
+}
+
+// ─── Agent v1 — Synchronisation incrémentale ─────────────────────────────────
+
+// Historique de chaque batch de synchronisation envoyé par l'agent
+model AgentSyncBatch {
+  id             String   @id @default(uuid())
+  organizationId String
+  agentId        String
+  viewName       String   // ex: "VW_GRAND_LIVRE_GENERAL"
+  syncMode       String   // "INCREMENTAL" | "FULL"
+  watermarkMin   BigInt?  // cbMarq de départ (INCREMENTAL)
+  watermarkMax   BigInt?  // cbMarq max du batch (nouveau watermark après sync)
+  rowCount       Int      @default(0)
+  schemaVersion  String?  // "v21plus" | "v15v17" | "fallback"
+  processedAt    DateTime @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  agent          Agent        @relation(fields: [agentId], references: [id])
+
+  @@index([organizationId])
+  @@index([agentId])
+  @@index([viewName])
+  @@index([processedAt])
+  @@map("agent_sync_batches")
+}
+
+// Dernier snapshot de chaque vue par organisation (upsert à chaque sync)
+model AgentViewSnapshot {
+  id             String   @id @default(uuid())
+  organizationId String
+  agentId        String
+  viewName       String   // ex: "VW_GRAND_LIVRE_GENERAL"
+  watermarkMax   BigInt?  // dernier cbMarq synchronisé
+  rowCount       Int      @default(0)
+  data           Json     // Données brutes de la vue (tableau de lignes)
+  syncMode       String
+  schemaVersion  String?
+  updatedAt      DateTime @updatedAt
+  createdAt      DateTime @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  agent          Agent        @relation(fields: [agentId], references: [id])
+
+  @@unique([organizationId, viewName])
+  @@index([organizationId])
+  @@map("agent_view_snapshots")
 }
 
 // Seed data pour RBAC
