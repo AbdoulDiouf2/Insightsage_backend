@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../logs/audit-log.service';
 import { AuthService } from '../auth/auth.service';
 import { AgentsService } from '../agents/agents.service';
+import { AgentReleasesService } from '../admin/agent-releases/agent-releases.service';
 import { Step1Dto } from './dto/step1.dto';
 import { Step2Dto } from './dto/step2.dto';
 import { Step3Dto } from './dto/step3.dto';
@@ -31,6 +32,7 @@ export class OnboardingService {
     private auditLog: AuditLogService,
     private authService: AuthService,
     private agentsService: AgentsService,
+    private agentReleasesService: AgentReleasesService,
   ) { }
 
   // Cree le statut d onboarding si inexistant pour l organisation
@@ -139,30 +141,80 @@ export class OnboardingService {
     return { message: 'Profil organisation mis a jour.', organization: updated, status };
   }
 
-  // POST /onboarding/step3 : Configuration data source Sage
+  // POST /onboarding/step3 : Initiation configuration agent
+  // Mode cloud → config Sage immédiate + complétion step
+  // Mode local (défaut) → retourne les liens de téléchargement, step en attente de la connexion agent
   async step3(organizationId: string, userId: string, dto: Step3Dto) {
-    const updated = await this.prisma.organization.update({
-      where: { id: organizationId },
-      data: {
-        sageType: dto.sageType,
-        sageMode: dto.sageMode,
-        ...(dto.sageHost !== undefined && { sageHost: dto.sageHost }),
-        ...(dto.sagePort !== undefined && { sagePort: dto.sagePort }),
-      },
-      select: { id: true, sageType: true, sageMode: true, sageHost: true, sagePort: true },
-    });
-    await this.auditLog.log({
-      organizationId,
-      userId,
-      event: 'datasource_configured',
-      payload: { sageType: dto.sageType, sageMode: dto.sageMode },
-    });
-    const status = await this.completeStep(organizationId, 3, userId);
-    return { message: 'Configuration Sage enregistree.', datasource: updated, status };
+    if (dto.sageMode === 'cloud') {
+      // Mode cloud : on enregistre la config manuellement et on complète le step
+      const updated = await this.prisma.organization.update({
+        where: { id: organizationId },
+        data: {
+          ...(dto.sageType && { sageType: dto.sageType }),
+          sageMode: 'cloud',
+        },
+        select: { id: true, sageType: true, sageMode: true },
+      });
+      await this.auditLog.log({
+        organizationId,
+        userId,
+        event: 'datasource_configured',
+        payload: { sageType: dto.sageType, sageMode: 'cloud' },
+      });
+      const status = await this.completeStep(organizationId, 3, userId);
+      return {
+        message: 'Configuration Sage cloud enregistree.',
+        datasource: updated,
+        status,
+        agentRequired: false,
+      };
+    }
+
+    // Mode local (ou aucun body) : retourner les liens de téléchargement
+    // Le step sera auto-complété quand l'agent se connecte et envoie agent_config
+    const releases = await this.agentReleasesService.listReleases({ isLatest: true });
+    return {
+      message: 'Téléchargez et installez l\'agent sur votre serveur. Le step sera validé automatiquement à la connexion de l\'agent.',
+      agentRequired: true,
+      releases,
+    };
   }
 
-  // POST /onboarding/agent-link : Lier un agent
+  // GET /onboarding/agent-releases : Dernières releases par plateforme
+  async getAgentReleases() {
+    return this.agentReleasesService.listReleases({ isLatest: true });
+  }
+
+  // POST /onboarding/agent-link : Lier un agent ou sauter la config
   async linkAgent(organizationId: string, userId: string, dto: AgentLinkDto) {
+    // Option skip : l'utilisateur reporte la configuration agent
+    if (dto.skipLater) {
+      const currentStatus = await this.getOrCreateStatus(organizationId);
+      const completedSteps = currentStatus.completedSteps.includes(3)
+        ? currentStatus.completedSteps
+        : [...currentStatus.completedSteps, 3].sort((a, b) => a - b);
+      const nextStep = Math.max(currentStatus.currentStep, 4);
+      const isComplete = completedSteps.length >= 5;
+
+      await this.prisma.onboardingStatus.update({
+        where: { organizationId },
+        data: { agentConfigLater: true, completedSteps, currentStep: nextStep, isComplete },
+      });
+      await this.auditLog.log({
+        organizationId,
+        userId,
+        event: 'agent_config_skipped',
+        payload: {},
+      });
+      return {
+        message: 'Configuration agent reportee. Vous pourrez lier votre agent depuis les parametres.',
+      };
+    }
+
+    if (!dto.agentToken) {
+      throw new BadRequestException('Fournissez un token agent ou passez skipLater a true.');
+    }
+
     const agent = await this.prisma.agent.findUnique({
       where: { token: dto.agentToken },
       select: {

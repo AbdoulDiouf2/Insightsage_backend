@@ -48,16 +48,13 @@ Authorization: Bearer <access_token>
 ```json
 {
   "accessToken": "eyJhbGciOiJIUzI1NiIsInR...",
-  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR...",
-  "user": {
-    "id": "uuid",
-    "email": "admin@acme.com",
-    "firstName": "Jean",
-    "lastName": "Dupont",
-    "organizationId": "uuid-org"
-  }
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR..."
 }
 ```
+
+!!! warning "Pas d'objet `user` dans la réponse login"
+    La route `/auth/login` retourne uniquement les tokens. Après login, le client doit appeler
+    `GET /users/me` pour récupérer le profil complet (y compris `organizationId`, `userRoles`).
 
 ---
 
@@ -408,10 +405,18 @@ Authorization: Bearer <access_token>
 **Réponse 200 :**
 ```json
 {
-  "currentStep": 3,
-  "completedSteps": [1, 2],
-  "isComplete": false,
-  "organization": { "name": "Acme", "planId": "uuid-plan" }
+  "status": {
+    "currentStep": 3,
+    "completedSteps": [1, 2],
+    "isComplete": false,
+    "inviteLater": false,
+    "agentConfigLater": false
+  },
+  "organization": {
+    "name": "Acme Corp",
+    "planId": "uuid-plan",
+    "subscriptionPlan": { "name": "business", "label": "Business" }
+  }
 }
 ```
 
@@ -443,25 +448,70 @@ Authorization: Bearer <access_token>
 
 ### POST `/onboarding/step3`
 
-> Étape 3 : Configurer la connexion Sage ERP.
+> Étape 3 : Initier l'installation de l'agent (comportement bifurqué selon `sageMode`).
 
-**Body :**
+**Mode local (défaut) — aucun body requis :**
 ```json
+// Réponse :
 {
-  "sageType": "X3",
-  "sageMode": "local",
-  "sageHost": "192.168.1.100",
-  "sagePort": 1433
+  "agentRequired": true,
+  "releases": [
+    {
+      "platform": "windows", "arch": "x64", "version": "1.2.3",
+      "fileName": "cockpit-agent-1.2.3-win-x64.exe",
+      "fileUrl": "https://cdn.../cockpit-agent.exe",
+      "checksum": "sha256:abc..."
+    }
+  ]
 }
+// ⚠ L'étape n'est PAS complétée : elle le sera automatiquement
+//   quand l'agent se connecte et envoie l'event WebSocket `agent_config`
+```
+
+**Mode cloud :**
+```json
+// Body : { "sageMode": "cloud", "sageType": "X3" }
+// Réponse : { "agentRequired": false, "status": { "completedSteps": [1,2,3], ... } }
+```
+
+---
+
+### GET `/onboarding/agent-releases`
+
+> Obtenir les dernières releases de l'agent par plateforme (pour le téléchargement en step 3).
+
+**Accès :** Authentifié
+
+**Réponse 200 :**
+```json
+[
+  {
+    "platform": "windows", "arch": "x64", "version": "1.2.3",
+    "fileName": "cockpit-agent-1.2.3-win-x64.exe",
+    "fileUrl": "https://cdn.../cockpit-agent.exe",
+    "checksum": "sha256:abc123..."
+  },
+  { "platform": "linux", "arch": "x64", "version": "1.2.3", ... }
+]
 ```
 
 ---
 
 ### POST `/onboarding/agent-link`
 
-> Lier un agent à l'organisation.
+> Lier un agent via token, **ou** reporter la configuration agent (skip).
 
-**Body :** `{ "agentToken": "isag_abc123..." }`
+=== "Lier un agent"
+    **Body :** `{ "agentToken": "isag_abc123..." }`
+
+    **Réponse 200 :** `{ "message": "Agent lié avec succès", "agent": { "id": "uuid", "name": "...", "status": "online" } }`
+
+=== "Reporter (skipLater)"
+    **Body :** `{ "skipLater": true }`
+
+    **Réponse 200 :** `{ "message": "Configuration agent reportée. Vous pourrez lier votre agent depuis les paramètres." }`
+
+    L'étape 3 est comptée comme complétée (`completedSteps`) avec le flag `agentConfigLater = true`.
 
 ---
 
@@ -510,6 +560,64 @@ Authorization: Bearer <access_token>
 ## Module Admin — `/admin` (SuperAdmin uniquement)
 
 > Tous les endpoints `/admin` requièrent la permission `manage:all`.
+
+### POST `/admin/agent-releases`
+
+> Publier une nouvelle release de l'agent (multipart/form-data).
+
+**Champs multipart :**
+
+| Champ | Type | Requis | Description |
+|-------|------|:------:|-------------|
+| `file` | Binary | ✅ | Exécutable agent |
+| `version` | string | ✅ | Semver ex: `"1.2.3"` |
+| `platform` | string | ✅ | `"windows"` \| `"linux"` \| `"macos"` |
+| `arch` | string | | `"x64"` (défaut) \| `"arm64"` |
+| `changelog` | string | | Notes de version |
+
+**Réponse 201 :**
+```json
+{
+  "id": "uuid",
+  "version": "1.2.3",
+  "platform": "windows",
+  "arch": "x64",
+  "fileName": "cockpit-agent-1.2.3-win-x64.exe",
+  "fileUrl": "https://cdn.cockpit.nafaka.tech/agent-releases/1.2.3/windows/x64/cockpit-agent.exe",
+  "fileSize": 45678901,
+  "checksum": "sha256:abc123...",
+  "isLatest": false,
+  "uploadedAt": "2026-04-11T..."
+}
+```
+
+---
+
+### GET `/admin/agent-releases`
+
+> Lister toutes les releases publiées.
+
+**Réponse 200 :** Tableau de `AgentRelease`.
+
+---
+
+### PATCH `/admin/agent-releases/:id/set-latest`
+
+> Marquer une release comme version active (isLatest = true).
+
+Met automatiquement toutes les autres releases de la même plateforme à `isLatest = false`.
+
+**Réponse 200 :** Release mise à jour.
+
+---
+
+### DELETE `/admin/agent-releases/:id`
+
+> Supprimer une release (fichier physique + enregistrement DB).
+
+**Réponse 200 :** `{ "message": "Release supprimée." }`
+
+---
 
 ### POST `/admin/clients`
 

@@ -112,9 +112,10 @@ export class BugsController {
   @ApiOperation({ summary: 'Mettre à jour le statut d\'un bug (Admin)' })
   updateStatus(
     @Param('id') id: string, 
-    @Body() updateBugStatusDto: UpdateBugStatusDto
+    @Body() updateBugStatusDto: UpdateBugStatusDto,
+    @CurrentUser() user: any,
   ) {
-    return this.bugsService.updateStatus(id, updateBugStatusDto);
+    return this.bugsService.updateStatus(id, updateBugStatusDto, user);
   }
 
   @Patch(':id/assign')
@@ -124,8 +125,9 @@ export class BugsController {
   assign(
     @Param('id') id: string,
     @Body() assignBugDto: AssignBugDto,
+    @CurrentUser() user: any,
   ) {
-    return this.bugsService.assign(id, assignBugDto.userId ?? null);
+    return this.bugsService.assign(id, assignBugDto.userId ?? null, user);
   }
 
   @Post(':id/comments')

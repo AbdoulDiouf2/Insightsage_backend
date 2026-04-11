@@ -114,6 +114,31 @@ export class AgentsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   /**
+   * Reçoit la configuration Sage de l'agent (envoyée juste après authentification)
+   * et met à jour l'organisation + auto-complète le step 3 de l'onboarding si en attente.
+   */
+  @SubscribeMessage('agent_config')
+  async handleAgentConfig(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    data: {
+      sageType?: string;
+      sageMode?: string;
+      sageHost?: string;
+      sagePort?: number;
+      sageVersion?: string;
+      sqlServer?: string;
+    },
+  ) {
+    const { agentId, organizationId } = client.data;
+    if (!organizationId || !agentId) return { status: 'error', message: 'Unauthorized' };
+
+    await this.agentsService.applyAgentConfig(agentId, organizationId, data);
+    this.logger.log(`agent_config received from agent ${agentId}`);
+    return { status: 'received' };
+  }
+
+  /**
    * Reçoit les logs de l'agent pour centralisation
    */
   @SubscribeMessage('agent_log')

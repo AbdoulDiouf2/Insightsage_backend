@@ -305,6 +305,76 @@ class GenerateTokenDto {
 
 ---
 
+## Releases Agent (Admin)
+
+Les exécutables de l'agent on-premise sont gérés via le module `AgentReleases`. Les releases marquées `isLatest = true` sont proposées au téléchargement dans l'étape 3 de l'onboarding client.
+
+### Modèle
+
+```prisma
+model AgentRelease {
+  id         String   @id @default(uuid())
+  version    String                        // ex: "1.2.3"
+  platform   String                        // "windows" | "linux" | "macos"
+  arch       String   @default("x64")     // "x64" | "arm64"
+  fileName   String                        // ex: "cockpit-agent-1.2.3-win-x64.exe"
+  fileUrl    String                        // URL publique (R2 ou stockage local)
+  fileSize   BigInt?                       // taille en octets
+  checksum   String?                       // SHA256 pour vérification intégrité
+  isLatest   Boolean  @default(false)      // true = proposée au téléchargement
+  changelog  String?  @db.Text
+  uploadedAt DateTime @default(now())
+  uploadedBy String?                       // userId admin
+}
+```
+
+### Endpoints Admin (superadmin uniquement)
+
+| Méthode | Route | Description |
+|---------|-------|-------------|
+| `POST` | `/admin/agent-releases` | Publier une release (multipart: `file` + `version` + `platform` + `arch?` + `changelog?`) |
+| `GET` | `/admin/agent-releases` | Lister toutes les releases |
+| `PATCH` | `/admin/agent-releases/:id/set-latest` | Marquer comme version active |
+| `DELETE` | `/admin/agent-releases/:id` | Supprimer (fichier + enregistrement DB) |
+
+!!! warning "Nommage du fichier"
+    Le fichier est stocké avec un chemin propre : `agent-releases/{version}/{platform}/{arch}/{originalName}`.
+    Le nom original est préservé pour le téléchargement (header `Content-Disposition`).
+
+### Stockage (StorageService)
+
+Les fichiers sont stockés via `StorageService` avec fallback automatique :
+
+```
+Cloudflare R2 (si R2_ENDPOINT + R2_BUCKET_NAME configurés)
+  └─ Clé : agent-releases/1.2.3/windows/x64/cockpit-agent-1.2.3-win-x64.exe
+  └─ ContentDisposition: attachment; filename="cockpit-agent..."
+
+Local filesystem (fallback si R2 non configuré)
+  └─ uploads/agent-releases/1.2.3/windows/x64/cockpit-agent.exe
+  └─ Servi via /uploads/*  (express.static)
+```
+
+Variables d'environnement R2 :
+
+```env
+R2_ENDPOINT=https://<account>.r2.cloudflarestorage.com
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
+R2_BUCKET_NAME=cockpit-assets
+R2_PUBLIC_URL=https://cdn.cockpit.nafaka.tech
+```
+
+### Audit trail Releases
+
+| Événement | Déclenché par |
+|-----------|---------------|
+| `agent_release_uploaded` | `POST /admin/agent-releases` |
+| `agent_release_set_latest` | `PATCH /admin/agent-releases/:id/set-latest` |
+| `agent_release_deleted` | `DELETE /admin/agent-releases/:id` |
+
+---
+
 ## Audit trail des agents
 
 Tous les événements sont loggés via `AuditLogService` :
@@ -317,6 +387,7 @@ Tous les événements sont loggés via `AuditLogService` :
 | `agent_error` | Heartbeat avec `status: error` |
 | `agent_token_revoked` | `revokeToken()` |
 | `agent_token_regenerated` | `regenerateToken()` |
+| `agent_config_received` | Event WebSocket `agent_config` |
 
 ---
 

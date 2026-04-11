@@ -548,6 +548,44 @@ export class MailerService implements OnModuleInit {
     });
   }
 
+  async sendBugAssignedAlert(
+    email: string,
+    firstName: string | null | undefined,
+    id: string,
+    bugId: string,
+    title: string,
+    assignedByName: string
+  ): Promise<void> {
+    const greeting = firstName ? `Bonjour ${firstName},` : 'Bonjour,';
+    if (!this.smtpConfigured) {
+      this.logger.log(`[DEV] sendBugAssignedAlert → ${email} | bug: ${bugId} | par: ${assignedByName}`);
+      return;
+    }
+
+    const html = this.adminHtml(
+      '#3b82f6', // Blue color for consistency with other "action" notifications
+      `📅 Nouveau bug assigné`,
+      `<p>${greeting}</p>
+       <p><strong>${assignedByName}</strong> vous a assigné le bug <strong>${bugId}</strong>.</p>
+       <p>Titre : <strong>${title}</strong></p>
+       <p style="margin-top: 24px;">
+         <a href="${this.config.get<string>('FRONTEND_ADMIN_URL') || this.config.get<string>('FRONTEND_URL')}/bug-tracker/${id}" style="
+           display: inline-block; padding: 10px 20px;
+           background: #3182ce; color: white; text-decoration: none; border-radius: 6px;
+           font-weight: bold;
+         ">
+           Voir le bug
+         </a>
+       </p>`
+    );
+
+    await this.send({
+      to: email,
+      subject: `[Cockpit] Bug assigné : ${bugId}`,
+      html
+    });
+  }
+
   private async send(options: { to: string; subject: string; html: string }): Promise<void> {
     try {
       await this.transporter!.sendMail({

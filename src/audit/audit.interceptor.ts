@@ -45,6 +45,11 @@ const AUDIT_ROUTES: Array<[string, RegExp, AuditEventType]> = [
   ['PATCH', /^\/dashboards\/[^/]+$/, 'dashboard_updated'],
   ['DELETE', /^\/dashboards\/[^/]+$/, 'dashboard_deleted'],
 
+  // ── Agent Releases (admin) ───────────────────────────────────────────────
+  ['POST', /^\/admin\/agent-releases$/, 'agent_release_uploaded'],
+  ['PATCH', /^\/admin\/agent-releases\/[^/]+\/set-latest$/, 'agent_release_set_latest'],
+  ['DELETE', /^\/admin\/agent-releases\/[^/]+$/, 'agent_release_deleted'],
+
   // ── Agents (static paths before /:id generics) ───────────────────────────
   ['POST', /^\/agents\/register$/, 'agent_registered'],
   ['POST', /^\/agents\/generate-token$/, 'agent_token_generated'],

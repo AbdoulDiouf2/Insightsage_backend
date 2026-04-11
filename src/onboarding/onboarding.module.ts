@@ -6,9 +6,10 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { LogsModule } from '../logs/logs.module';
 import { AuthModule } from '../auth/auth.module';
 import { AgentsModule } from '../agents/agents.module';
+import { AgentReleasesModule } from '../admin/agent-releases/agent-releases.module';
 
 @Module({
-  imports: [PrismaModule, LogsModule, AuthModule, AgentsModule],
+  imports: [PrismaModule, LogsModule, AuthModule, AgentsModule, AgentReleasesModule],
   controllers: [OnboardingController, DatasourceController],
   providers: [OnboardingService],
   exports: [OnboardingService],

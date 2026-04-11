@@ -60,3 +60,4 @@ venv
 docs/security-audit.md
 .claude
 uploads/
+scripts/

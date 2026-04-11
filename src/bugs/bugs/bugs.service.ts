@@ -110,6 +110,22 @@ export class BugsService {
             name: true,
           },
         },
+        resolvedBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        assignedBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -130,6 +146,12 @@ export class BugsService {
         organization: {
           select: { id: true, name: true },
         },
+        resolvedBy: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+        assignedBy: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
         comments: {
           include: {
             author: {
@@ -148,7 +170,7 @@ export class BugsService {
     return bug;
   }
 
-  async updateStatus(id: string, updateBugStatusDto: UpdateBugStatusDto) {
+  async updateStatus(id: string, updateBugStatusDto: UpdateBugStatusDto, user?: any) {
     const bug = await this.prisma.bug.findUnique({
       where: { id },
       include: {
@@ -166,7 +188,13 @@ export class BugsService {
 
     const updated = await this.prisma.bug.update({
       where: { id },
-      data: { status: updateBugStatusDto.status },
+      data: { 
+        status: updateBugStatusDto.status,
+        ...(updateBugStatusDto.status === 'resolu' ? {
+          resolvedAt: new Date(),
+          resolvedById: user?.id,
+        } : {})
+      },
     });
     if (updateBugStatusDto.status === 'resolu' && bug?.submittedBy) {
       this.notificationsService.notifyBugResolved(updated, bug.submittedBy).catch((err) => {
@@ -176,11 +204,31 @@ export class BugsService {
     return updated;
   }
 
-  async assign(id: string, userId: string | null) {
-    return this.prisma.bug.update({
+  async assign(id: string, userId: string | null, assignedBy?: any) {
+    const updated = await this.prisma.bug.update({
       where: { id },
-      data: { assignedToId: userId },
+      data: { 
+        assignedToId: userId,
+        assignedAt: userId ? new Date() : null,
+        assignedById: (userId && assignedBy) ? assignedBy.id : null,
+      },
+      include: {
+        assignedTo: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+        assignedBy: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+      },
     });
+
+    if (userId && updated.assignedTo && assignedBy) {
+      this.notificationsService.notifyBugAssigned(updated, updated.assignedTo, assignedBy).catch((err) => {
+        this.logger.error(`Failed to notify bug assignment: ${err.message}`);
+      });
+    }
+
+    return updated;
   }
 
   async addComment(id: string, addCommentDto: AddCommentDto, userId: string) {

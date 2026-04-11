@@ -144,6 +144,44 @@ La plateforme peut répondre avec des commandes :
 
 ---
 
+### 5. Push de configuration Sage (premier démarrage)
+
+Dès sa première connexion WebSocket, l'agent envoie automatiquement sa configuration Sage au backend via l'événement `agent_config`. Cette transmission est **transparente pour l'utilisateur** et auto-complète l'étape 3 de l'onboarding.
+
+```mermaid
+sequenceDiagram
+    participant AGT as Agent On-Premise
+    participant WS as WebSocket /agents
+    participant SVC as AgentsService
+    participant DB as Database
+
+    AGT->>WS: connect (Bearer isag_xxx)
+    WS->>AGT: connected (agentId, organizationId)
+    AGT->>WS: emit("agent_config", payload)
+    WS->>SVC: handleAgentConfig(payload)
+    SVC->>DB: UPDATE Organization SET sageType, sageMode, sageHost, sagePort
+    SVC->>DB: UPDATE OnboardingStatus: completedSteps.push(3), isComplete?
+    SVC->>DB: AuditLog: agent_config_received
+```
+
+**Payload `agent_config` :**
+
+```typescript
+interface AgentConfigPayload {
+  sageType?:    'X3' | '100';
+  sageMode?:    'local' | 'cloud';
+  sageHost?:    string;    // IP ou nom du serveur SQL
+  sagePort?:    number;    // 1433 par défaut
+  sageVersion?: string;    // ex: "21.0"
+  sqlServer?:   string;    // nom ou IP SQL Server
+}
+```
+
+!!! success "Auto-complétion de l'étape 3"
+    Si l'onboarding est en cours (`!onboardingStatus.isComplete` et step 3 non encore cochée), la réception de `agent_config` complète automatiquement l'étape 3 et déclenche un audit `agent_config_received`. L'utilisateur n'a pas besoin de revenir sur l'interface — la progression est mise à jour en temps réel.
+
+---
+
 ## Mécanisme watermark (cbMarq)
 
 Sage 100 ajoute un champ `cbMarq` (entier auto-incrémenté) à toutes ses tables. Les vues l'exposent sous l'alias `Watermark_Sync`. L'agent persiste le dernier cbMarq traité dans `PLATEFORME_PARAMS` et ne re-lit que les lignes supérieures au curseur — synchronisation incrémentale **sans aucune modification de la base Sage**.

@@ -7,6 +7,22 @@ description: Installation de l'agent Cockpit via l'installeur Windows (wizard 6 
 
 L'agent se distribue sous forme d'un **installeur NSIS Windows** (`Cockpit Agent Setup.exe`). Un wizard graphique en 6 étapes guide l'administrateur — aucune ligne de commande requise.
 
+## Téléchargement
+
+L'installeur est disponible directement depuis l'interface Cockpit **sans avoir à contacter le support** :
+
+=== "Via l'onboarding (recommandé)"
+    Durant l'**étape 3** du wizard d'onboarding client, les boutons de téléchargement par plateforme (Windows, Linux, macOS) sont affichés automatiquement. Seules les releases marquées **"Latest"** par l'administrateur sont proposées.
+
+=== "Via le portail Admin"
+    Les superadmins publient et gèrent les releases depuis **Admin Cockpit → Releases Agent**.
+    Chaque release peut être téléchargée, marquée Latest ou supprimée.
+
+!!! info "Configuration automatique après installation"
+    Après installation, l'agent se connecte à la plateforme et **pousse automatiquement** sa configuration Sage (type, mode, host, port) via WebSocket. L'étape 3 de l'onboarding est alors **auto-complétée** — aucune saisie manuelle dans l'interface client n'est requise.
+
+---
+
 ## Prérequis
 
 | Composant | Requis | Notes |
@@ -93,7 +109,10 @@ Une barre de progression affiche l'avancement vue par vue. En cas d'erreur sur u
 Renseignez vos identifiants Cockpit :
 
 - **Email** : votre email de connexion au portail Cockpit
-- **Token agent** : le token `isag_...` généré depuis **Portail Cockpit → Agents → Générer un token**
+- **Token agent** : le token `isag_...` généré depuis **Portail Cockpit → Agents → Générer un token** (ou depuis l'interface d'onboarding étape 3 → section "Lier l'agent")
+
+!!! tip "Auto-complétion de l'onboarding"
+    Dès que le service démarre et se connecte, l'agent envoie automatiquement sa configuration Sage (type, mode, serveur SQL) à la plateforme. L'étape 3 de l'onboarding est alors validée sans aucune action supplémentaire côté client.
 
 Le wizard effectue ensuite 5 sous-étapes avec barre de progression :
 

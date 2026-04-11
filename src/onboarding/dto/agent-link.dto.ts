@@ -1,12 +1,20 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsBoolean, IsOptional, IsString } from 'class-validator';
 
 export class AgentLinkDto {
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Token de l\'agent à associer à cette organisation (format: isag_...)',
     example: 'isag_a1b2c3d4e5f6...',
   })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  agentToken: string;
+  agentToken?: string;
+
+  @ApiPropertyOptional({
+    description: 'Passer à true pour reporter la configuration de l\'agent à plus tard',
+    example: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  skipLater?: boolean;
 }

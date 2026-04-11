@@ -253,4 +253,27 @@ export class NotificationsService {
     );
     this.logger.log(`[notifyBugMention] Alertes envoyées pour modification "${bug.bugId}" à ${users.length} admin(s)`);
   }
+
+  async notifyBugAssigned(
+    bug: any, 
+    assignedUser: { firstName?: string | null; lastName?: string | null; email: string },
+    assignedBy: { firstName?: string | null; lastName?: string | null; email: string }
+  ): Promise<void> {
+    if (!assignedUser?.email) return;
+
+    const assignedByName = assignedBy.firstName 
+      ? `${assignedBy.firstName} ${assignedBy.lastName || ''}`.trim() 
+      : assignedBy.email;
+
+    await this.mailer.sendBugAssignedAlert(
+      assignedUser.email, 
+      assignedUser.firstName, 
+      bug.id, 
+      bug.bugId, 
+      bug.title, 
+      assignedByName
+    );
+    
+    this.logger.log(`[notifyBugAssigned] Alerte envoyée pour bug "${bug.bugId}" à ${assignedUser.email}`);
+  }
 }

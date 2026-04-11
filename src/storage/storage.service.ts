@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3Client, PutObjectCommand, CopyObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
-import { join, basename, extname } from 'path';
+import { join, basename, extname, dirname } from 'path';
 import * as fs from 'fs-extra';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -37,8 +37,8 @@ export class StorageService implements OnModuleInit {
     }
   }
 
-  async uploadFile(file: Express.Multer.File, folder = 'temp'): Promise<string> {
-    const fileName = `${uuidv4()}-${file.originalname}`;
+  async uploadFile(file: Express.Multer.File, folder = 'temp', customKey?: string): Promise<string> {
+    const fileName = customKey ?? `${uuidv4()}-${file.originalname}`;
     const key = `${folder}/${fileName}`;
 
     if (this.s3Client) {
@@ -46,7 +46,11 @@ export class StorageService implements OnModuleInit {
         const bucket = this.configService.get<string>('R2_BUCKET_NAME');
         const publicUrl = this.configService.get<string>('R2_PUBLIC_URL');
         await this.s3Client.send(new PutObjectCommand({
-          Bucket: bucket, Key: key, Body: file.buffer, ContentType: file.mimetype,
+          Bucket: bucket,
+          Key: key,
+          Body: file.buffer,
+          ContentType: file.mimetype,
+          ContentDisposition: `attachment; filename="${file.originalname}"`,
         }));
         return `${publicUrl}/${key}`;
       } catch (e) {
@@ -55,7 +59,7 @@ export class StorageService implements OnModuleInit {
     }
 
     const localPath = join(this.uploadDir, key);
-    await fs.ensureDir(join(this.uploadDir, folder));
+    await fs.ensureDir(dirname(localPath));
     await fs.writeFile(localPath, file.buffer);
     return `${this.appUrl}/uploads/${key}`;
   }
@@ -108,5 +112,36 @@ export class StorageService implements OnModuleInit {
     }
 
     return finalUrls;
+  }
+
+  /**
+   * Supprime un fichier depuis son URL publique (R2 ou local).
+   * Extrait la clé depuis l'URL et tente la suppression R2, sinon supprime le fichier local.
+   */
+  async deleteFile(fileUrl: string): Promise<void> {
+    const publicUrl = this.configService.get<string>('R2_PUBLIC_URL');
+    const bucket = this.configService.get<string>('R2_BUCKET_NAME');
+
+    if (this.s3Client && publicUrl && fileUrl.startsWith(publicUrl)) {
+      const key = fileUrl.slice(publicUrl.length + 1); // retire le slash
+      try {
+        await this.s3Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+        return;
+      } catch (e) {
+        this.logger.error(`R2 Delete failed for ${key}: ${e.message}`);
+      }
+    }
+
+    // Fallback local : retrouve le chemin depuis l'URL APP_URL
+    const appUrlBase = `${this.appUrl}/uploads/`;
+    if (fileUrl.startsWith(appUrlBase)) {
+      const relativePath = fileUrl.slice(appUrlBase.length);
+      const localPath = join(this.uploadDir, relativePath);
+      try {
+        await fs.remove(localPath);
+      } catch (e) {
+        this.logger.error(`Local delete failed for ${localPath}: ${e.message}`);
+      }
+    }
   }
 }

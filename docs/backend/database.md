@@ -214,19 +214,51 @@ model SubscriptionPlan {
 
 ```prisma
 model OnboardingStatus {
-  id             String       @id @default(uuid())
-  organizationId String       @unique
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  currentStep    Int          @default(1)   // 1 à 5
-  completedSteps Int[]                      // ex: [1, 2, 3]
-  isComplete     Boolean      @default(false)
-  inviteLater    Boolean      @default(false) // Étape 5 reportée
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id               String       @id @default(uuid())
+  organizationId   String       @unique
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  currentStep      Int          @default(1)    // étape courante (1–6)
+  completedSteps   Int[]                       // ex: [1, 2, 3]
+  isComplete       Boolean      @default(false) // true si completedSteps.length >= 5
+  inviteLater      Boolean      @default(false) // étape 5 reportée
+  agentConfigLater Boolean      @default(false) // étape 3 reportée via skipLater
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   @@map("onboarding_status")
 }
 ```
+
+!!! info "Champ `agentConfigLater`"
+    Positionné à `true` quand l'utilisateur clique "Configurer l'agent plus tard" à l'étape 3. L'étape 3 est alors marquée complétée dans `completedSteps` mais le flag signale qu'aucun agent n'a encore été configuré — utile pour afficher un rappel dans les Settings.
+
+---
+
+### AgentRelease
+
+Exécutables de l'agent on-premise distribués lors de l'onboarding. Gérés via l'interface superadmin.
+
+```prisma
+model AgentRelease {
+  id         String   @id @default(uuid())
+  version    String                        // ex: "1.2.3"
+  platform   String                        // "windows" | "linux" | "macos"
+  arch       String   @default("x64")     // "x64" | "arm64"
+  fileName   String                        // ex: "cockpit-agent-1.2.3-win-x64.exe"
+  fileUrl    String                        // URL publique (Cloudflare R2 ou stockage local)
+  fileSize   BigInt?                       // taille en octets
+  checksum   String?                       // SHA256 (préfixe "sha256:")
+  isLatest   Boolean  @default(false)      // true = release active proposée au téléchargement
+  changelog  String?  @db.Text
+  uploadedAt DateTime @default(now())
+  uploadedBy String?                       // userId admin ayant publié
+
+  @@map("agent_releases")
+}
+```
+
+!!! tip "Unicité `isLatest` par plateforme"
+    Quand `setLatest(id)` est appelé, le service passe d'abord tous les enregistrements de la même plateforme à `isLatest = false`, puis marque uniquement l'id sélectionné à `true`. Une seule release active par plateforme à tout instant.
 
 ---
 
