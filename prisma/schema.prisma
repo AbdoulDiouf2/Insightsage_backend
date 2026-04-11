@@ -90,6 +90,8 @@ model User {
   bugsSubmitted      Bug[]          @relation("BugSubmitter")
   bugsAssigned       Bug[]          @relation("BugAssignee")
   bugComments        BugComment[]
+  bugsResolved       Bug[]          @relation("BugResolver")
+  bugsAssignedBy     Bug[]          @relation("BugAssignor")
 
   @@index([organizationId])
   @@map("users")
@@ -773,6 +775,14 @@ model Bug {
   
   assignedToId      String?  @map("assigned_to_id")
   assignedTo        User?    @relation("BugAssignee", fields: [assignedToId], references: [id])
+
+  assignedAt        DateTime? @map("assigned_at")
+  assignedById      String?   @map("assigned_by_id")
+  assignedBy        User?     @relation("BugAssignor", fields: [assignedById], references: [id])
+
+  resolvedAt        DateTime? @map("resolved_at")
+  resolvedById      String?   @map("resolved_by_id")
+  resolvedBy        User?     @relation("BugResolver", fields: [resolvedById], references: [id])
 
   comments          BugComment[]
 

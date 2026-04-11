@@ -112,9 +112,10 @@ export class BugsController {
   @ApiOperation({ summary: 'Mettre à jour le statut d\'un bug (Admin)' })
   updateStatus(
     @Param('id') id: string, 
-    @Body() updateBugStatusDto: UpdateBugStatusDto
+    @Body() updateBugStatusDto: UpdateBugStatusDto,
+    @CurrentUser() user: any,
   ) {
-    return this.bugsService.updateStatus(id, updateBugStatusDto);
+    return this.bugsService.updateStatus(id, updateBugStatusDto, user);
   }
 
   @Patch(':id/assign')
