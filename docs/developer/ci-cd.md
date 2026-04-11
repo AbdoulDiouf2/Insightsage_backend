@@ -142,10 +142,33 @@ Pour que les pipelines fonctionnent, configurez les secrets dans `Settings > Sec
 | `PROD_USER` | Nom d'utilisateur (ex: `Administrator`) |
 | `PROD_SSH_KEY` | Clé privée SSH (doit correspondre à la clé publique dans `authorized_keys`) |
 
-### Activation de OpenSSH sur Windows Server 2022
-Pour que GitHub Actions puisse se connecter à votre serveur Windows :
+### 4.2 Configuration des clés SSH (Accès sans mot de passe)
 
-1.  **Installer le serveur SSH** :
+Pour que GitHub puisse se connecter à votre serveur, vous devez utiliser un couple de clés (Publique/Privée).
+
+#### A. Générer les clés (sur votre PC local)
+Ouvrez un terminal et tapez :
+```bash
+ssh-keygen -t rsa -b 4096 -f cockpit_deploy_key
+```
+-   Cela génère deux fichiers : `cockpit_deploy_key` (**Clé Privée**) et `cockpit_deploy_key.pub` (**Clé Publique**).
+
+#### B. Installer la clé PUBLIQUE sur le serveur Windows
+1.  Connectez-vous à votre serveur Windows.
+2.  **Si vous utilisez un compte Administrateur** (cas le plus courant) :
+    -   Ouvrez le fichier `C:\ProgramData\ssh\administrators_authorized_keys` (créez-le s'il n'existe pas).
+    -   Collez-y le contenu de votre fichier `.pub`.
+    -   **Important** : Clic droit sur le fichier > Propriétés > Sécurité > Avancé. Assurez-vous que seul l'utilisateur `SYSTEM` et le groupe `Administrators` ont accès au fichier. Désactivez l'héritage.
+3.  **Si vous utilisez un compte utilisateur standard** :
+    -   Collez la clé dans `C:\Users\VotreUser\.ssh\authorized_keys`.
+
+#### C. Installer la clé PRIVÉE dans GitHub
+1.  Allez sur votre dépôt GitHub : `Settings > Secrets and variables > Actions`.
+2.  Créez un nouveau secret nommé `PROD_SSH_KEY`.
+3.  Copiez-collez tout le contenu de la **Clé Privée** (le fichier sans `.pub`).
+
+### 4.3 Activation de OpenSSH sur Windows Server 2022
+1.  **Installer le serveur** :
     ```powershell
     Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
     ```
@@ -154,11 +177,9 @@ Pour que GitHub Actions puisse se connecter à votre serveur Windows :
     Start-Service sshd
     Set-Service -Name sshd -StartupType 'Automatic'
     ```
-3.  **Ajouter votre clé publique** :
-    -   Créez le dossier `C:\Users\VotreUser\.ssh\`.
-    -   Créez un fichier `authorized_keys` et collez-y votre clé publique.
-4.  **Ouvrir le port 22** : 
-    -   Assurez-vous que le port 22 est ouvert dans le firewall réseau et Windows.
+3.  **Ouvrir le port 22** : 
+    -   Dans le firewall Windows : `New-NetFirewallRule -Name sshd -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -LocalPort 22 -Action Allow`
+    -   Dans la console de votre hébergeur (AWS/OVH/etc.), autorisez le port 22.
 
 ---
 
