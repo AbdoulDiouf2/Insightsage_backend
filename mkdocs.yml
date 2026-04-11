@@ -1,7 +1,8 @@
 site_name: Cockpit — Documentation
 site_description: Documentation ultra-complète de la plateforme Cockpit — API & Admin Dashboard
 site_author: Nafaka Tech
-site_url: https://docs.cockpit.nafaka.tech
+# site_url: https://docs.cockpit.nafaka.tech
+site_url: http://docs.cockpit.internal
 
 repo_name: Nafaka-tech/Insightsage_backend
 repo_url: https://github.com/Nafaka-tech/Insightsage_backend
@@ -183,5 +184,8 @@ nav:
   - Développeur & DevOps:
     - Standards de développement: developer/standards.md
     - Suite de tests: developer/testing.md
-    - Déploiement: developer/deployment.md
+    - Déploiement:
+      - Avec Docker (Linux/WSL2): developer/deployment.md
+      - Sans Docker (Windows natif): developer/deployment-sans-docker.md
+    - Documentation Interne: developer/internal-docs-setup.md
     - CI/CD: developer/ci-cd.md

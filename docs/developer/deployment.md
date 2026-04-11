@@ -3,7 +3,13 @@ title: Déploiement Production
 description: Guide complet d'installation et de déploiement de la plateforme Cockpit en production — Windows Server, Docker Desktop, Nginx + SSL Let's Encrypt, agent on-premise.
 ---
 
-# Déploiement Production
+# Déploiement Production — Avec Docker
+
+!!! warning "Prérequis : Virtualisation disponible"
+    Ce guide suppose que **WSL2** et **Docker Desktop** sont disponibles sur le serveur.
+    Si votre serveur est une **VM sans virtualisation imbriquée** (Hyper-V, Azure, OVH, VMware…),
+    Docker Linux est impossible. Consultez le guide
+    [Déploiement sans Docker — Windows natif](deployment-sans-docker.md) à la place.
 
 !!! info "Environnement cible"
     Ce guide cible un déploiement sur **Windows Server 2022** avec **Docker Desktop** (WSL2) et **Nginx** comme reverse proxy SSL (tout dans Docker).
