@@ -411,17 +411,36 @@ model SubscriptionPlan {
 
 // Statut du wizard d'onboarding par organisation
 model OnboardingStatus {
-  id             String       @id @default(uuid())
-  organizationId String       @unique
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  currentStep    Int          @default(1)
-  completedSteps Int[]        // ex: [1, 2, 3]
-  isComplete     Boolean      @default(false)
-  inviteLater    Boolean      @default(false) // option "inviter plus tard" step 5
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id                String       @id @default(uuid())
+  organizationId    String       @unique
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  currentStep       Int          @default(1)
+  completedSteps    Int[]        // ex: [1, 2, 3]
+  isComplete        Boolean      @default(false)
+  inviteLater       Boolean      @default(false) // option "inviter plus tard" step 5
+  agentConfigLater  Boolean      @default(false) // option "configurer l'agent plus tard" step 3
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
   @@map("onboarding_status")
+}
+
+// Releases de l'agent on-premise (exécutables par plateforme)
+model AgentRelease {
+  id         String   @id @default(uuid())
+  version    String                        // ex: "1.2.3"
+  platform   String                        // "windows" | "linux" | "macos"
+  arch       String   @default("x64")     // "x64" | "arm64"
+  fileName   String                        // ex: "cockpit-agent-1.2.3-win-x64.exe"
+  fileUrl    String                        // URL publique (R2 ou local)
+  fileSize   BigInt?                       // taille en octets
+  checksum   String?                       // SHA256 pour vérification intégrité
+  isLatest   Boolean  @default(false)
+  changelog  String?  @db.Text
+  uploadedAt DateTime @default(now())
+  uploadedBy String?                       // userId admin
+
+  @@map("agent_releases")
 }
 
 // Définitions des KPIs disponibles (seedées par profil)

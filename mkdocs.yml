@@ -156,7 +156,7 @@ nav:
       - Notifications admin: backend/modules/notifications.md
       - Organisations: backend/modules/organizations.md
       - Utilisateurs: backend/modules/users.md
-      - Agents: backend/modules/agents.md
+      - Agents & Releases: backend/modules/agents.md
       - Onboarding: backend/modules/onboarding.md
       - Abonnements: backend/modules/subscriptions.md
       - Rôles & Permissions: backend/modules/roles.md

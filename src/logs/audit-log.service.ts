@@ -41,6 +41,11 @@ export type AuditEventType =
   | 'agent_connection_tested'
   | 'agent_query_executed'
   | 'agent_job_timeout'
+  | 'agent_config_received'
+  | 'agent_config_skipped'
+  | 'agent_release_uploaded'
+  | 'agent_release_set_latest'
+  | 'agent_release_deleted'
   // ── Organizations ──────────────────────────────────────────────────────────
   | 'organization_created'
   | 'organization_updated'

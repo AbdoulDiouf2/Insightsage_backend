@@ -8,6 +8,9 @@ import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import * as jwt from 'jsonwebtoken';
 
+// BigInt → Number lors de la sérialisation JSON (ex: fileSize Prisma BigInt)
+(BigInt.prototype as any).toJSON = function () { return Number(this); };
+
 // ─── Swagger JWT protection ───────────────────────────────────────────────────
 
 function parseCookies(header: string = ''): Record<string, string> {

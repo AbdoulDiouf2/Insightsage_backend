@@ -807,6 +807,73 @@ export class AgentsService implements OnModuleInit {
     return this.connectedAgents.has(organizationId);
   }
 
+  // ─── Config Agent (pushed on WebSocket connect) ──────────────────────────────
+
+  /**
+   * Reçoit la configuration Sage envoyée par l'agent lors de sa connexion WebSocket.
+   * Met à jour l'Agent et l'Organisation, puis auto-complète le step 3 de l'onboarding si en attente.
+   */
+  async applyAgentConfig(
+    agentId: string,
+    organizationId: string,
+    config: {
+      sageType?: string;
+      sageMode?: string;
+      sageHost?: string;
+      sagePort?: number;
+      sageVersion?: string;
+      sqlServer?: string;
+    },
+  ) {
+    // Mise à jour de l'agent (métadonnées locales)
+    await this.prisma.agent.update({
+      where: { id: agentId },
+      data: {
+        ...(config.sageVersion && { sageVersion: config.sageVersion }),
+        ...(config.sqlServer && { sqlServer: config.sqlServer }),
+      },
+    });
+
+    // Mise à jour de l'organisation avec la config Sage fournie par l'agent
+    await this.prisma.organization.update({
+      where: { id: organizationId },
+      data: {
+        ...(config.sageType && { sageType: config.sageType }),
+        ...(config.sageMode && { sageMode: config.sageMode }),
+        ...(config.sageHost && { sageHost: config.sageHost }),
+        ...(config.sagePort && { sagePort: config.sagePort }),
+      },
+    });
+
+    // Auto-complétion du step 3 de l'onboarding si l'étape n'est pas encore complétée
+    const onboarding = await this.prisma.onboardingStatus.findUnique({
+      where: { organizationId },
+    });
+    if (onboarding && !onboarding.completedSteps.includes(3) && !onboarding.isComplete) {
+      const completedSteps = [...onboarding.completedSteps, 3].sort((a, b) => a - b);
+      const nextStep = Math.max(onboarding.currentStep, 4);
+      const isComplete = completedSteps.length >= 5;
+      await this.prisma.onboardingStatus.update({
+        where: { organizationId },
+        data: { completedSteps, currentStep: nextStep, isComplete },
+      });
+    }
+
+    await this.auditLog.log({
+      organizationId,
+      event: 'agent_config_received',
+      payload: {
+        agentId,
+        sageType: config.sageType,
+        sageMode: config.sageMode,
+        sageVersion: config.sageVersion,
+        sqlServer: config.sqlServer,
+      },
+    });
+
+    this.logger.log(`Agent config applied for org ${organizationId}: ${JSON.stringify({ sageType: config.sageType, sageMode: config.sageMode })}`);
+  }
+
   // ─── Agent v1 — Endpoints installeur Electron ────────────────────────────────
 
   /**

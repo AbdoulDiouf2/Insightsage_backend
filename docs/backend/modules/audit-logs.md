@@ -266,6 +266,15 @@ await prisma.auditLog.groupBy({
 | `agent_token_revoked` | Token révoqué |
 | `agent_token_regenerated` | Token régénéré |
 | `agent_token_expired` | Token expiré (détecté) |
+| `agent_config_received` | Config Sage reçue automatiquement via WebSocket |
+
+### Releases Agent (Admin)
+
+| Événement | Description |
+|-----------|-------------|
+| `agent_release_uploaded` | Exécutable publié par un superadmin |
+| `agent_release_set_latest` | Release marquée comme version active |
+| `agent_release_deleted` | Release supprimée (fichier + DB) |
 
 ### Onboarding
 
@@ -273,9 +282,12 @@ await prisma.auditLog.groupBy({
 |-----------|-------------|
 | `subscription_plan_selected` | Étape 1 |
 | `onboarding_step_completed` | Étape complétée |
-| `datasource_configured` | Étape 3 Sage |
-| `agent_linked` | Agent lié à l'org |
+| `datasource_configured` | Étape 3 — mode cloud |
+| `agent_config_received` | Étape 3 auto-complétée via agent WebSocket |
+| `agent_config_skipped` | Étape 3 reportée (skipLater) |
+| `agent_linked` | Agent lié à l'org via token |
 | `users_invited_bulk` | Invitations bulk |
+| `onboarding_completed` | Wizard terminé |
 | `onboarding_completed` | Wizard terminé |
 
 ### Organisations

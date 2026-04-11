@@ -75,12 +75,22 @@ export class OnboardingController {
     return this.onboardingService.step3(organizationId, userId, dto);
   }
 
+  @Get('agent-releases')
+  @ApiOperation({
+    summary: 'Dernières releases de l\'agent par plateforme',
+    description:
+      'Retourne les fichiers exécutables de l\'agent disponibles au téléchargement (une release par plateforme marquée isLatest).',
+  })
+  getAgentReleases() {
+    return this.onboardingService.getAgentReleases();
+  }
+
   @Post('agent-link')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Liaison agent : Lier un token agent a l organisation',
+    summary: 'Liaison agent : lier un token agent ou reporter la configuration',
     description:
-      'Associe un agent on-premise (identifie par son token) a l organisation courante. Le token doit etre genere via POST /agents/generate-token.',
+      'Associe un agent on-premise via son token, ou reporte la configuration en passant skipLater: true.',
   })
   async linkAgent(
     @OrganizationId() organizationId: string,

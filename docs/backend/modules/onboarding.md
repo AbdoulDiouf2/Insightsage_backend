@@ -5,22 +5,29 @@ description: Wizard d'onboarding en 5 étapes pour les nouveaux clients
 
 # Module Onboarding
 
-Le module Onboarding guide les nouveaux clients à travers un wizard en 5 étapes pour configurer leur organisation, connecter leur Sage ERP et inviter leurs équipes.
+Le module Onboarding guide les nouveaux clients à travers un wizard en **5 étapes** pour configurer leur organisation, installer l'agent Cockpit et inviter leurs équipes. Depuis la v1.1, l'étape 3 ne demande plus de saisie manuelle de la configuration Sage : c'est l'**agent on-premise** qui pousse automatiquement sa config lors de sa première connexion WebSocket.
 
 ## Architecture du wizard
 
 ```mermaid
 graph LR
     S1["Étape 1\nPlan\nd'abonnement"] --> S2["Étape 2\nProfil\nOrganisation"]
-    S2 --> S3["Étape 3\nConfig\nSage ERP"]
-    S3 --> AL["Liaison\nAgent Token"]
-    AL --> S4["Étape 4\nProfils\nMétier"]
+    S2 --> S3["Étape 3\nInstaller\nl'agent"]
+    S3 --> |"Agent connecté\nou skip"| S4["Étape 4\nProfils\nMétier"]
     S4 --> S5["Étape 5\nInvitation\nUtilisateurs"]
     S5 --> DONE["✅ Onboarding\nComplété"]
+    S3 -. "skipLater=true" .-> S4
 
     style S1 fill:#0f3d3d,stroke:#0d9488,color:#2dd4bf
     style DONE fill:#064e3b,stroke:#22c55e,color:#22c55e
 ```
+
+!!! info "Étape 3 — Nouvelle architecture (v1.1)"
+    **Avant :** l'utilisateur saisissait manuellement `sageType`, `sageMode`, `sageHost`, `sagePort`.
+
+    **Après :** l'utilisateur télécharge l'exécutable de l'agent depuis l'interface, l'installe sur son serveur Sage, et l'agent pousse automatiquement sa configuration via WebSocket lors de sa première connexion. L'étape 3 est alors auto-complétée. Une option **"Configurer plus tard"** (`skipLater`) est disponible.
+
+    Exception : si `sageMode = cloud`, un formulaire minimal (sageType uniquement) reste disponible.
 
 ---
 
@@ -70,37 +77,83 @@ await prisma.organization.update({
 await this.completeStep(orgId, 2);
 ```
 
-### `step3(orgId, dto)` — Configuration Sage ERP
+### `step3(orgId, userId, dto)` — Initiation de l'installation agent
 
-Enregistre la configuration de connexion Sage :
+Comportement bifurqué selon `dto.sageMode` :
+
+=== "Mode cloud"
+    ```typescript
+    // body: { sageMode: "cloud", sageType?: "X3" | "100" }
+    await prisma.organization.update({
+      data: { sageType: dto.sageType, sageMode: 'cloud' },
+    });
+    await this.completeStep(orgId, 3);   // étape complétée immédiatement
+    return { agentRequired: false, ... };
+    ```
+
+=== "Mode local (défaut)"
+    ```typescript
+    // body: {} (aucun champ requis)
+    // Retourne les liens de téléchargement des dernières releases isLatest
+    const releases = await this.agentReleasesService.listReleases({ isLatest: true });
+    return {
+      agentRequired: true,
+      releases,   // [{ platform, arch, version, fileName, fileUrl, checksum }]
+    };
+    // ⚠ L'étape N'EST PAS complétée ici : elle le sera automatiquement
+    //   quand l'agent se connecte et envoie l'event WebSocket `agent_config`
+    ```
+
+!!! info "Auto-complétion via WebSocket"
+    Quand l'agent se connecte et envoie `agent_config`, le backend met à jour `Organization` (sageType, sageMode, sageHost, sagePort) et appelle `markStepComplete(orgId, 3)` automatiquement.
+
+### `getAgentReleases()` — Releases disponibles
 
 ```typescript
-// body: { sageType, sageMode, sageHost?, sagePort? }
-await prisma.organization.update({
-  where: { id: orgId },
-  data: { sageType, sageMode, sageHost, sagePort },
-});
-await this.completeStep(orgId, 3);
+// GET /onboarding/agent-releases
+// Authentifié (JWT client)
+const releases = await this.agentReleasesService.listReleases({ isLatest: true });
+// Réponse :
+[
+  {
+    platform: "windows", arch: "x64", version: "1.2.3",
+    fileName: "cockpit-agent-1.2.3-win-x64.exe",
+    fileUrl: "https://cdn.../agent-releases/1.2.3/windows/x64/cockpit-agent.exe",
+    checksum: "sha256:abc123..."
+  },
+  { platform: "linux", arch: "x64", ... }
+]
 ```
 
-!!! info "Types Sage supportés"
-    - `sageType: "X3"` — Sage X3 (Enterprise Management)
-    - `sageType: "100"` — Sage 100 (ERP PME)
-    - `sageMode: "local"` — Serveur SQL on-premise
-    - `sageMode: "cloud"` — Sage en mode SaaS
+### `linkAgent(orgId, userId, dto)` — Liaison ou report de l'agent
 
-### `linkAgent(orgId, dto)` — Liaison de l'agent
+=== "Lier un agent (token valide)"
+    ```typescript
+    // body: { agentToken: "isag_xxx" }
+    const agent = await prisma.agent.findUnique({ where: { token } });
+    if (!agent || agent.isRevoked || agent.tokenExpiresAt < new Date())
+      throw new BadRequestException('Token invalide ou expiré');
+    if (agent.organizationId !== orgId)
+      throw new BadRequestException('Token appartient à une autre org');
 
-Valide le token de l'agent et l'associe à l'organisation :
+    await this.auditLog.log({ event: 'agent_linked', payload: { agentId: agent.id } });
+    ```
 
-```typescript
-// body: { agentToken: "isag_xxx" }
-const agent = await prisma.agent.findUnique({ where: { token } });
-if (!agent || agent.isRevoked) throw new BadRequestException('Token invalide');
-if (agent.organizationId !== orgId) throw new ForbiddenException('Token appartient à une autre org');
-
-await this.auditLog.log({ event: 'agent_linked', orgId, payload: { agentId: agent.id } });
-```
+=== "Reporter la configuration (skipLater)"
+    ```typescript
+    // body: { skipLater: true }
+    const completedSteps = [...currentSteps, 3].sort();
+    await prisma.onboardingStatus.update({
+      data: {
+        agentConfigLater: true,    // flag mémorisant le report
+        completedSteps,
+        currentStep: Math.max(currentStep, 4),
+        isComplete: completedSteps.length >= 5,
+      },
+    });
+    await this.auditLog.log({ event: 'agent_config_skipped', payload: {} });
+    // L'utilisateur pourra lier son agent depuis Settings > Agents
+    ```
 
 ### `getAvailableProfiles()`
 
@@ -168,15 +221,17 @@ if (!agent) throw new ServiceUnavailableException('Agent hors ligne');
 
 | Méthode | Route | Description |
 |---------|-------|-------------|
-| `GET` | `/onboarding/status` | État du wizard |
+| `GET` | `/onboarding/status` | État du wizard (+ info organisation) |
 | `POST` | `/onboarding/step1` | Plan d'abonnement |
 | `POST` | `/onboarding/step2` | Profil organisation |
-| `POST` | `/onboarding/step3` | Config Sage ERP |
-| `POST` | `/onboarding/agent-link` | Liaison agent |
-| `POST` | `/datasource/discover` | Scan Agent pour lister les dossiers Sage |
-| `GET` | `/onboarding/profiles` | Profils disponibles |
+| `POST` | `/onboarding/step3` | Initiation installation agent (retourne releases ou complète si cloud) |
+| `GET` | `/onboarding/agent-releases` | Dernières releases agent par plateforme |
+| `POST` | `/onboarding/agent-link` | Lier un agent (`agentToken`) ou reporter (`skipLater: true`) |
+| `POST` | `/datasource/test-connection` | Test de connexion temps-réel via WebSocket |
+| `POST` | `/datasource/discover` | Scan des dossiers/sociétés Sage via agent |
+| `GET` | `/onboarding/profiles` | Profils métier disponibles |
 | `POST` | `/onboarding/step4` | Profils métier |
-| `POST` | `/onboarding/step5` | Invitations |
+| `POST` | `/onboarding/step5` | Invitations (`inviteLater: true` disponible) |
 
 ---
 
@@ -195,15 +250,25 @@ class Step2Dto {
   @IsOptional() @IsString() country?: string;
 }
 
+// Step3 — simplifié : plus de saisie manuelle host/port (fournis par l'agent)
 class Step3Dto {
-  @IsIn(['X3', '100'])
-  sageType: string;
+  // Uniquement pour le mode cloud (l'agent n'est pas requis)
+  @IsOptional() @IsIn(['X3', '100'])
+  sageType?: string;
 
-  @IsIn(['local', 'cloud'])
-  sageMode: string;
+  @IsOptional() @IsIn(['local', 'cloud'])
+  sageMode?: string;
+  // sageHost et sagePort supprimés — poussés automatiquement par l'agent via WebSocket
+}
 
-  @IsOptional() @IsString()  sageHost?: string;
-  @IsOptional() @IsNumber()  sagePort?: number;
+class AgentLinkDto {
+  // Option 1 : lier un agent par token
+  @IsOptional() @IsString()
+  agentToken?: string;
+
+  // Option 2 : reporter la config agent (Configurer plus tard)
+  @IsOptional() @IsBoolean()
+  skipLater?: boolean;
 }
 
 class Step4Dto {
@@ -222,48 +287,49 @@ class Step5Dto {
   @IsBoolean()
   inviteLater?: boolean;
 }
-
-class AgentLinkDto {
-  @IsString()
-  agentToken: string;
-}
 ```
 
 ---
 
 ## Persistance de l'état (OnboardingStatus)
 
-```mermaid
-graph LR
-    subgraph OnboardingStatus
-        CS["currentStep: 3"]
-        CO["completedSteps: [1,2]"]
-        IC["isComplete: false"]
-        IL["inviteLater: false"]
-    end
-
-    S1_done["step1() complété"] -->|"completedSteps.push(1)\ncurrentStep = 2"| CS
-    S2_done["step2() complété"] -->|"completedSteps.push(2)\ncurrentStep = 3"| CS
+```prisma
+model OnboardingStatus {
+  id             String   @id @default(uuid())
+  organizationId String   @unique
+  currentStep    Int      @default(1)
+  completedSteps Int[]                   // ex: [1, 2, 3]
+  isComplete     Boolean  @default(false) // true quand completedSteps.length >= 5
+  inviteLater    Boolean  @default(false) // step 5 reporté
+  agentConfigLater Boolean @default(false) // step 3 reporté via skipLater
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
 ```
+
+!!! tip "Critère de complétion"
+    L'onboarding est marqué complet (`isComplete = true`) dès que **5 étapes sont présentes** dans `completedSteps`, quel que soit l'ordre. Les étapes skipées (step 3 via `skipLater`, step 5 via `inviteLater`) comptent comme complétées.
 
 La méthode `completeStep()` gère automatiquement la progression :
 
 ```typescript
-private async completeStep(orgId: string, step: number, extras?: object) {
-  const status = await prisma.onboardingStatus.findUnique({ where: { organizationId: orgId } });
-  const completedSteps = [...new Set([...status.completedSteps, step])];
-  const nextStep = Math.max(...completedSteps) + 1;
+private async completeStep(orgId: string, step: number, userId?: string) {
+  const status = await this.getOrCreateStatus(orgId);
+  const completedSteps = status.completedSteps.includes(step)
+    ? status.completedSteps
+    : [...status.completedSteps, step].sort((a, b) => a - b);
+  const nextStep = Math.max(status.currentStep, step + 1);
+  const isComplete = completedSteps.length >= 5;
 
   await prisma.onboardingStatus.update({
     where: { organizationId: orgId },
-    data: {
-      completedSteps,
-      currentStep: nextStep,
-      ...extras,
-    },
+    data: { completedSteps, currentStep: nextStep, isComplete },
   });
 
-  await this.auditLog.log({ event: 'onboarding_step_completed', payload: { step } });
+  await this.auditLog.log({ event: 'onboarding_step_completed', payload: { step, isComplete } });
+  if (isComplete) {
+    await this.auditLog.log({ event: 'onboarding_completed', payload: { completedAt: new Date() } });
+  }
 }
 ```
 
@@ -271,11 +337,13 @@ private async completeStep(orgId: string, step: number, extras?: object) {
 
 ## Audit trail Onboarding
 
-| Événement | Étape |
-|-----------|-------|
-| `subscription_plan_selected` | Étape 1 |
-| `onboarding_step_completed` | Chaque étape |
-| `datasource_configured` | Étape 3 |
-| `agent_linked` | Liaison agent |
-| `users_invited_bulk` | Étape 5 |
-| `onboarding_completed` | Fin du wizard |
+| Événement | Étape | Déclencheur |
+|-----------|-------|-------------|
+| `subscription_plan_selected` | 1 | `step1()` |
+| `onboarding_step_completed` | Chaque étape | `completeStep()` |
+| `datasource_configured` | 3 (cloud) | `step3()` mode cloud |
+| `agent_config_received` | 3 (local) | Event WebSocket `agent_config` |
+| `agent_config_skipped` | 3 (skip) | `linkAgent({ skipLater: true })` |
+| `agent_linked` | 3 | `linkAgent({ agentToken })` |
+| `users_invited_bulk` | 5 | `step5()` |
+| `onboarding_completed` | Fin | Automatique quand `isComplete = true` |

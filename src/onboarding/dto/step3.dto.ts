@@ -1,34 +1,25 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsIn, IsOptional, IsString } from 'class-validator';
 
 export class Step3Dto {
-  @ApiProperty({
-    description: 'Type de solution Sage',
+  @ApiPropertyOptional({
+    description:
+      'Type de solution Sage — requis uniquement en mode cloud (en mode local, l\'agent pousse cette info automatiquement)',
     enum: ['X3', '100'],
     example: 'X3',
   })
+  @IsOptional()
   @IsString()
   @IsIn(['X3', '100'])
-  sageType: string;
+  sageType?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Mode d\'hébergement Sage',
     enum: ['local', 'cloud'],
     example: 'local',
   })
+  @IsOptional()
   @IsString()
   @IsIn(['local', 'cloud'])
-  sageMode: string;
-
-  @ApiPropertyOptional({ description: 'Hôte du serveur Sage (si local)', example: '192.168.1.100' })
-  @IsString()
-  @IsOptional()
-  sageHost?: string;
-
-  @ApiPropertyOptional({ description: 'Port du serveur Sage', example: 1433 })
-  @IsInt()
-  @Min(1)
-  @Max(65535)
-  @IsOptional()
-  sagePort?: number;
+  sageMode?: string;
 }

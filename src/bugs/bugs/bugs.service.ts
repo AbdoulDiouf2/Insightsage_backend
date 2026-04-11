@@ -176,11 +176,24 @@ export class BugsService {
     return updated;
   }
 
-  async assign(id: string, userId: string | null) {
-    return this.prisma.bug.update({
+  async assign(id: string, userId: string | null, assignedBy?: any) {
+    const updated = await this.prisma.bug.update({
       where: { id },
       data: { assignedToId: userId },
+      include: {
+        assignedTo: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+      },
     });
+
+    if (userId && updated.assignedTo && assignedBy) {
+      this.notificationsService.notifyBugAssigned(updated, updated.assignedTo, assignedBy).catch((err) => {
+        this.logger.error(`Failed to notify bug assignment: ${err.message}`);
+      });
+    }
+
+    return updated;
   }
 
   async addComment(id: string, addCommentDto: AddCommentDto, userId: string) {
