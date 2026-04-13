@@ -188,4 +188,6 @@ nav:
       - Avec Docker (Linux/WSL2): developer/deployment.md
       - Sans Docker (Windows natif): developer/deployment-sans-docker.md
     - Documentation Interne: developer/internal-docs-setup.md
+    - Configuration DNS (Client): developer/dns-setup-guide.md
+    - Migration Monorepo (Futur): developer/monorepo-migration.md
     - CI/CD: developer/ci-cd.md

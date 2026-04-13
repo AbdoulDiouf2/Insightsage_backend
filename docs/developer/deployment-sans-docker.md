@@ -58,8 +58,12 @@ graph TD
 ### Réseau / DNS
 
 - Domaine pointé vers l'IP publique du serveur (record `A`)
-- Ports 80 et 443 ouverts en entrée chez l'hébergeur / firewall réseau
+- Ports 80 et 443 ouverts en entrée (Hébergeur + Firewall Windows — voir [Section 13](#13-firewall-windows))
 - Ports 3000, 5432, 6379 **bloqués** vers l'extérieur (accès local uniquement)
+
+!!! tip "Délégation DNS"
+    Si vous déléguez la configuration du domaine au client ou à un prestataire IT, 
+    transmettez-leur le [Guide de Configuration DNS](dns-setup-guide.md).
 
 ### Logiciels à télécharger
 
@@ -684,6 +688,12 @@ C:\tools\win-acme\wacs.exe
 
 ## 13. Firewall Windows
 
+Il y a deux niveaux de firewall à configurer :
+1. **Niveau Hébergeur** (AWS, Azure, OVH, etc.) : Ouvrez les ports 80 et 443 dans la console de gestion (Security Groups / Network ACL).
+2. **Niveau Windows Server** (OS) : Utilisez les commandes PowerShell ci-dessous ou l'interface graphique.
+
+### 13.1 Par PowerShell (Recommandé)
+
 ```powershell
 # Autoriser HTTP et HTTPS en entrée
 New-NetFirewallRule -Name "Cockpit-HTTP"  -DisplayName "Cockpit HTTP"  `
@@ -699,6 +709,19 @@ New-NetFirewallRule -Name "Block-PG"    -DisplayName "Block PostgreSQL 5432" `
 New-NetFirewallRule -Name "Block-Redis" -DisplayName "Block Redis 6379" `
   -Direction Inbound -Protocol TCP -LocalPort 6379 -Action Block
 ```
+
+### 13.2 Par l'interface graphique (Alternative)
+
+1. Ouvrez **Pare-feu Windows avec fonctions avancées de sécurité**.
+2. Cliquez sur **Règles de trafic entrant** (Inbound Rules) > **Nouvelle règle**.
+3. Type de règle : **Port** > Suivant.
+4. Protocole : **TCP**, Ports locaux spécifiques : **80, 443** > Suivant.
+5. Action : **Autoriser la connexion** > Suivant.
+6. Profil : Cocher **Domaine**, **Privé** et **Public** > Suivant.
+7. Nom : `Cockpit-Web-Ports` > Terminer.
+
+!!! warning "Sécurité"
+    N'ouvrez jamais les ports de la base de données (5432) ou de Redis (6379) à l'extérieur. Seul le reverse proxy (IIS/Nginx) doit être exposé.
 
 ---
 
