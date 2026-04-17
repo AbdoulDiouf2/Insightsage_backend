@@ -365,7 +365,13 @@ export class AdminService {
       throw new BadRequestException('A user with this email already exists.');
     }
 
-    const passwordHash = await bcrypt.hash(dto.password, 10);
+    const rawPassword = dto.password ?? crypto.randomBytes(16).toString('hex');
+    const passwordHash = await bcrypt.hash(rawPassword, 10);
+
+    // Génère un token de setup pour que l'utilisateur définisse son propre mot de passe
+    const setupToken = crypto.randomBytes(32).toString('hex');
+    const setupTokenHash = crypto.createHash('sha256').update(setupToken).digest('hex');
+    const setupTokenExpires = new Date(Date.now() + 7 * 24 * 3600000); // 7 jours
 
     const user = await this.prisma.user.create({
       data: {
@@ -374,6 +380,8 @@ export class AdminService {
         firstName: dto.firstName,
         lastName: dto.lastName,
         organizationId: dto.organizationId,
+        resetPasswordToken: setupTokenHash,
+        resetPasswordExpires: setupTokenExpires,
         userRoles: {
           create: dto.roleIds.map((rId) => ({ roleId: rId })),
         },
@@ -382,6 +390,19 @@ export class AdminService {
         organization: { select: { name: true } },
       },
     });
+
+    const assignedRoles = await this.prisma.role.findMany({
+      where: { id: { in: dto.roleIds } },
+      select: { name: true },
+    });
+    const isSuperAdmin = assignedRoles.some((r) => r.name === 'superadmin');
+
+    await this.mailer.sendWelcomeSetupEmail(
+      user.email,
+      setupToken,
+      user.organization.name,
+      isSuperAdmin ? 'admin' : 'client',
+    );
 
     await this.auditLog.log({
       organizationId: dto.organizationId,

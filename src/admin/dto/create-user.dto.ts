@@ -1,5 +1,5 @@
 import { IsEmail, IsString, IsNotEmpty, IsUUID, IsArray, IsOptional } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateUserDto {
   @ApiProperty({ example: 'Jean' })
@@ -17,10 +17,10 @@ export class CreateUserDto {
   @IsNotEmpty()
   email: string;
 
-  @ApiProperty({ example: 'Password123!', description: 'Temporary password' })
+  @ApiPropertyOptional({ description: 'Si absent, un mot de passe aléatoire est généré et un email de setup est envoyé' })
   @IsString()
-  @IsNotEmpty()
-  password: string;
+  @IsOptional()
+  password?: string;
 
   @ApiProperty({ example: 'uuid-org-123' })
   @IsUUID()

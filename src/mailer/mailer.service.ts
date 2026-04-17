@@ -95,9 +95,12 @@ export class MailerService implements OnModuleInit {
     email: string,
     token: string,
     orgName: string,
+    source: 'client' | 'admin' = 'client',
   ): Promise<void> {
-    const frontendUrl = this.config.get<string>('FRONTEND_URL');
-    const setupLink = `${frontendUrl}/reset-password?token=${token}`;
+    const baseUrl = source === 'admin'
+      ? (this.config.get<string>('ADMIN_URL') ?? this.config.get<string>('FRONTEND_URL'))
+      : this.config.get<string>('FRONTEND_URL');
+    const setupLink = `${baseUrl}/reset-password?token=${token}`;
 
     if (!this.smtpConfigured) {
       this.logger.log(`[DEV] Welcome setup link for ${email} (${orgName}): ${setupLink}`);
@@ -495,7 +498,7 @@ export class MailerService implements OnModuleInit {
        ${orgLine}
        <p>Signalé par : <strong>${submittedBy}</strong></p>
        <p style="margin-top: 24px;">
-         <a href="${this.config.get<string>('FRONTEND_ADMIN_URL') || this.config.get<string>('FRONTEND_URL')}/bug-tracker/${id}" style="
+         <a href="${this.config.get<string>('ADMIN_URL') ?? this.config.get<string>('FRONTEND_URL')}/bug-tracker/${id}" style="
            display: inline-block; padding: 10px 20px;
            background: ${headerColor}; color: white; text-decoration: none; border-radius: 6px;
            font-weight: bold;
@@ -533,7 +536,7 @@ export class MailerService implements OnModuleInit {
        <p><strong>${authorName}</strong> vous a mentionné(e) dans un commentaire sur le bug <strong>${bugId}</strong>.</p>
        <p>Titre : <strong>${title}</strong></p>
        <p style="margin-top: 24px;">
-         <a href="${this.config.get<string>('FRONTEND_ADMIN_URL') || this.config.get<string>('FRONTEND_URL')}/bug-tracker/${id}" style="
+         <a href="${this.config.get<string>('ADMIN_URL') ?? this.config.get<string>('FRONTEND_URL')}/bug-tracker/${id}" style="
            display: inline-block; padding: 10px 20px;
            background: #8b5cf6; color: white; text-decoration: none; border-radius: 6px;
            font-weight: bold;
@@ -571,7 +574,7 @@ export class MailerService implements OnModuleInit {
        <p><strong>${assignedByName}</strong> vous a assigné le bug <strong>${bugId}</strong>.</p>
        <p>Titre : <strong>${title}</strong></p>
        <p style="margin-top: 24px;">
-         <a href="${this.config.get<string>('FRONTEND_ADMIN_URL') || this.config.get<string>('FRONTEND_URL')}/bug-tracker/${id}" style="
+         <a href="${this.config.get<string>('ADMIN_URL') ?? this.config.get<string>('FRONTEND_URL')}/bug-tracker/${id}" style="
            display: inline-block; padding: 10px 20px;
            background: #3182ce; color: white; text-decoration: none; border-radius: 6px;
            font-weight: bold;
