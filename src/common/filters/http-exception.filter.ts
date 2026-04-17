@@ -36,7 +36,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
         error = exception.message;
       } else if (typeof res === 'object' && res !== null) {
         const resObj = res as Record<string, any>;
-        message = resObj.message ?? exception.message;
+        const raw = resObj.message ?? exception.message;
+        message = Array.isArray(raw) ? raw[0] : raw;
         error = resObj.error ?? HttpStatus[status] ?? 'Error';
       } else {
         message = exception.message;
