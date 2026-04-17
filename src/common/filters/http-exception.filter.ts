@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
+import { ThrottlerException } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 
 @Catch()
@@ -22,7 +23,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
     let message: string | string[];
     let error: string;
 
-    if (exception instanceof HttpException) {
+    if (exception instanceof ThrottlerException) {
+      status = HttpStatus.TOO_MANY_REQUESTS;
+      message = 'Trop de tentatives. Veuillez patienter avant de réessayer.';
+      error = 'Too Many Requests';
+    } else if (exception instanceof HttpException) {
       status = exception.getStatus();
       const res = exception.getResponse();
 
@@ -42,7 +47,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
       status = HttpStatus.INTERNAL_SERVER_ERROR;
       message = this.isProd
         ? 'Une erreur interne est survenue. Veuillez réessayer.'
-        : (exception instanceof Error ? exception.message : 'Internal server error');
+        : exception instanceof Error
+          ? exception.message
+          : 'Internal server error';
       error = 'Internal Server Error';
 
       // Log complet uniquement côté serveur
