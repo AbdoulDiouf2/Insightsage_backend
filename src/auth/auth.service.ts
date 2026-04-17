@@ -302,7 +302,7 @@ export class AuthService {
       resetPasswordExpires,
     });
 
-    await this.mailer.sendResetPasswordEmail(user.email, token); // Token brut dans l'email
+    await this.mailer.sendResetPasswordEmail(user.email, token, dto.source ?? 'client'); // Token brut dans l'email
 
     // L'audit log est toujours déclenché (y compris en dev) — Section 2.3
     await this.auditLog.log({

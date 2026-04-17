@@ -40,9 +40,11 @@ export class MailerService implements OnModuleInit {
     this.logger.log(`SMTP configuré sur ${this.config.get('SMTP_HOST')}:${this.config.get('SMTP_PORT')}`);
   }
 
-  async sendResetPasswordEmail(email: string, token: string): Promise<void> {
-    const frontendUrl = this.config.get<string>('FRONTEND_URL');
-    const resetLink = `${frontendUrl}/reset-password?token=${token}`;
+  async sendResetPasswordEmail(email: string, token: string, source: 'client' | 'admin' = 'client'): Promise<void> {
+    const baseUrl = source === 'admin'
+      ? (this.config.get<string>('ADMIN_URL') ?? this.config.get<string>('FRONTEND_URL'))
+      : this.config.get<string>('FRONTEND_URL');
+    const resetLink = `${baseUrl}/reset-password?token=${token}`;
 
     if (!this.smtpConfigured) {
       this.logger.log(`[DEV] Reset password link for ${email}: ${resetLink}`);
