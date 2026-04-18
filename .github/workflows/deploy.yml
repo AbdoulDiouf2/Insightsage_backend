@@ -15,6 +15,18 @@ jobs:
         run: npm install --legacy-peer-deps
         working-directory: C:\Cockpit\repos\Insightsage_backend
 
+      - name: Push Prisma schema to prod DB
+        env:
+          DOTENV_CONFIG_PATH: .env
+        run: npx prisma db push
+        working-directory: C:\Cockpit\repos\Insightsage_backend
+
+      - name: Generate Prisma Client
+        env:
+          DOTENV_CONFIG_PATH: .env
+        run: npx prisma generate
+        working-directory: C:\Cockpit\repos\Insightsage_backend
+
       - name: Build
         run: npm run build
         working-directory: C:\Cockpit\repos\Insightsage_backend

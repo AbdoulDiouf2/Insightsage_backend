@@ -66,4 +66,12 @@ export class CockpitGateway implements OnGatewayConnection, OnGatewayDisconnect 
     this.logger.debug(`Broadcasting agent log to org_${payload.organizationId}`);
     this.server.to(`org_${payload.organizationId}`).emit('agent_log_received', payload.log);
   }
+
+  @OnEvent('agent.job.insight_ready')
+  handleInsightReady(payload: { organizationId: string; jobId: string; insight: string }) {
+    this.logger.debug(`Broadcasting KPI insight for job ${payload.jobId}`);
+    this.server
+      .to(`org_${payload.organizationId}`)
+      .emit('kpi_insight_ready', { jobId: payload.jobId, insight: payload.insight });
+  }
 }

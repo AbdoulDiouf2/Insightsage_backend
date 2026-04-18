@@ -368,7 +368,8 @@ model AgentJob {
   status         JobStatus @default(PENDING)
   result         Json?     // Contient les données JSON renvoyées par l'agent
   errorMessage   String?
-  
+  aiInsight      String?   @db.Text // Commentaire CFO généré par Claude après completion
+
   startedAt      DateTime?
   completedAt    DateTime?
   createdAt      DateTime  @default(now())

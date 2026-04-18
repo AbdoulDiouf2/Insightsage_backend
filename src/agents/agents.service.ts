@@ -23,6 +23,7 @@ import { LicenseGuardianService } from '../subscriptions/license-guardian.servic
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { REDIS_CLIENT } from '../redis/redis.module';
 import type { RedisClientType } from 'redis';
+import { ClaudeService } from '../claude/claude.service';
 
 // Durée de vie d'un token : 30 jours (Section 2.4)
 const TOKEN_TTL_DAYS = 30;
@@ -45,6 +46,7 @@ export class AgentsService implements OnModuleInit {
     private sqlSecurity: SqlSecurityService,
     private licenseGuardian: LicenseGuardianService,
     private eventEmitter: EventEmitter2,
+    private claudeService: ClaudeService,
     @Inject(REDIS_CLIENT) private redis: RedisClientType,
   ) { }
 
@@ -646,7 +648,7 @@ export class AgentsService implements OnModuleInit {
     // Normalisation du résultat avant stockage
     const transformedResult = error ? null : this.transformResult(result);
 
-    return this.prisma.agentJob.update({
+    const updatedJob = await this.prisma.agentJob.update({
       where: { id: jobId },
       data: {
         status: error ? JobStatus.FAILED : JobStatus.COMPLETED,
@@ -655,6 +657,57 @@ export class AgentsService implements OnModuleInit {
         completedAt: new Date(),
       },
     });
+
+    // Génération d'insight CFO en arrière-plan (fire-and-forget)
+    if (!error && transformedResult) {
+      this.generateAndStoreInsight(jobId, organizationId, transformedResult).catch(() => {});
+    }
+
+    return updatedJob;
+  }
+
+  /**
+   * Génère un insight CFO via Claude pour un job complété,
+   * le persiste sur AgentJob et l'émet via EventEmitter vers CockpitGateway.
+   */
+  private async generateAndStoreInsight(
+    jobId: string,
+    organizationId: string,
+    result: unknown,
+  ): Promise<void> {
+    const [session, org] = await Promise.all([
+      this.prisma.nlqSession.findFirst({
+        where: { jobId },
+        include: { intent: true },
+      }),
+      this.prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: { sector: true, size: true },
+      }),
+    ]);
+
+    const kpiName = (session as any)?.intent?.label ?? 'KPI';
+    const insight = await this.claudeService.generateKpiInsight(
+      kpiName,
+      result,
+      '',
+      { sector: org?.sector ?? undefined, size: org?.size ?? undefined },
+    );
+
+    if (!insight) return;
+
+    await this.prisma.agentJob.update({
+      where: { id: jobId },
+      data: { aiInsight: insight },
+    });
+
+    this.eventEmitter.emit('agent.job.insight_ready', {
+      organizationId,
+      jobId,
+      insight,
+    });
+
+    this.logger.log(`Insight CFO généré pour job ${jobId}`);
   }
 
   /**
