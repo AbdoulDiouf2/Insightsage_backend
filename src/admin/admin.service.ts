@@ -1326,18 +1326,27 @@ export class AdminService {
     const config = await this.prisma.systemConfig.findUnique({
       where: { id: 'default' },
     });
-    return config ?? { id: 'default', notificationPreferences: null };
+    return config ?? { id: 'default', notificationPreferences: null, featureFlags: null };
   }
 
-  async updateSystemConfig(data: { notificationPreferences?: Record<string, unknown> }) {
+  async updateSystemConfig(data: {
+    notificationPreferences?: Record<string, unknown>;
+    featureFlags?: Record<string, unknown>;
+  }) {
     return this.prisma.systemConfig.upsert({
       where: { id: 'default' },
       create: {
         id: 'default',
         notificationPreferences: data.notificationPreferences as Prisma.InputJsonValue ?? Prisma.JsonNull,
+        featureFlags: data.featureFlags as Prisma.InputJsonValue ?? Prisma.JsonNull,
       },
       update: {
-        notificationPreferences: data.notificationPreferences as Prisma.InputJsonValue ?? Prisma.JsonNull,
+        ...(data.notificationPreferences !== undefined && {
+          notificationPreferences: data.notificationPreferences as Prisma.InputJsonValue ?? Prisma.JsonNull,
+        }),
+        ...(data.featureFlags !== undefined && {
+          featureFlags: data.featureFlags as Prisma.InputJsonValue ?? Prisma.JsonNull,
+        }),
       },
     });
   }

@@ -31,6 +31,7 @@ import { BugsModule } from './bugs/bugs.module';
 import { StorageModule } from './storage/storage.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { ClaudeModule } from './claude/claude.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { join } from 'path';
         limit: 60,
       },
     ]),
+    ClaudeModule,
     PrismaModule,
     AuthModule,
     UsersModule,

@@ -1,25 +1,33 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AgentsService } from '../agents/agents.service';
 import { AgentsGateway } from '../agents/agents.gateway';
+import { ClaudeService } from '../claude/claude.service';
+
+// Seuil de confiance minimum pour accepter la classification Claude
+const CLAUDE_CONFIDENCE_THRESHOLD = 0.7;
 
 @Injectable()
 export class NlqService {
+    private readonly logger = new Logger(NlqService.name);
+
     constructor(
         private prisma: PrismaService,
         private agentsService: AgentsService,
         private agentsGateway: AgentsGateway,
+        private claudeService: ClaudeService,
     ) { }
 
     /**
-     * Analyse le texte utilisateur pour détecter une intention métier
-     * (MVP: Recherche de mots-clés)
+     * Analyse le texte utilisateur pour détecter une intention métier.
+     * Fallback par scoring de mots-clés — utilisé quand Claude n'est pas disponible
+     * ou n'a pas une confiance suffisante.
      */
-    async detectIntent(text: string) {
+    async detectIntent(text: string, intents?: Awaited<ReturnType<typeof this.prisma.nlqIntent.findMany>>) {
         const normalizedText = text.toLowerCase().trim();
         if (!normalizedText) return null;
 
-        const intents = await this.prisma.nlqIntent.findMany();
+        if (!intents) intents = await this.prisma.nlqIntent.findMany();
 
         // Score de correspondance : clé technique (match exact prioritaire) + mots-clés
         const scoredIntents = intents.map(intent => {
@@ -85,8 +93,25 @@ export class NlqService {
             throw new BadRequestException("Type de Sage non configuré pour cette organisation.");
         }
 
-        // 2. Détection d'intention
-        const intent = await this.detectIntent(text);
+        // 2. Détection d'intention — Claude en priorité, fallback keyword matching
+        const intents = await this.prisma.nlqIntent.findMany();
+        type NlqIntentRow = (typeof intents)[number];
+        let intent: (NlqIntentRow & { score?: number }) | null = null;
+
+        const { intentKey, confidence } = await this.claudeService.classifyNlqIntent(
+            text,
+            intents,
+            org.sageType,
+        );
+
+        if (intentKey && confidence >= CLAUDE_CONFIDENCE_THRESHOLD) {
+            intent = intents.find(i => i.key === intentKey) ?? null;
+            this.logger.log(`Claude classification: "${intentKey}" (confiance: ${confidence.toFixed(2)})`);
+        } else {
+            // Fallback sur keyword matching si Claude n'est pas assez confiant
+            intent = await this.detectIntent(text, intents);
+            this.logger.log(`Fallback keyword matching → intent: ${intent?.key ?? 'none'}`);
+        }
 
         // 3. Création de la session
         const session = await this.prisma.nlqSession.create({

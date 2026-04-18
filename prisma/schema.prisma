@@ -719,6 +719,7 @@ model BillingInvoice {
 model SystemConfig {
   id                      String   @id @default("default")
   notificationPreferences Json?    // { notif: {...}, recipients: [...] }
+  featureFlags            Json?    // { claudeNlq: true, claudeInsights: true }
   updatedAt               DateTime @updatedAt
 
   @@map("system_config")
