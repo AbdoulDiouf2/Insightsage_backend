@@ -61,3 +61,4 @@ docs/security-audit.md
 .claude
 uploads/
 scripts/
+.github/workflows/deploy.client.yml
