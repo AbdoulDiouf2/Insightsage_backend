@@ -215,9 +215,14 @@ export class AdminService {
   }
 
   async updateOrganization(id: string, dto: AdminUpdateOrganizationDto, adminUserId?: string) {
+    const { plan, ...rest } = dto;
+
     const organization = await this.prisma.organization.update({
       where: { id },
-      data: dto,
+      data: {
+        ...rest,
+        ...(plan ? { subscriptionPlan: { connect: { id: plan } } } : {}),
+      },
     });
 
     await this.auditLog.log({
