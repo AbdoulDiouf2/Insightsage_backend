@@ -7,9 +7,10 @@ import { CockpitGateway } from './cockpit.gateway';
 import { AuthModule } from '../auth/auth.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AgentReleasesModule } from './agent-releases/agent-releases.module';
+import { AgentsModule } from '../agents/agents.module';
 
 @Module({
-  imports: [PrismaModule, UsersModule, AuthModule, NotificationsModule, AgentReleasesModule],
+  imports: [PrismaModule, UsersModule, AuthModule, NotificationsModule, AgentReleasesModule, AgentsModule],
   controllers: [AdminController],
   providers: [AdminService, CockpitGateway],
 })

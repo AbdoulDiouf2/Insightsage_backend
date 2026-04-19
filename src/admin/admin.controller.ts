@@ -13,6 +13,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
+import { AgentsService } from '../agents/agents.service';
+import { AgentsGateway } from '../agents/agents.gateway';
 import { CreateClientDto } from './dto/create-client.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { AdminUpdateOrganizationDto } from './dto/update-organization.dto';
@@ -42,7 +44,11 @@ import {
 @RequirePermissions({ action: 'manage', resource: 'all' }) // Only InsightSage developers/superadmins
 @ApiBearerAuth()
 export class AdminController {
-  constructor(private readonly adminService: AdminService) { }
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly agentsService: AgentsService,
+    private readonly agentsGateway: AgentsGateway,
+  ) { }
 
   @Get('dashboard-stats')
   @ApiOperation({ summary: 'Get overall system statistics for dashboard' })
@@ -136,9 +142,21 @@ export class AdminController {
   // --- Audit Logs ---
 
   @Get('audit-logs')
-  @ApiOperation({ summary: 'View system-wide audit logs' })
-  async findAllAuditLogs() {
-    return this.adminService.findAllAuditLogs();
+  @ApiOperation({ summary: 'View system-wide audit logs (cross-org, paginé)' })
+  async findAllAuditLogs(
+    @Query('userId') userId?: string,
+    @Query('event') event?: string,
+    @Query('events') events?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    return this.adminService.findAllAuditLogs({
+      userId, event, events, startDate, endDate,
+      limit: limit ? +limit : undefined,
+      offset: offset ? +offset : undefined,
+    });
   }
 
   @Get('invitations')
@@ -462,6 +480,96 @@ export class AdminController {
     return this.adminService.listAllAgents();
   }
 
+  @Post('agents/generate-token')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Générer un token agent pour une organisation (SuperAdmin)' })
+  async generateAgentToken(
+    @Body() body: { organizationId: string; name?: string },
+    @CurrentUser('id') adminUserId: string,
+  ) {
+    if (!body.organizationId) throw new BadRequestException('organizationId est requis');
+    return this.adminService.generateAgentTokenForOrg(body.organizationId, body.name, adminUserId);
+  }
+
+  @Get('agents/:id')
+  @ApiOperation({ summary: 'Détail d\'un agent (SuperAdmin, toutes organisations)' })
+  @ApiParam({ name: 'id', description: 'ID de l\'agent' })
+  async getAgentById(@Param('id') id: string) {
+    return this.adminService.getAdminAgentById(id);
+  }
+
+  @Get('agents/:id/logs')
+  @ApiOperation({ summary: 'Logs d\'un agent (SuperAdmin)' })
+  @ApiParam({ name: 'id', description: 'ID de l\'agent' })
+  async getAgentLogs(
+    @Param('id') id: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.adminService.getAdminAgentLogs(id, page ? +page : 1, limit ? +limit : 50, search);
+  }
+
+  @Get('agents/:id/jobs')
+  @ApiOperation({ summary: 'Jobs d\'un agent (SuperAdmin)' })
+  @ApiParam({ name: 'id', description: 'ID de l\'agent' })
+  async getAgentJobs(
+    @Param('id') id: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.adminService.getAdminAgentJobs(id, page ? +page : 1, limit ? +limit : 20, status as any, search);
+  }
+
+  @Get('agents/:id/job-stats')
+  @ApiOperation({ summary: 'Statistiques des jobs d\'un agent (SuperAdmin)' })
+  @ApiParam({ name: 'id', description: 'ID de l\'agent' })
+  async getAgentJobStats(@Param('id') id: string) {
+    return this.adminService.getAdminAgentJobStats(id);
+  }
+
+  @Post('agents/:id/revoke')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Révoquer le token d\'un agent (SuperAdmin)' })
+  @ApiParam({ name: 'id', description: 'ID de l\'agent' })
+  async revokeAgentToken(
+    @Param('id') id: string,
+    @CurrentUser('id') adminUserId: string,
+  ) {
+    return this.adminService.revokeAdminAgentToken(id, adminUserId);
+  }
+
+  @Post('agents/:id/regenerate-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Régénérer le token d\'un agent (SuperAdmin)' })
+  @ApiParam({ name: 'id', description: 'ID de l\'agent' })
+  async regenerateAgentToken(
+    @Param('id') id: string,
+    @CurrentUser('id') adminUserId: string,
+  ) {
+    return this.adminService.regenerateAdminAgentToken(id, adminUserId);
+  }
+
+  @Post('agents/:id/test-connection')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Tester la connexion d\'un agent via SELECT 1 (SuperAdmin)' })
+  @ApiParam({ name: 'id', description: 'ID de l\'agent' })
+  async testAgentConnection(
+    @Param('id') id: string,
+    @CurrentUser('id') adminUserId: string,
+  ) {
+    const agent = await this.adminService.getAdminAgentById(id);
+    // Utiliser l'organizationId de l'agent lui-même (cross-org safe)
+    return this.agentsService.executeRealTimeQuery(
+      (agent as any).organizationId,
+      'SELECT 1',
+      this.agentsGateway,
+      adminUserId,
+    );
+  }
+
   @Delete('agents/:id')
   @ApiOperation({ summary: 'Supprimer un agent (SuperAdmin)' })
   @ApiParam({ name: 'id', description: 'ID de l\'agent' })
@@ -470,6 +578,62 @@ export class AdminController {
     @CurrentUser('id') adminUserId: string,
   ) {
     return this.adminService.deleteAgent(id, adminUserId);
+  }
+
+  // ── Audit log par ID ──────────────────────────────────────────────────────────
+
+  @Get('audit-logs/:id')
+  @ApiOperation({ summary: 'Détail d\'un audit log par ID (SuperAdmin)' })
+  @ApiParam({ name: 'id', description: 'ID du log d\'audit' })
+  async getAuditLogById(@Param('id') id: string) {
+    return this.adminService.getAuditLogById(id);
+  }
+
+  // ── Roles (cross-org) ─────────────────────────────────────────────────────────
+
+  @Get('roles')
+  @ApiOperation({ summary: 'Lister tous les rôles toutes organisations confondues (SuperAdmin)' })
+  async listAllRoles() {
+    return this.adminService.listAllRoles();
+  }
+
+  @Get('roles/:id')
+  @ApiOperation({ summary: 'Détail d\'un rôle par ID (SuperAdmin)' })
+  @ApiParam({ name: 'id', description: 'ID du rôle' })
+  async getRoleById(@Param('id') id: string) {
+    return this.adminService.getAdminRoleById(id);
+  }
+
+  @Post('roles')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Créer un rôle pour une organisation (SuperAdmin)' })
+  async createRole(
+    @Body() body: { organizationId: string; name: string; description?: string; permissionIds: string[] },
+    @CurrentUser('id') adminUserId: string,
+  ) {
+    if (!body.organizationId) throw new BadRequestException('organizationId est requis');
+    return this.adminService.createRoleForOrg(body.organizationId, body, adminUserId);
+  }
+
+  @Patch('roles/:id')
+  @ApiOperation({ summary: 'Modifier un rôle (SuperAdmin)' })
+  @ApiParam({ name: 'id', description: 'ID du rôle' })
+  async updateRole(
+    @Param('id') id: string,
+    @Body() dto: { name?: string; description?: string; permissionIds?: string[] },
+    @CurrentUser('id') adminUserId: string,
+  ) {
+    return this.adminService.updateAdminRole(id, dto, adminUserId);
+  }
+
+  @Delete('roles/:id')
+  @ApiOperation({ summary: 'Supprimer un rôle (SuperAdmin)' })
+  @ApiParam({ name: 'id', description: 'ID du rôle' })
+  async deleteRole(
+    @Param('id') id: string,
+    @CurrentUser('id') adminUserId: string,
+  ) {
+    return this.adminService.deleteAdminRole(id, adminUserId);
   }
 
   // ─── Onboarding Overview ──────────────────────────────────────────────────────

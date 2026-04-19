@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, JobStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { AdminUpdateOrganizationDto } from './dto/update-organization.dto';
@@ -422,31 +422,42 @@ export class AdminService {
 
   // --- Audit Logs ---
 
-  async findAllAuditLogs() {
+  async findAllAuditLogs(params?: {
+    userId?: string;
+    event?: string;
+    events?: string;
+    startDate?: string;
+    endDate?: string;
+    limit?: number;
+    offset?: number;
+  }) {
+    const limit = Math.min(params?.limit ?? 100, 500);
+    const offset = params?.offset ?? 0;
+
+    const where: any = {};
+    if (params?.userId)    where.userId    = params.userId;
+    if (params?.event)     where.event     = { contains: params.event, mode: 'insensitive' };
+    if (params?.events)    where.event     = { in: params.events.split(',') };
+    if (params?.startDate) where.createdAt = { ...(where.createdAt ?? {}), gte: new Date(params.startDate) };
+    if (params?.endDate)   where.createdAt = { ...(where.createdAt ?? {}), lte: new Date(params.endDate) };
+
     const [logs, total] = await Promise.all([
       this.prisma.auditLog.findMany({
+        where,
         include: {
-          user: {
-            select: { email: true, firstName: true, lastName: true },
-          },
-          organization: {
-            select: { name: true },
-          },
+          user: { select: { email: true, firstName: true, lastName: true } },
+          organization: { select: { name: true } },
         },
         orderBy: { createdAt: 'desc' },
-        take: 100,
+        take: limit,
+        skip: offset,
       }),
-      this.prisma.auditLog.count(),
+      this.prisma.auditLog.count({ where }),
     ]);
 
     return {
       data: logs,
-      meta: {
-        total,
-        limit: 100,
-        offset: 0,
-        hasMore: total > 100,
-      },
+      meta: { total, limit, offset, hasMore: offset + logs.length < total },
     };
   }
 
@@ -1365,5 +1376,231 @@ export class AdminService {
         }),
       },
     });
+  }
+
+  // ── Admin — Agents (cross-org, pas de filtre organizationId) ─────────────────
+
+  async getAdminAgentById(id: string) {
+    const agent = await this.prisma.agent.findUnique({
+      where: { id },
+      include: { organization: { select: { id: true, name: true } } },
+    });
+    if (!agent) throw new NotFoundException(`Agent introuvable : ${id}`);
+    return {
+      ...agent,
+      tokenPreview: agent.token ? agent.token.slice(0, 15) + '...' : null,
+      token: undefined, // ne jamais exposer le token complet
+    };
+  }
+
+  async getAdminAgentLogs(agentId: string, page = 1, limit = 50, search?: string) {
+    const where: any = { agentId };
+    if (search) where.message = { contains: search, mode: 'insensitive' };
+
+    const [logs, total] = await Promise.all([
+      this.prisma.agentLog.findMany({
+        where,
+        orderBy: { timestamp: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.agentLog.count({ where }),
+    ]);
+
+    return { logs, pagination: { total, page, limit, pages: Math.ceil(total / limit) } };
+  }
+
+  async getAdminAgentJobs(agentId: string, page = 1, limit = 20, status?: JobStatus, search?: string) {
+    const where: any = { agentId };
+    if (status) where.status = status;
+    if (search) where.sql = { contains: search, mode: 'insensitive' };
+
+    const [jobs, total] = await Promise.all([
+      this.prisma.agentJob.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: { user: { select: { firstName: true, lastName: true } } },
+      }),
+      this.prisma.agentJob.count({ where }),
+    ]);
+
+    return { jobs, pagination: { total, page, limit, pages: Math.ceil(total / limit) } };
+  }
+
+  async getAdminAgentJobStats(agentId: string) {
+    const rows = await this.prisma.agentJob.groupBy({
+      by: ['status'],
+      where: { agentId },
+      _count: { status: true },
+    });
+
+    const stats: Record<string, number> = { PENDING: 0, RUNNING: 0, COMPLETED: 0, FAILED: 0 };
+    for (const row of rows) stats[row.status] = row._count.status;
+    return { ...stats, total: Object.values(stats).reduce((a, b) => a + b, 0) };
+  }
+
+  async revokeAdminAgentToken(id: string, adminUserId?: string) {
+    const agent = await this.prisma.agent.findUnique({ where: { id } });
+    if (!agent) throw new NotFoundException('Agent introuvable');
+    if (agent.isRevoked) throw new BadRequestException('Ce token est déjà révoqué');
+
+    const updated = await this.prisma.agent.update({
+      where: { id },
+      data: { isRevoked: true, revokedAt: new Date(), status: 'pending' },
+    });
+
+    await this.auditLog.log({
+      organizationId: agent.organizationId,
+      userId: adminUserId,
+      event: 'agent_token_revoked',
+      payload: { agentId: id, agentName: agent.name, by: 'superadmin' },
+    });
+
+    return { id: updated.id, name: updated.name, isRevoked: true, revokedAt: updated.revokedAt };
+  }
+
+  async regenerateAdminAgentToken(id: string, adminUserId?: string) {
+    const agent = await this.prisma.agent.findUnique({ where: { id } });
+    if (!agent) throw new NotFoundException('Agent introuvable');
+
+    const TOKEN_TTL_DAYS = 30;
+    const newToken = `isag_${crypto.randomBytes(24).toString('hex')}`;
+    const tokenExpiresAt = new Date(Date.now() + TOKEN_TTL_DAYS * 24 * 3600 * 1000);
+
+    const updated = await this.prisma.agent.update({
+      where: { id },
+      data: { token: newToken, status: 'pending', lastSeen: null, tokenExpiresAt, isRevoked: false, revokedAt: null },
+    });
+
+    await this.auditLog.log({
+      organizationId: agent.organizationId,
+      userId: adminUserId,
+      event: 'agent_token_generated',
+      payload: { agentId: id, agentName: agent.name, by: 'superadmin' },
+    });
+
+    return { id: updated.id, token: newToken, tokenExpiresAt, daysUntilExpiry: TOKEN_TTL_DAYS };
+  }
+
+  async generateAgentTokenForOrg(organizationId: string, name: string | undefined, adminUserId?: string) {
+    const TOKEN_TTL_DAYS = 30;
+    const token = `isag_${crypto.randomBytes(24).toString('hex')}`;
+    const tokenExpiresAt = new Date(Date.now() + TOKEN_TTL_DAYS * 24 * 3600 * 1000);
+
+    const existing = await this.prisma.agent.findFirst({ where: { organizationId } });
+
+    let agent;
+    if (existing) {
+      agent = await this.prisma.agent.update({
+        where: { id: existing.id },
+        data: { token, tokenExpiresAt, status: 'pending', isRevoked: false, revokedAt: null, machineId: null },
+      });
+    } else {
+      agent = await this.prisma.agent.create({
+        data: {
+          token,
+          tokenExpiresAt,
+          name: name || 'Agent Principal',
+          status: 'pending',
+          organizationId,
+        },
+      });
+    }
+
+    await this.auditLog.log({
+      organizationId,
+      userId: adminUserId,
+      event: 'agent_token_generated',
+      payload: { agentId: agent.id, agentName: agent.name, by: 'superadmin' },
+    });
+
+    return { id: agent.id, token, name: agent.name, status: agent.status, tokenExpiresAt, daysUntilExpiry: TOKEN_TTL_DAYS };
+  }
+
+  // ── Admin — Audit log par ID ──────────────────────────────────────────────────
+
+  async getAuditLogById(id: string) {
+    const log = await this.prisma.auditLog.findUnique({
+      where: { id },
+      include: {
+        user: { select: { email: true, firstName: true, lastName: true } },
+        organization: { select: { name: true } },
+      },
+    });
+    if (!log) throw new NotFoundException(`Audit log introuvable : ${id}`);
+    return log;
+  }
+
+  // ── Admin — Roles (cross-org) ─────────────────────────────────────────────────
+
+  async listAllRoles() {
+    return this.prisma.role.findMany({
+      orderBy: [{ isSystem: 'desc' }, { name: 'asc' }],
+      include: {
+        permissions: { include: { permission: true } },
+        organization: { select: { id: true, name: true } },
+      },
+    });
+  }
+
+  async getAdminRoleById(id: string) {
+    const role = await this.prisma.role.findUnique({
+      where: { id },
+      include: {
+        permissions: { include: { permission: true } },
+        organization: { select: { id: true, name: true } },
+      },
+    });
+    if (!role) throw new NotFoundException(`Rôle introuvable : ${id}`);
+    return role;
+  }
+
+  async createRoleForOrg(organizationId: string, dto: { name: string; description?: string; permissionIds: string[] }, adminUserId?: string) {
+    const existing = await this.prisma.role.findFirst({ where: { name: dto.name, organizationId } });
+    if (existing) throw new BadRequestException(`Un rôle nommé "${dto.name}" existe déjà pour cette organisation`);
+
+    return this.prisma.role.create({
+      data: {
+        name: dto.name,
+        description: dto.description,
+        isSystem: false,
+        organizationId,
+        permissions: {
+          create: (dto.permissionIds || []).map(permissionId => ({ permissionId })),
+        },
+      },
+      include: { permissions: { include: { permission: true } } },
+    });
+  }
+
+  async updateAdminRole(id: string, dto: { name?: string; description?: string; permissionIds?: string[] }, adminUserId?: string) {
+    const role = await this.prisma.role.findUnique({ where: { id } });
+    if (!role) throw new NotFoundException(`Rôle introuvable : ${id}`);
+    if (role.isSystem) throw new BadRequestException('Les rôles système ne peuvent pas être modifiés');
+
+    return this.prisma.role.update({
+      where: { id },
+      data: {
+        ...(dto.name && { name: dto.name }),
+        ...(dto.description !== undefined && { description: dto.description }),
+        ...(dto.permissionIds && {
+          permissions: {
+            deleteMany: {},
+            create: dto.permissionIds.map(permissionId => ({ permissionId })),
+          },
+        }),
+      },
+      include: { permissions: { include: { permission: true } } },
+    });
+  }
+
+  async deleteAdminRole(id: string, adminUserId?: string) {
+    const role = await this.prisma.role.findUnique({ where: { id } });
+    if (!role) throw new NotFoundException(`Rôle introuvable : ${id}`);
+    if (role.isSystem) throw new BadRequestException('Les rôles système ne peuvent pas être supprimés');
+
+    return this.prisma.role.delete({ where: { id } });
   }
 }
