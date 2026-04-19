@@ -172,6 +172,7 @@ nav:
     - Design System: frontend/design-system.md
     - Gestion d'état: frontend/state-management.md
     - Pages & Navigation: frontend/pages.md
+    - Routes SuperAdmin cross-org: frontend/superadmin-routes.md
   - L'Agent (Pont Sécurisé):
     - Vue d'ensemble: agent/overview.md
     - Guide d'installation: agent/installation.md
