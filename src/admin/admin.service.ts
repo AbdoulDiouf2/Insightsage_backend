@@ -1583,7 +1583,11 @@ export class AdminService {
   async updateAdminRole(id: string, dto: { name?: string; description?: string; permissionIds?: string[] }, adminUserId?: string) {
     const role = await this.prisma.role.findUnique({ where: { id } });
     if (!role) throw new NotFoundException(`Rôle introuvable : ${id}`);
-    if (role.isSystem) throw new BadRequestException('Les rôles système ne peuvent pas être modifiés');
+    // Les rôles système peuvent avoir leurs permissions mises à jour par un SuperAdmin,
+    // mais leur nom et description sont figés (référencés dans le code).
+    if (role.isSystem && (dto.name || dto.description !== undefined)) {
+      throw new BadRequestException('Le nom et la description des rôles système ne peuvent pas être modifiés');
+    }
 
     return this.prisma.role.update({
       where: { id },
