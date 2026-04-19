@@ -184,8 +184,10 @@ export class AgentsController {
     }
 
     // Trigger real-time SELECT 1
+    // Pour le superadmin, organizationId est undefined → fallback sur l'org de l'agent
+    const effectiveOrgId = organizationId ?? agent.organizationId;
     return this.agentsService.executeRealTimeQuery(
-      organizationId,
+      effectiveOrgId,
       'SELECT 1',
       this.agentsGateway,
       userId,

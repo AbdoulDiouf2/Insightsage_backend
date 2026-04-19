@@ -756,6 +756,12 @@ export class AgentsService implements OnModuleInit {
     gateway: any, // On passe la gateway pour éviter les cycles d'injection si nécessaire
     userId?: string,
   ) {
+    if (!organizationId) {
+      throw new BadRequestException(
+        "L'identifiant d'organisation est requis pour exécuter une requête en temps réel.",
+      );
+    }
+
     // 0. Injection dynamique de la configuration (Scoping par Dossier/Société)
     const org = await this.prisma.organization.findUnique({
       where: { id: organizationId },
