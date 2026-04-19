@@ -15,6 +15,9 @@ import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 export const OrganizationId = createParamDecorator(
   (data: unknown, ctx: ExecutionContext): string | undefined => {
     const request = ctx.switchToHttp().getRequest();
+    // Les superadmins contournent l'isolation multi-tenant.
+    // Ne jamais retourner leur organizationId personnel pour les checks d'appartenance.
+    if (request.isSuperAdminAccess) return undefined;
     return request.organizationId || request.user?.organizationId;
   },
 );
