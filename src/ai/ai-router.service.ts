@@ -78,6 +78,51 @@ export class AiRouterService {
   }
 
   /**
+   * Génère un insight KPI via le moteur IA configuré (Claude ou LLM local).
+   * Respecte le flag claudeInsights — retourne '' si désactivé ou si provider = none.
+   */
+  async generateKpiInsight(
+    kpiName: string,
+    data: unknown,
+    unit: string,
+    orgContext: { sector?: string; size?: string },
+  ): Promise<string> {
+    const config = await this.getAiConfig();
+
+    if (!config.claudeInsights) {
+      this.logger.log('Insights désactivés via feature flags');
+      return '';
+    }
+
+    const provider: NlqProvider = config.nlqProvider ?? 'claude';
+
+    if (provider === 'claude') {
+      this.logger.log('Insights : moteur Claude');
+      return this.claudeService.generateKpiInsight(kpiName, data, unit, orgContext);
+    }
+
+    if (provider === 'local') {
+      const { localLlmUrl, localLlmModel } = config;
+      if (!localLlmUrl || !localLlmModel) {
+        this.logger.warn('Insights : LLM local non configuré (URL ou modèle manquant) — insight ignoré');
+        return '';
+      }
+      try {
+        this.logger.log(`Insights : LLM local (${localLlmModel} @ ${localLlmUrl})`);
+        return await this.localLlmService.generateKpiInsight(
+          kpiName, data, unit, orgContext, localLlmUrl, localLlmModel,
+        );
+      } catch (err) {
+        this.logger.warn(`Insights : LLM local indisponible (${err.message}) — insight ignoré`);
+        return '';
+      }
+    }
+
+    // provider === 'none'
+    return '';
+  }
+
+  /**
    * Liste les modèles disponibles sur un serveur LLM local.
    * Utilisé par l'endpoint admin pour peupler le dropdown.
    */

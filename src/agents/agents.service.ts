@@ -23,7 +23,7 @@ import { LicenseGuardianService } from '../subscriptions/license-guardian.servic
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { REDIS_CLIENT } from '../redis/redis.module';
 import type { RedisClientType } from 'redis';
-import { ClaudeService } from '../claude/claude.service';
+import { AiRouterService } from '../ai/ai-router.service';
 
 // Durée de vie d'un token : 30 jours (Section 2.4)
 const TOKEN_TTL_DAYS = 30;
@@ -46,7 +46,7 @@ export class AgentsService implements OnModuleInit {
     private sqlSecurity: SqlSecurityService,
     private licenseGuardian: LicenseGuardianService,
     private eventEmitter: EventEmitter2,
-    private claudeService: ClaudeService,
+    private aiRouter: AiRouterService,
     @Inject(REDIS_CLIENT) private redis: RedisClientType,
   ) { }
 
@@ -704,8 +704,8 @@ export class AgentsService implements OnModuleInit {
   }
 
   /**
-   * Génère un insight CFO via Claude pour un job complété,
-   * le persiste sur AgentJob et l'émet via EventEmitter vers CockpitGateway.
+   * Génère un insight CFO via le moteur IA configuré (Claude ou LLM local)
+   * pour un job complété, le persiste sur AgentJob et l'émet via EventEmitter.
    */
   private async generateAndStoreInsight(
     jobId: string,
@@ -724,7 +724,7 @@ export class AgentsService implements OnModuleInit {
     ]);
 
     const kpiName = (session as any)?.intent?.label ?? 'KPI';
-    const insight = await this.claudeService.generateKpiInsight(
+    const insight = await this.aiRouter.generateKpiInsight(
       kpiName,
       result,
       '',

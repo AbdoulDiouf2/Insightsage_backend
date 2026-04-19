@@ -24,6 +24,48 @@ export class LocalLlmService {
   }
 
   /**
+   * Génère un insight CFO via un LLM local (API OpenAI-compatible).
+   * Même interface que ClaudeService.generateKpiInsight().
+   */
+  async generateKpiInsight(
+    kpiName: string,
+    data: unknown,
+    unit: string,
+    orgContext: { sector?: string; size?: string },
+    baseUrl: string,
+    model: string,
+  ): Promise<string> {
+    const prompt = `Tu es analyste financier senior. Génère un commentaire court (2 à 3 phrases maximum) en français pour ce KPI, depuis la perspective d'un Directeur Administratif et Financier.
+
+KPI : ${kpiName}${unit ? ` (${unit})` : ''}
+Données : ${JSON.stringify(data)}
+${orgContext.sector ? `Secteur : ${orgContext.sector}` : ''}
+${orgContext.size ? `Taille entreprise : ${orgContext.size}` : ''}
+
+Sois précis, actionnable et professionnel. Pas de bullet points. Pas de titre.`;
+
+    const url = `${baseUrl.replace(/\/$/, '')}/v1/chat/completions`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.4,
+        stream: false,
+      }),
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erreur LLM local : ${response.status}`);
+    }
+
+    const data2 = await response.json();
+    return (data2.choices?.[0]?.message?.content ?? '').trim();
+  }
+
+  /**
    * Classifie une intention NLQ via un LLM local (API OpenAI-compatible).
    * Même interface de retour que ClaudeService.classifyNlqIntent().
    */
