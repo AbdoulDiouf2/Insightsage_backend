@@ -477,7 +477,11 @@ export class AdminController {
   @Get('agents')
   @ApiOperation({ summary: 'Lister tous les agents (SuperAdmin, toutes organisations)' })
   async listAllAgents() {
-    return this.adminService.listAllAgents();
+    const agents = await this.adminService.listAllAgents();
+    return agents.map(agent => ({
+      ...agent,
+      isSocketConnected: this.agentsService.isAgentConnected(agent.organizationId),
+    }));
   }
 
   @Post('agents/generate-token')
@@ -495,7 +499,11 @@ export class AdminController {
   @ApiOperation({ summary: 'Détail d\'un agent (SuperAdmin, toutes organisations)' })
   @ApiParam({ name: 'id', description: 'ID de l\'agent' })
   async getAgentById(@Param('id') id: string) {
-    return this.adminService.getAdminAgentById(id);
+    const agent = await this.adminService.getAdminAgentById(id);
+    return {
+      ...agent,
+      isSocketConnected: this.agentsService.isAgentConnected((agent as any).organizationId),
+    };
   }
 
   @Get('agents/:id/logs')
