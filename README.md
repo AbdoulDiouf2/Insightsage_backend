@@ -77,11 +77,22 @@ src/
 ├── nlq/            # Natural Language Querying → SQL sécurisé
 ├── subscriptions/  # Plans Startup / PME / Business / Enterprise
 ├── admin/          # SuperAdmin — CRUD clients, users, plans, NLQ Store, SystemConfig
+│                   #   Routes cross-org (bypass tenant) : agents, roles, audit-logs
 ├── health/         # Endpoint de disponibilité
 └── prisma/         # PrismaService singleton
 ```
 
 Guards globaux : `JwtAuthGuard` → `TenantGuard` (isolation multi-tenant stricte par `organizationId`).
+
+### Routes superadmin cross-org (`/admin/`)
+
+Les routes préfixées `/admin/` opèrent **sans filtre `organizationId`** — elles permettent au superadmin de gérer toutes les ressources indépendamment du tenant. Les routes non-admin restent inchangées et continuent d'appliquer l'isolation.
+
+| Groupe | Nouvelles routes admin |
+|--------|----------------------|
+| **Agents** | `GET /admin/agents/:id` · `/logs` · `/jobs` · `/job-stats` · `POST /admin/agents/generate-token` · `/revoke` · `/regenerate-token` · `/test-connection` |
+| **Rôles** | `GET/POST /admin/roles` · `GET/PATCH/DELETE /admin/roles/:id` |
+| **Audit** | `GET /admin/audit-logs` (avec pagination) · `GET /admin/audit-logs/:id` |
 
 ---
 
