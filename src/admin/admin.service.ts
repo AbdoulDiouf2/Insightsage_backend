@@ -1070,6 +1070,15 @@ export class AdminService {
     return session;
   }
 
+  async listAllAgents() {
+    return this.prisma.agent.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        organization: { select: { id: true, name: true } },
+      },
+    });
+  }
+
   async deleteAgent(id: string, adminUserId?: string) {
     const agent = await this.prisma.agent.findUnique({
       where: { id },

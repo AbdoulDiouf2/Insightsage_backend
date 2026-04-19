@@ -456,6 +456,12 @@ export class AdminController {
     return this.adminService.deleteDashboard(id, adminUserId);
   }
 
+  @Get('agents')
+  @ApiOperation({ summary: 'Lister tous les agents (SuperAdmin, toutes organisations)' })
+  async listAllAgents() {
+    return this.adminService.listAllAgents();
+  }
+
   @Delete('agents/:id')
   @ApiOperation({ summary: 'Supprimer un agent (SuperAdmin)' })
   @ApiParam({ name: 'id', description: 'ID de l\'agent' })

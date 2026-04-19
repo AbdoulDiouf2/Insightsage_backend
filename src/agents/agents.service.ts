@@ -195,6 +195,43 @@ export class AgentsService implements OnModuleInit {
     const token = this.generateToken();
     const tokenExpiresAt = this.getTokenExpiresAt();
 
+    // Si un agent existe déjà et force=true : on rotate son token (pas de création en double)
+    if (existingAgent && dto.force) {
+      const agent = await this.prisma.agent.update({
+        where: { id: existingAgent.id },
+        data: {
+          token,
+          tokenExpiresAt,
+          status: 'pending',
+          isRevoked: false,
+          revokedAt: null,
+          machineId: null,
+        },
+      });
+
+      await this.auditLog.log({
+        organizationId,
+        userId,
+        event: 'agent_token_generated',
+        payload: { agentId: agent.id, agentName: agent.name, rotated: true },
+      });
+
+      return {
+        id: agent.id,
+        token: agent.token,
+        name: agent.name,
+        status: agent.status,
+        tokenExpiresAt: agent.tokenExpiresAt,
+        daysUntilExpiry: TOKEN_TTL_DAYS,
+        message: "Token régénéré. L'ancien token est maintenant invalide.",
+        instructions: {
+          step1: 'Copiez le token ci-dessus',
+          step2: "Collez-le dans la configuration de l'agent",
+          step3: "Redémarrez l'agent",
+        },
+      };
+    }
+
     const agent = await this.prisma.agent.create({
       data: {
         token,
