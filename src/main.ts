@@ -182,10 +182,15 @@ async function bootstrap() {
   const allowedOrigins = [
     configService.get<string>('FRONTEND_URL') || 'http://localhost:3001',
     configService.get<string>('ADMIN_URL') || 'http://localhost:5173',
-    'http://localhost:5173', // Admin Frontend
-    'http://localhost:5174', // Admin Frontend (fallback)
-    'http://localhost:5175', // Admin Frontend (fallback)
-    'http://localhost:3000', // Swagger/Backend itself
+    // Production URLs (toujours autorisées même si les vars d'env sont absentes)
+    'https://cockpit.nafakatech.com',
+    'https://admin.cockpit.nafakatech.com',
+    // Dev localhost
+    'http://localhost:3001',
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:5175',
+    'http://localhost:3000',
   ];
 
   app.enableCors({
