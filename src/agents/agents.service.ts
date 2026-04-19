@@ -274,7 +274,7 @@ export class AgentsService implements OnModuleInit {
     if (!agent) {
       throw new NotFoundException('Agent introuvable');
     }
-    if (agent.organizationId !== organizationId) {
+    if (organizationId && agent.organizationId !== organizationId) {
       throw new ForbiddenException('Accès refusé à cet agent');
     }
     if (agent.isRevoked) {
@@ -316,7 +316,7 @@ export class AgentsService implements OnModuleInit {
     if (!agent) {
       throw new NotFoundException('Agent introuvable');
     }
-    if (agent.organizationId !== organizationId) {
+    if (organizationId && agent.organizationId !== organizationId) {
       throw new ForbiddenException('Accès refusé');
     }
 
@@ -1130,7 +1130,7 @@ export class AgentsService implements OnModuleInit {
   async sendCommand(agentId: string, organizationId: string, command: string) {
     const agent = await this.prisma.agent.findUnique({ where: { id: agentId } });
     if (!agent) throw new NotFoundException('Agent introuvable');
-    if (agent.organizationId !== organizationId) throw new ForbiddenException('Accès refusé');
+    if (organizationId && agent.organizationId !== organizationId) throw new ForbiddenException('Accès refusé');
 
     await this.prisma.agent.update({
       where: { id: agentId },
@@ -1146,7 +1146,7 @@ export class AgentsService implements OnModuleInit {
   async getAgentSyncBatches(agentId: string, organizationId: string) {
     const agent = await this.prisma.agent.findUnique({ where: { id: agentId } });
     if (!agent) throw new NotFoundException('Agent introuvable');
-    if (agent.organizationId !== organizationId) throw new ForbiddenException('Accès refusé');
+    if (organizationId && agent.organizationId !== organizationId) throw new ForbiddenException('Accès refusé');
 
     const batches = await this.prisma.agentSyncBatch.findMany({
       where: { agentId, organizationId },

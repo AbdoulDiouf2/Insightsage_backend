@@ -118,7 +118,7 @@ export class AgentsController {
     const agent = await this.agentsService.getAgentById(id);
 
     // Ensure tenant isolation
-    if (agent.organizationId !== organizationId) {
+    if (organizationId && agent.organizationId !== organizationId) {
       throw new ForbiddenException('Access denied to this agent');
     }
 
@@ -179,7 +179,7 @@ export class AgentsController {
     @CurrentUser('id') userId: string,
   ) {
     const agent = await this.agentsService.getAgentById(id);
-    if (agent.organizationId !== organizationId) {
+    if (organizationId && agent.organizationId !== organizationId) {
       throw new ForbiddenException('Access denied to this agent');
     }
 
