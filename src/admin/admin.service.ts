@@ -1080,10 +1080,10 @@ export class AdminService {
       throw new NotFoundException(`Agent introuvable : ${id}`);
     }
 
-    // On supprime d'abord les jobs associés car le onDelete: Cascade n'est pas présent dans le schema pour AgentJob
-    await this.prisma.agentJob.deleteMany({
-      where: { agentId: id },
-    });
+    // Suppression des tables liées sans onDelete: Cascade
+    await this.prisma.agentSyncBatch.deleteMany({ where: { agentId: id } });
+    await this.prisma.agentViewSnapshot.deleteMany({ where: { agentId: id } });
+    await this.prisma.agentJob.deleteMany({ where: { agentId: id } });
 
     const deleted = await this.prisma.agent.delete({
       where: { id },
