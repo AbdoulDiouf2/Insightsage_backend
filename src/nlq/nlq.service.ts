@@ -2,10 +2,10 @@ import { Injectable, Logger, NotFoundException, BadRequestException } from '@nes
 import { PrismaService } from '../prisma/prisma.service';
 import { AgentsService } from '../agents/agents.service';
 import { AgentsGateway } from '../agents/agents.gateway';
-import { ClaudeService } from '../claude/claude.service';
+import { AiRouterService } from '../ai/ai-router.service';
 
-// Seuil de confiance minimum pour accepter la classification Claude
-const CLAUDE_CONFIDENCE_THRESHOLD = 0.7;
+// Seuil de confiance minimum pour accepter la classification IA
+const AI_CONFIDENCE_THRESHOLD = 0.7;
 
 @Injectable()
 export class NlqService {
@@ -15,7 +15,7 @@ export class NlqService {
         private prisma: PrismaService,
         private agentsService: AgentsService,
         private agentsGateway: AgentsGateway,
-        private claudeService: ClaudeService,
+        private aiRouter: AiRouterService,
     ) { }
 
     /**
@@ -98,17 +98,17 @@ export class NlqService {
         type NlqIntentRow = (typeof intents)[number];
         let intent: (NlqIntentRow & { score?: number }) | null = null;
 
-        const { intentKey, confidence } = await this.claudeService.classifyNlqIntent(
+        const { intentKey, confidence } = await this.aiRouter.classifyNlqIntent(
             text,
             intents,
             org.sageType,
         );
 
-        if (intentKey && confidence >= CLAUDE_CONFIDENCE_THRESHOLD) {
+        if (intentKey && confidence >= AI_CONFIDENCE_THRESHOLD) {
             intent = intents.find(i => i.key === intentKey) ?? null;
-            this.logger.log(`Claude classification: "${intentKey}" (confiance: ${confidence.toFixed(2)})`);
+            this.logger.log(`IA classification: "${intentKey}" (confiance: ${confidence.toFixed(2)})`);
         } else {
-            // Fallback sur keyword matching si Claude n'est pas assez confiant
+            // Fallback sur keyword matching si l'IA n'est pas assez confiante ou désactivée
             intent = await this.detectIntent(text, intents);
             this.logger.log(`Fallback keyword matching → intent: ${intent?.key ?? 'none'}`);
         }

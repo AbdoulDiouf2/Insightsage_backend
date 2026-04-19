@@ -20,6 +20,7 @@ import { AuditLogService } from '../logs/audit-log.service';
 import { MailerService } from '../mailer/mailer.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { AiRouterService } from '../ai/ai-router.service';
 
 @Injectable()
 export class AdminService {
@@ -28,6 +29,7 @@ export class AdminService {
     private auditLog: AuditLogService,
     private mailer: MailerService,
     private notifications: NotificationsService,
+    private aiRouter: AiRouterService,
   ) { }
 
   async createClientAccount(dto: CreateClientDto) {
@@ -1327,6 +1329,11 @@ export class AdminService {
       where: { id: 'default' },
     });
     return config ?? { id: 'default', notificationPreferences: null, featureFlags: null };
+  }
+
+  async getLocalLlmModels(url: string): Promise<{ models: string[] }> {
+    const models = await this.aiRouter.listLocalModels(url);
+    return { models };
   }
 
   async updateSystemConfig(data: {

@@ -59,12 +59,6 @@ export class ClaudeService {
       return { intentKey: null, confidence: 0, extractedEntities: {} };
     }
 
-    const enabled = await this.isFeatureEnabled('claudeNlq');
-    if (!enabled) {
-      this.logger.log('Claude NLQ désactivé via feature flags — fallback keyword matching');
-      return { intentKey: null, confidence: 0, extractedEntities: {} };
-    }
-
     const intentList = intents
       .map(i => `- ${i.key}: ${i.label}. ${i.description}. Mots-clés: ${i.keywords.join(', ')}`)
       .join('\n');

@@ -9,6 +9,8 @@ import {
   Patch,
   Delete,
   Param,
+  Query,
+  BadRequestException,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { CreateClientDto } from './dto/create-client.dto';
@@ -502,5 +504,14 @@ export class AdminController {
   @ApiOperation({ summary: 'Mettre à jour la configuration système globale' })
   async updateSystemConfig(@Body() body: Record<string, unknown>) {
     return this.adminService.updateSystemConfig(body as any);
+  }
+
+  // ── IA — modèles LLM local ───────────────────────────────────────────────────
+
+  @Get('ai/local-models')
+  @ApiOperation({ summary: 'Liste les modèles disponibles sur un serveur LLM local' })
+  async getLocalLlmModels(@Query('url') url: string) {
+    if (!url) throw new BadRequestException('Le paramètre "url" est requis');
+    return this.adminService.getLocalLlmModels(url);
   }
 }
