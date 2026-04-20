@@ -37,6 +37,9 @@ export class OnboardingService {
 
   // Cree le statut d onboarding si inexistant pour l organisation
   async getOrCreateStatus(organizationId: string) {
+    if (!organizationId) {
+      throw new BadRequestException('organizationId manquant.');
+    }
     const existing = await this.prisma.onboardingStatus.findUnique({
       where: { organizationId },
     });

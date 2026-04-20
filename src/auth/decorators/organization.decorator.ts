@@ -15,9 +15,8 @@ import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 export const OrganizationId = createParamDecorator(
   (data: unknown, ctx: ExecutionContext): string | undefined => {
     const request = ctx.switchToHttp().getRequest();
-    // Les superadmins contournent l'isolation multi-tenant.
-    // Ne jamais retourner leur organizationId personnel pour les checks d'appartenance.
-    if (request.isSuperAdminAccess) return undefined;
+    // Pour les routes tenant-scoped, on retourne toujours l'organizationId de l'utilisateur.
+    // Les routes cross-tenant admin utilisent des params URL (:organizationId), pas ce décorateur.
     return request.organizationId || request.user?.organizationId;
   },
 );

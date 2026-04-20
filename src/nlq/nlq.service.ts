@@ -83,6 +83,10 @@ export class NlqService {
     async processQuery(organizationId: string, userId: string, text: string) {
         const startTime = Date.now();
 
+        if (!organizationId) {
+            throw new BadRequestException('organizationId manquant.');
+        }
+
         // 1. Récupération des infos organisation (sageType)
         const org = await this.prisma.organization.findUnique({
             where: { id: organizationId },
