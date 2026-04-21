@@ -129,6 +129,14 @@ export class AuthController {
     return this.authService.resetPassword(dto);
   }
 
+  @Public()
+  @SkipThrottle()
+  @Get('verify-reset-token')
+  @ApiOperation({ summary: 'Verify password reset token validity' })
+  async verifyResetToken(@Query('token') token: string) {
+    return this.authService.verifyResetToken(token);
+  }
+
   @Post('change-password')
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)

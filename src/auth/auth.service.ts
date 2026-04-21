@@ -347,6 +347,22 @@ export class AuthService {
     return { message: 'Password reset successfully' };
   }
 
+  async verifyResetToken(token: string) {
+    const tokenHash = this.hashToken(token);
+    const user = await this.prisma.user.findFirst({
+      where: {
+        resetPasswordToken: tokenHash,
+        resetPasswordExpires: { gt: new Date() },
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+
+    return { valid: true };
+  }
+
   async changePassword(userId: string, dto: ChangePasswordDto) {
     const user = await this.usersService.findById(userId);
     if (!user) throw new UnauthorizedException('Utilisateur introuvable.');
