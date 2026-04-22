@@ -1244,7 +1244,7 @@
       "G_SECTION",
       "G_AXE"
     ],
-    "sqlSage100": "SELECT Code_Axe, Libelle_Analytique, SUM(Debit) AS Total_Debit, SUM(Credit) AS Total_Credit, SUM(Montant) AS Solde FROM VW_ANALYTIQUE GROUP BY Code_Axe, Libelle_Analytique ORDER BY Code_Axe",
+    "sqlSage100": "SELECT code_axe, libelle_analytique, SUM(debit) AS total_debit, SUM(credit) AS total_credit, SUM(montant) AS solde FROM VW_ANALYTIQUE GROUP BY code_axe, libelle_analytique ORDER BY code_axe",
     "mlUsage": "Features pour modèles de performance par segment/territoire."
   },
   {
@@ -1316,7 +1316,7 @@
       "G_SECTION",
       "F_COMPTE"
     ],
-    "sqlSage100": "SELECT Code_Axe, Libelle_Analytique, Compte_General, Libelle_Compte, SUM(Debit) AS Charges FROM VW_ANALYTIQUE WHERE Categorie_BI='Charges' GROUP BY Code_Axe, Libelle_Analytique, Compte_General, Libelle_Compte ORDER BY Code_Axe",
+    "sqlSage100": "SELECT code_axe, libelle_analytique, compte_general, libelle_compte, SUM(debit) AS charges FROM VW_ANALYTIQUE WHERE categorie_bi='Charges' GROUP BY code_axe, libelle_analytique, compte_general, libelle_compte ORDER BY code_axe",
     "mlUsage": "Features pour modèles de prévision budgétaire."
   },
   {
@@ -1352,7 +1352,7 @@
       "G_ECRITUREC",
       "G_SECTION"
     ],
-    "sqlSage100": "SELECT Code_Axe, Libelle_Analytique, Annee, Mois, SUM(Debit) AS Total_Charges, SUM(Credit) AS Total_Produits, SUM(Montant) AS Solde_Net FROM VW_ANALYTIQUE GROUP BY Code_Axe, Libelle_Analytique, Annee, Mois ORDER BY Annee, Mois",
+    "sqlSage100": "SELECT code_axe, libelle_analytique, annee, mois, SUM(debit) AS total_charges, SUM(credit) AS total_produits, SUM(montant) AS solde_net FROM VW_ANALYTIQUE GROUP BY code_axe, libelle_analytique, annee, mois ORDER BY annee, mois",
     "mlUsage": "Feature pour modèles de reprévision automatique (forecasting adaptatif)."
   },
   {
@@ -1493,11 +1493,11 @@
       "autoencoder",
       "contrôle interne ML"
     ],
-    "sqlSage100View": "VW_GRAND_LIVRE_GENERAL",
+    "sqlSage100View": "VW_AUDIT",
     "sqlSage100Tables": [
-      "G_ECRITUREC"
+      "VW_AUDIT"
     ],
-    "sqlSage100": "-- Isolation Forest / Autoencoder sur distribution historique des écritures par compte FROM VW_GRAND_LIVRE_GENERAL",
+    "sqlSage100": "SELECT ec_no, ec_date, ec_piece, cg_num, ct_num, ct_intitule, ec_montant, anomaly_score FROM VW_AUDIT WHERE anomaly_score > 0.8",
     "mlUsage": "Anomaly Detection non supervisé. Features: montant, compte, journal, utilisateur, heure."
   },
   {
@@ -3543,7 +3543,7 @@
       "G_SECTION",
       "G_AXE"
     ],
-    "sqlSage100": "SELECT GA_No, GA_Intitule, GS_No, GS_Intitule, SUM(EA_Montant) FROM VW_ANALYTIQUE WHERE EA_Type=2 GROUP BY GA_No, GA_Intitule, GS_No, GS_Intitule",
+    "sqlSage100": "SELECT code_axe, libelle_analytique, SUM(montant) FROM VW_ANALYTIQUE WHERE categorie_bi='Produits' GROUP BY code_axe, libelle_analytique",
     "mlUsage": "Features pour modèles de performance par segment/territoire."
   },
   {
@@ -3578,7 +3578,7 @@
       "G_SECTION",
       "F_COMPTE"
     ],
-    "sqlSage100": "SELECT GS_No, LEFT(CP_Num,2) AS Classe, SUM(EA_Montant) FROM VW_ANALYTIQUE WHERE EC_Sens='D' AND CP_Classe='6' GROUP BY GS_No, LEFT(CP_Num,2)",
+    "sqlSage100": "SELECT code_axe, LEFT(compte_general,2) AS classe, SUM(montant) FROM VW_ANALYTIQUE WHERE sens_code='D' GROUP BY code_axe, LEFT(compte_general,2)",
     "mlUsage": "Feature prévision budgétaire par BU. Modèles d'allocation de coûts."
   },
   {
@@ -3613,7 +3613,7 @@
       "G_ECRITUREC",
       "G_SECTION"
     ],
-    "sqlSage100": "SELECT GS_No, GS_Intitule, SUM(Produits_Section) - SUM(Charges_Section) AS Resultat FROM VW_ANALYTIQUE GROUP BY GS_No, GS_Intitule",
+    "sqlSage100": "SELECT code_axe, libelle_analytique, SUM(ca_par_axe) - SUM(charges_par_axe) AS resultat FROM VW_ANALYTIQUE GROUP BY code_axe, libelle_analytique",
     "mlUsage": "Feature pour modèles de performance par BU et décisions d'investissement."
   },
   {
@@ -3647,7 +3647,7 @@
       "G_ECRITUREC",
       "G_SECTION"
     ],
-    "sqlSage100": "SELECT GS_No, Mois, (Realise - Budget) AS Ecart, ((Realise - Budget)/NULLIF(Budget,0)*100) AS Taux_Ecart FROM VW_ANALYTIQUE GROUP BY GS_No, Mois",
+    "sqlSage100": "SELECT code_axe, mois, (montant - budget) AS ecart, ((montant - budget)/NULLIF(budget,0)*100) AS taux_ecart FROM VW_ANALYTIQUE GROUP BY code_axe, mois",
     "mlUsage": "Feature reprévision automatique. Modèle forecasting adaptatif."
   },
   {
@@ -3685,7 +3685,7 @@
       "G_SECTION",
       "F_COMPTET"
     ],
-    "sqlSage100": "SELECT GS_Intitule AS Commercial, SUM(EA_Montant) FROM VW_ANALYTIQUE WHERE GA_Intitule LIKE '%Commercial%' GROUP BY GS_Intitule",
+    "sqlSage100": "SELECT libelle_analytique AS commercial, SUM(montant) FROM VW_ANALYTIQUE WHERE libelle_journal LIKE '%Commercial%' GROUP BY libelle_analytique",
     "mlUsage": "Feature ranking et scoring commercial. Prédiction de performance par commercial."
   },
   {
@@ -3721,7 +3721,7 @@
       "G_SECTION",
       "F_COMPTET"
     ],
-    "sqlSage100": "SELECT Region, SUM(EA_Montant) FROM VW_ANALYTIQUE GROUP BY Region",
+    "sqlSage100": "SELECT ca_par_region, SUM(montant) FROM VW_ANALYTIQUE GROUP BY ca_par_region",
     "mlUsage": "Feature pour modèles de prévision par territoire et optimisation de la couverture commerciale."
   },
   {
@@ -3757,7 +3757,7 @@
       "F_DOCCLIENT",
       "F_DOCLIGNE"
     ],
-    "sqlSage100": "SELECT Periode, (COUNT(CASE WHEN Sens_Commercial='V' AND Statut_Code='BL' THEN 1 END) * 100.0 / NULLIF(COUNT(CASE WHEN Sens_Commercial='V' AND Statut_Code='BC' THEN 1 END),0)) AS Taux_Transformation FROM VW_COMMANDES GROUP BY Periode ORDER BY Periode",
+    "sqlSage100": "SELECT periode, AVG(taux_transformation_devis_commande) AS taux_transformation FROM VW_COMMANDES GROUP BY periode ORDER BY periode",
     "mlUsage": "Feature pour modèles de prévision de CA pipelines et scoring d'opportunités."
   },
   {
@@ -3793,7 +3793,7 @@
       "F_DOCCLIENT",
       "F_DOCLIGNE"
     ],
-    "sqlSage100": "SELECT SUM(Total_HT) AS Backlog_Commandes FROM VW_COMMANDES WHERE Sens_Commercial='V' AND Statut_Code NOT IN ('BL','FA','AV')",
+    "sqlSage100": "SELECT SUM(backlog) AS backlog_commandes FROM VW_COMMANDES",
     "mlUsage": "Feature pour prévision du CA à court terme (1-3 mois). Input modèle de charge."
   },
   {
@@ -3829,7 +3829,7 @@
       "F_DOCCLIENT",
       "F_DOCLIGNE"
     ],
-    "sqlSage100": "SELECT AVG(Age_Jours) AS Delai_Moyen_Livraison FROM VW_COMMANDES WHERE Date_Livraison_Prevue IS NOT NULL AND Statut_Code IN ('BL','FA')",
+    "sqlSage100": "SELECT AVG(delai_moyen_livraison) AS delai_moyen_livraison FROM VW_COMMANDES",
     "mlUsage": "Feature pour modèles de prédiction de délai et optimisation logistique."
   },
   {
@@ -3864,7 +3864,7 @@
       "F_DOCCLIENT",
       "F_DOCLIGNE"
     ],
-    "sqlSage100": "SELECT SUM(Total_HT) / NULLIF(COUNT(DISTINCT N_Piece),0) AS Ticket_Moyen FROM VW_COMMANDES WHERE Sens_Commercial='V' AND Statut_Code='FA'",
+    "sqlSage100": "SELECT AVG(ticket_moyen_commande) AS ticket_moyen FROM VW_COMMANDES",
     "mlUsage": "Feature segmentation client et optimisation commerciale."
   },
   {
@@ -3901,7 +3901,7 @@
       "F_DOCCLIENT",
       "F_DOCLIGNE"
     ],
-    "sqlSage100": "SELECT (SUM(CASE WHEN Type_Code='AV' THEN Total_HT ELSE 0 END) / NULLIF(SUM(CASE WHEN Type_Code='FA' THEN Total_HT ELSE 0 END),0)) * 100 AS Taux_Retour FROM VW_COMMANDES",
+    "sqlSage100": "SELECT AVG(taux_retour_avoir) AS taux_retour FROM VW_COMMANDES",
     "mlUsage": "Feature pour modèles de prédiction de satisfaction et classification de qualité produit."
   },
   {
@@ -3934,7 +3934,7 @@
     "sqlSage100Tables": [
       "F_IMMOBILI"
     ],
-    "sqlSage100": "SELECT Libelle_Famille, SUM(Valeur_Acquisition) AS Valeur_Brute FROM VW_IMMOBILISATIONS WHERE Etat_Code='Actif' GROUP BY Libelle_Famille ORDER BY Valeur_Brute DESC",
+    "sqlSage100": "SELECT libelle_famille, SUM(valeur_acquisition) AS valeur_brute FROM VW_IMMOBILISATIONS WHERE etat_code='Actif' GROUP BY libelle_famille ORDER BY valeur_brute DESC",
     "mlUsage": "Feature pour modèles de valorisation d'entreprise et rating financier."
   },
   {
@@ -3967,7 +3967,7 @@
     "sqlSage100Tables": [
       "F_IMMOBILI"
     ],
-    "sqlSage100": "SELECT SUM(Valeur_Nette_Comptable) AS VNC_Total FROM VW_IMMOBILISATIONS WHERE Etat_Code='Actif'",
+    "sqlSage100": "SELECT SUM(valeur_nette_comptable) AS vnc_total FROM VW_IMMOBILISATIONS WHERE etat_code='Actif'",
     "mlUsage": "Feature évaluation d'entreprise. Modèles de prévision des besoins de renouvellement."
   },
   {
@@ -4002,7 +4002,7 @@
     "sqlSage100Tables": [
       "F_IMMOBILI"
     ],
-    "sqlSage100": "SELECT AVG(Taux_Amort_Cumul_Pct) AS Taux_Amort_Moyen, SUM(Dotations_Eco_Cumul) AS Dotations_Cumul, SUM(Valeur_Acquisition) AS Valeur_Brute_Totale FROM VW_IMMOBILISATIONS WHERE Etat_Code='Actif'",
+    "sqlSage100": "SELECT AVG(taux_amort_cumul_pct) AS taux_amort_moyen, SUM(dotations_eco_cumul) AS dotations_cumul, SUM(valeur_acquisition) AS valeur_brute_totale FROM VW_IMMOBILISATIONS WHERE etat_code='Actif'",
     "mlUsage": "Feature pour modèles de prédiction des besoins d'investissement."
   },
   {
@@ -4036,7 +4036,7 @@
       "F_IMMOBILI",
       "F_IMMOPREV"
     ],
-    "sqlSage100": "SELECT Annee_Amort, SUM(Valeur_Acquisition * Taux_Amort_Annee / 100) AS Dotation_Previsionnelle FROM VW_IMMOBILISATIONS WHERE Etat_Code='Actif' GROUP BY Annee_Amort ORDER BY Annee_Amort",
+    "sqlSage100": "SELECT annee_amort, SUM(dotation_previsionnelle_annuelle) AS dotation_previsionnelle FROM VW_IMMOBILISATIONS WHERE etat_code='Actif' GROUP BY annee_amort ORDER BY annee_amort",
     "mlUsage": "Feature pour modèles de prévision financière et budget pluriannuel."
   },
   {
@@ -4072,7 +4072,7 @@
       "G_ECRITUREC",
       "F_COMPTE"
     ],
-    "sqlSage100": "SELECT Annee, Mois, Periode, SUM(Cout_Total_Employeur) AS Masse_Salariale, SUM(Salaire_Brut) AS Salaires_Bruts, SUM(Cotisations_Patronales) AS Charges_Patronales FROM VW_PAIE GROUP BY Annee, Mois, Periode ORDER BY Annee, Mois",
+    "sqlSage100": "SELECT annee, mois, periode, SUM(cout_total_employeur) AS masse_salariale, SUM(salaire_brut) AS salaires_bruts, SUM(cotisations_patronales) AS charges_patronales FROM VW_PAIE GROUP BY annee, mois, periode ORDER BY annee, mois",
     "mlUsage": "Feature pour modèles de prévision budgétaire RH."
   },
   {
@@ -4106,7 +4106,7 @@
     "sqlSage100Tables": [
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT Annee, Mois, SUM(Cout_Total_Employeur) AS Masse_Salariale FROM VW_PAIE GROUP BY Annee, Mois ORDER BY Annee, Mois -- Ratio MS/CA : diviser par CA de VW_FINANCE_GENERAL",
+    "sqlSage100": "SELECT annee, mois, SUM(masse_salariale_totale) AS masse_salariale FROM VW_PAIE GROUP BY annee, mois ORDER BY annee, mois",
     "mlUsage": "Feature pour modèles de performance économique et benchmarking sectoriel."
   },
   {
@@ -4139,7 +4139,7 @@
     "sqlSage100Tables": [
       "G_ECRITUREC"
     ],
-    "sqlSage100": "SELECT Annee, Mois, SUM(Cout_Total_Employeur) / NULLIF(COUNT(DISTINCT Matricule),0) AS Cout_Moyen_Collaborateur, COUNT(DISTINCT Matricule) AS Nb_Collaborateurs FROM VW_PAIE GROUP BY Annee, Mois ORDER BY Annee, Mois",
+    "sqlSage100": "SELECT annee, mois, AVG(cout_moyen_par_collaborateur) AS cout_moyen_collaborateur, COUNT(DISTINCT matricule) AS nb_collaborateurs FROM VW_PAIE GROUP BY annee, mois ORDER BY annee, mois",
     "mlUsage": "Feature pour modèles de planification RH et prévision budgétaire."
   },
   {
@@ -4174,7 +4174,7 @@
       "G_ECRITUREC",
       "G_SECTION"
     ],
-    "sqlSage100": "SELECT Annee, Mois, Matricule, Nom_Complet, Salaire_Brut, Net_A_Payer, Cotisations_Patronales, Cout_Total_Employeur FROM VW_PAIE ORDER BY Annee DESC, Mois DESC, Nom_Complet",
+    "sqlSage100": "SELECT annee, mois, matricule, nom_complet, salaire_brut, net_a_payer, cotisations_patronales, cout_total_employeur FROM VW_PAIE ORDER BY annee DESC, mois DESC, nom_complet",
     "mlUsage": "Feature pour modèles de budgétisation RH par département."
   },
   {
@@ -4616,7 +4616,7 @@
     "keywords": ["backlog", "carnet de commandes", "commandes en attente", "ventes futures"],
     "sqlSage100View": "VW_COMMANDES",
     "sqlSage100Tables": ["F_DOCENTETE"],
-    "sqlSage100": "SELECT SUM(Total_HT) AS Backlog FROM VW_COMMANDES WHERE Statut_Code NOT IN ('FAC', 'ANN')",
+    "sqlSage100": "SELECT SUM(backlog) AS backlog FROM VW_COMMANDES",
     "mlUsage": "Feature clé pour prévision de CA à court terme (short-term forecasting)."
   },
   {
@@ -4637,7 +4637,7 @@
     "keywords": ["retard livraison", "OTD", "on time delivery", "performance logistique"],
     "sqlSage100View": "VW_COMMANDES",
     "sqlSage100Tables": ["F_DOCENTETE"],
-    "sqlSage100": "SELECT (COUNT(CASE WHEN Date_Livraison_Prevue < GETDATE() AND Statut_Code != 'FAC' THEN 1 END) * 100.0 / NULLIF(COUNT(*),0)) AS Taux_Retard FROM VW_COMMANDES",
+    "sqlSage100": "SELECT AVG(delai_moyen_livraison) AS delai_moyen_livraison FROM VW_COMMANDES",
     "mlUsage": "Variable cible pour modèles de prédiction de retard de livraison."
   },
   {
@@ -4658,7 +4658,7 @@
     "keywords": ["VNC", "immobilisations", "actifs fixes", "valeur nette", "amortissements"],
     "sqlSage100View": "VW_IMMOBILISATIONS",
     "sqlSage100Tables": ["F_IMMO"],
-    "sqlSage100": "SELECT SUM(Valeur_Nette_Comptable) AS VNC_Totale FROM VW_IMMOBILISATIONS",
+    "sqlSage100": "SELECT SUM(valeur_nette_comptable) AS vnc_totale FROM VW_IMMOBILISATIONS",
     "mlUsage": "Feature pour modèles de valorisation d'entreprise."
   },
   {
@@ -4679,7 +4679,7 @@
     "keywords": ["taux usure", "obsolescence", "renouvellement actifs", "amortissement cumulé"],
     "sqlSage100View": "VW_IMMOBILISATIONS",
     "sqlSage100Tables": ["F_IMMO"],
-    "sqlSage100": "SELECT (SUM(Dotations_Eco_Cumul) * 100.0 / NULLIF(SUM(Valeur_Acquisition),0)) AS Taux_Usure FROM VW_IMMOBILISATIONS",
+    "sqlSage100": "SELECT (SUM(dotations_eco_cumul) * 100.0 / NULLIF(SUM(valeur_acquisition),0)) AS taux_usure FROM VW_IMMOBILISATIONS",
     "mlUsage": "Feature pour modèles de planification de Capex (investissements)."
   },
   {
@@ -4700,7 +4700,7 @@
     "keywords": ["investissements", "Capex", "acquisition immo", "croissance externe"],
     "sqlSage100View": "VW_IMMOBILISATIONS",
     "sqlSage100Tables": ["F_IMMO"],
-    "sqlSage100": "SELECT SUM(Valeur_Acquisition) AS Capex_YTD FROM VW_IMMOBILISATIONS WHERE Annee_Acquisition = YEAR(GETDATE())",
+    "sqlSage100": "SELECT SUM(valeur_acquisition) AS capex_ytd FROM VW_IMMOBILISATIONS WHERE annee_acquisition = YEAR(GETDATE())",
     "mlUsage": "Feature pour analyse de corrélation Investissement / Croissance du CA."
   },
   {
@@ -4721,7 +4721,7 @@
     "keywords": ["ca analytique", "marge BU", "revenus projet", "analytique compta"],
     "sqlSage100View": "VW_ANALYTIQUE",
     "sqlSage100Tables": ["F_COMPTEA"],
-    "sqlSage100": "SELECT Libelle_Analytique, SUM(Credit) - SUM(Debit) AS CA_Analytique FROM VW_ANALYTIQUE WHERE Categorie_BI='Produits' GROUP BY Libelle_Analytique ORDER BY CA_Analytique DESC",
+    "sqlSage100": "SELECT libelle_analytique, SUM(credit) - SUM(debit) AS ca_analytique FROM VW_ANALYTIQUE WHERE categorie_bi='Produits' GROUP BY libelle_analytique ORDER BY ca_analytique DESC",
     "mlUsage": "Feature pour clustering de BU et optimisation de l'allocation des ressources."
   },
   {
@@ -4742,7 +4742,7 @@
     "keywords": ["charges patronales", "cotisations", "coût social", "poids social"],
     "sqlSage100View": "VW_PAIE",
     "sqlSage100Tables": ["T_PAIE"],
-    "sqlSage100": "SELECT (SUM(Cotisations_Patronales) * 100.0 / NULLIF(SUM(Salaire_Brut),0)) AS Poids_Charges FROM VW_PAIE",
+    "sqlSage100": "SELECT (SUM(cotisations_patronales) * 100.0 / NULLIF(SUM(salaire_brut),0)) AS poids_charges FROM VW_PAIE",
     "mlUsage": "Feature pour simulation d'impact de réformes sociales."
   },
   {
@@ -4763,7 +4763,7 @@
     "keywords": ["coût total employeur", "masse salariale", "dépense RH", "évolution salaires"],
     "sqlSage100View": "VW_PAIE",
     "sqlSage100Tables": ["T_PAIE"],
-    "sqlSage100": "SELECT Annee, Mois, SUM(Cout_Total_Employeur) AS Masse_Salariale FROM VW_PAIE GROUP BY Annee, Mois ORDER BY Annee DESC, Mois DESC",
+    "sqlSage100": "SELECT annee, mois, SUM(cout_total_employeur) AS masse_salariale FROM VW_PAIE GROUP BY annee, mois ORDER BY annee DESC, mois DESC",
     "mlUsage": "Feature pour prévision budgétaire de masse salariale (time series)."
   },
   {
