@@ -692,4 +692,19 @@ export class AdminController {
     if (!url) throw new BadRequestException('Le paramètre "url" est requis');
     return this.adminService.getLocalLlmModels(url);
   }
+
+  // ── Storage Migration ─────────────────────────────────────────────────────────
+
+  @Get('storage/migration-status')
+  @ApiOperation({ summary: 'Nombre de fichiers locaux non encore migrés vers MinIO' })
+  async getStorageMigrationStatus() {
+    return this.adminService.getStorageMigrationStatus();
+  }
+
+  @Post('storage/migrate-local-to-minio')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Migrer les URLs locales vers MinIO dans la base de données' })
+  async migrateLocalToMinio() {
+    return this.adminService.migrateLocalToMinio();
+  }
 }

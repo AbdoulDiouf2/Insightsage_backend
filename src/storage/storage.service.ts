@@ -30,9 +30,10 @@ export class StorageService implements OnModuleInit {
 
     if (accessKeyId && secretAccessKey && endpoint) {
       this.s3Client = new S3Client({
-        region: 'auto',
+        region: 'us-east-1',
         endpoint,
         credentials: { accessKeyId, secretAccessKey },
+        forcePathStyle: true, // obligatoire avec MinIO (path-style vs virtual-hosted)
       });
     }
   }

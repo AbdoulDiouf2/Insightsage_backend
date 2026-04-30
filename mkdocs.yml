@@ -167,6 +167,7 @@ nav:
       - Facturation & Paiements: backend/modules/billing.md
       - NLQ (Langage naturel): backend/modules/nlq.md
       - Bug Tracker: backend/modules/bug-tracker.md
+      - Stockage fichiers (MinIO): backend/modules/storage.md
   - Frontend — Admin Cockpit:
     - Architecture: frontend/architecture.md
     - Design System: frontend/design-system.md
@@ -188,6 +189,7 @@ nav:
     - Déploiement:
       - Avec Docker (Linux/WSL2): developer/deployment.md
       - Sans Docker (Windows natif): developer/deployment-sans-docker.md
+      - Stockage objet (MinIO): developer/storage-minio.md
     - Documentation Interne: developer/internal-docs-setup.md
     - Configuration DNS (Client): developer/dns-setup-guide.md
     - Migration Monorepo (Futur): developer/monorepo-migration.md

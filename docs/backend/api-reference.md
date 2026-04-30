@@ -762,6 +762,50 @@ Met automatiquement toutes les autres releases de la même plateforme à `isLate
 
 ---
 
+### GET `/admin/storage/migration-status`
+
+> Compter les fichiers dont l'URL en base de données pointe encore vers le stockage local (avant migration MinIO).
+
+**Accès :** `manage:all` (superadmin)
+
+**Réponse 200 :**
+```json
+{
+  "bugsWithLocalUrls": 3,
+  "releasesWithLocalUrls": 2,
+  "total": 5,
+  "localPrefix": "http://localhost:3000/uploads/",
+  "minioPublicUrl": "http://127.0.0.1:9000/cockpit-storage"
+}
+```
+
+Quand `total = 0`, tous les fichiers sont déjà migrés vers MinIO.
+
+---
+
+### POST `/admin/storage/migrate-local-to-minio`
+
+> Mettre à jour en base de données toutes les URLs locales (`APP_URL/UPLOAD_DIR/…`) vers les URLs MinIO (`R2_PUBLIC_URL/…`).
+
+**Accès :** `manage:all` (superadmin)
+
+**Réponse 200 :**
+```json
+{
+  "migratedBugs": 3,
+  "migratedReleases": 2,
+  "total": 5
+}
+```
+
+!!! warning "Prérequis"
+    Les fichiers physiques doivent déjà être présents dans MinIO (synchronisés via `mc mirror` ou l'interface admin). Cette route ne déplace que les URLs en base de données.
+
+!!! info "Interface graphique"
+    Cette opération est également disponible dans l'Admin Cockpit → **Paramètres → Stockage**.
+
+---
+
 ## Module Roles — `/roles`
 
 ### GET `/roles`
@@ -872,7 +916,50 @@ Met automatiquement toutes les autres releases de la même plateforme à `isLate
 
 **Accès :** Public
 
-**Réponse 200 :** `{ "status": "ok", "timestamp": "2026-03-02T..." }`
+**Réponse 200 :** `{ "status": "ok", "timestamp": "2026-03-02T...", "service": "insightsage-api", "version": "1.0.0" }`
+
+---
+
+### GET `/health/db`
+
+> Vérifier la connexion à toutes les dépendances externes.
+
+**Accès :** Public
+
+**Réponse 200 :**
+```json
+{
+  "status": "ok",
+  "timestamp": "2026-03-02T12:34:56.789Z",
+  "database": "connected",
+  "redis": "connected",
+  "mkdocs": "connected",
+  "minio": "connected",
+  "minioBucket": "cockpit-storage"
+}
+```
+
+Si un composant est inaccessible, `status` passe à `"error"` et un champ `*Error` est ajouté :
+
+```json
+{
+  "status": "error",
+  "database": "connected",
+  "redis": "connected",
+  "mkdocs": "not_configured",
+  "minio": "disconnected",
+  "minioError": "connect ECONNREFUSED 127.0.0.1:9000"
+}
+```
+
+| Valeur | Signification |
+|--------|--------------|
+| `connected` | Service joignable et opérationnel |
+| `disconnected` | Service configuré mais inaccessible |
+| `not_configured` | Variable d'env absente (optionnel) |
+
+!!! note "Timeout"
+    MkDocs et MinIO sont vérifiés avec un timeout de 2 secondes pour ne pas bloquer le health check global.
 
 ---
 

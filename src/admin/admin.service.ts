@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Prisma, JobStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClientDto } from './dto/create-client.dto';
@@ -30,6 +31,7 @@ export class AdminService {
     private mailer: MailerService,
     private notifications: NotificationsService,
     private aiRouter: AiRouterService,
+    private config: ConfigService,
   ) { }
 
   async createClientAccount(dto: CreateClientDto) {
@@ -1611,5 +1613,70 @@ export class AdminService {
     if (role.isSystem) throw new BadRequestException('Les rôles système ne peuvent pas être supprimés');
 
     return this.prisma.role.delete({ where: { id } });
+  }
+
+  // ── Storage Migration ─────────────────────────────────────────────────────────
+
+  async getStorageMigrationStatus() {
+    const appUrl = this.config.get<string>('APP_URL') ?? 'http://localhost:3000';
+    const uploadDir = this.config.get<string>('UPLOAD_DIR') ?? 'uploads';
+    const localPrefix = `${appUrl}/${uploadDir}/`;
+    const minioPublicUrl = this.config.get<string>('R2_PUBLIC_URL') ?? '';
+
+    const [allReleases, allBugs] = await Promise.all([
+      this.prisma.agentRelease.findMany({ select: { id: true, fileUrl: true } }),
+      this.prisma.bug.findMany({ select: { id: true, attachments: true } }),
+    ]);
+
+    const releasesWithLocalUrls = allReleases.filter(r => r.fileUrl?.startsWith(localPrefix)).length;
+    const bugsWithLocalUrls = allBugs.filter(bug =>
+      Array.isArray(bug.attachments) && bug.attachments.some((url: string) => url.startsWith(localPrefix))
+    ).length;
+
+    return {
+      bugsWithLocalUrls,
+      releasesWithLocalUrls,
+      total: bugsWithLocalUrls + releasesWithLocalUrls,
+      localPrefix,
+      minioPublicUrl,
+    };
+  }
+
+  async migrateLocalToMinio() {
+    const appUrl = this.config.get<string>('APP_URL') ?? 'http://localhost:3000';
+    const uploadDir = this.config.get<string>('UPLOAD_DIR') ?? 'uploads';
+    const localPrefix = `${appUrl}/${uploadDir}/`;
+    const minioPublicUrl = this.config.get<string>('R2_PUBLIC_URL') ?? '';
+
+    if (!minioPublicUrl) {
+      throw new BadRequestException('R2_PUBLIC_URL non configuré — MinIO indisponible');
+    }
+
+    const releases = await this.prisma.agentRelease.findMany({
+      where: { fileUrl: { startsWith: localPrefix } },
+    });
+    let migratedReleases = 0;
+    for (const release of releases) {
+      await this.prisma.agentRelease.update({
+        where: { id: release.id },
+        data: { fileUrl: release.fileUrl.replace(localPrefix, `${minioPublicUrl}/`) },
+      });
+      migratedReleases++;
+    }
+
+    const bugs = await this.prisma.bug.findMany({ select: { id: true, attachments: true } });
+    let migratedBugs = 0;
+    for (const bug of bugs) {
+      if (!Array.isArray(bug.attachments)) continue;
+      const hasLocal = bug.attachments.some((url: string) => url.startsWith(localPrefix));
+      if (!hasLocal) continue;
+      const newAttachments = bug.attachments.map((url: string) =>
+        url.startsWith(localPrefix) ? url.replace(localPrefix, `${minioPublicUrl}/`) : url
+      );
+      await this.prisma.bug.update({ where: { id: bug.id }, data: { attachments: newAttachments } });
+      migratedBugs++;
+    }
+
+    return { migratedBugs, migratedReleases, total: migratedBugs + migratedReleases };
   }
 }

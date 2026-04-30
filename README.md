@@ -36,7 +36,7 @@ mkdocs serve
 # → http://localhost:8000
 ```
 
-Sections couvertes : Architecture · API Reference · Sécurité · Base de données · Modules · Frontend · Agent · Guides fonctionnels · CI/CD · Déploiement.
+Sections couvertes : Architecture · API Reference · Sécurité · Base de données · Modules · Stockage MinIO · Frontend · Agent · Guides fonctionnels · CI/CD · Déploiement.
 
 ---
 
@@ -53,7 +53,7 @@ Sections couvertes : Architecture · API Reference · Sécurité · Base de donn
 | Sécurité | Helmet (CSP) + bcrypt ×12 + SHA-256 token hashing + `timingSafeEqual` |
 | Logs | AuditLogService global — masquage PII automatique + alertes admin `ERROR_ALERT_EVENTS` |
 | Monitoring | Sentry (conditionnel via `SENTRY_DSN`) |
-| Stockage | Cloudflare R2 (S3) avec fallback local FS-Extra |
+| Stockage | MinIO self-hosted (S3-compatible) avec fallback local FS-Extra |
 | Docs | MkDocs Material 9.x |
 
 ---
@@ -63,7 +63,7 @@ Sections couvertes : Architecture · API Reference · Sécurité · Base de donn
 ```
 src/
 ├── bugs/           # Ticketing technique & Signalement bug (BR-YYYYMMDD-XXX)
-├── storage/        # Service hybride Cloudflare R2 / S3 / Local FS
+├── storage/        # Service hybride MinIO self-hosted (S3) / Local FS
 ├── auth/           # JWT, refresh, invitations, reset password
 ├── users/          # Profils, équipe (DAF)
 ├── organizations/  # Cycle de vie d'un tenant
@@ -187,10 +187,13 @@ npm run test:e2e      # Tests end-to-end
 
 ## Déploiement
 
-Production via Docker Compose + Nginx + Supabase. Voir la documentation — section **Déploiement** et **CI/CD**.
+Production sur Windows Server natif (sans Docker) : PostgreSQL 16 + Memurai (Redis) + MinIO + PM2 + IIS/ARR.
+Voir la documentation — sections **Déploiement**, **Stockage objet (MinIO)** et **CI/CD**.
 
-```bash
-docker compose -f docker-compose.prod.yml up -d --build
+```powershell
+# Démarrage PM2 (Windows Server)
+pm2 start ecosystem.config.js --env production
+pm2 save
 ```
 
 ---

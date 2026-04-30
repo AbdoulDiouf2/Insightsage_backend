@@ -36,6 +36,7 @@ export class HealthController {
       database: 'disconnected',
       redis: 'disconnected',
       mkdocs: 'disconnected',
+      minio: 'disconnected',
     };
 
     let hasError = false;
@@ -86,6 +87,29 @@ export class HealthController {
     } catch (error) {
       hasError = true;
       health.mkdocsError = error instanceof Error ? error.message : 'Unknown error';
+    }
+
+    // Check MinIO
+    try {
+      const minioEndpoint = this.config.get<string>('R2_ENDPOINT');
+      if (minioEndpoint) {
+        const mController = new AbortController();
+        const timeout = setTimeout(() => mController.abort(), 2000);
+        const response = await fetch(`${minioEndpoint}/minio/health/live`, { signal: mController.signal });
+        clearTimeout(timeout);
+        if (response.ok) {
+          health.minio = 'connected';
+          health.minioBucket = this.config.get<string>('R2_BUCKET_NAME') ?? '';
+        } else {
+          hasError = true;
+          health.minioError = `Status ${response.status}`;
+        }
+      } else {
+        health.minio = 'not_configured';
+      }
+    } catch (error) {
+      hasError = true;
+      health.minioError = error instanceof Error ? error.message : 'Unknown error';
     }
 
     health.status = hasError ? 'error' : 'ok';

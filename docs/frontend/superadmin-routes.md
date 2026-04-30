@@ -100,3 +100,18 @@ export class AdminModule {}
 | `createRoleForOrg(orgId, dto, adminId)` | Création rôle avec permissions |
 | `updateAdminRole(id, dto, adminId)` | Update nom/desc/permissions |
 | `deleteAdminRole(id, adminId)` | Vérifie `!isSystem`, puis delete |
+| `getStorageMigrationStatus()` | Compte les fichiers avec URL locale dans `Bug.attachments` et `AgentRelease.fileUrl` |
+| `migrateLocalToMinio()` | Remplace `APP_URL/UPLOAD_DIR/` par `R2_PUBLIC_URL/` dans les deux modèles |
+
+---
+
+## Routes stockage — `/admin/storage`
+
+Ces routes permettent de migrer les URLs de fichiers locaux vers MinIO depuis l'interface Admin Cockpit.
+
+| Méthode | Route | Description |
+|---------|-------|-------------|
+| `GET` | `/admin/storage/migration-status` | Statut : nombre de fichiers locaux restants |
+| `POST` | `/admin/storage/migrate-local-to-minio` | Met à jour les URLs en base de données |
+
+> **Interface graphique :** Admin Cockpit → Paramètres → Stockage
