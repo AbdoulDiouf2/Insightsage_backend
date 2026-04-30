@@ -203,7 +203,25 @@ cockpit-storage/
                 └── cockpit-agent.exe  ← exécutables agent on-premise
 ```
 
-### 5.3 Créer un utilisateur applicatif dédié
+### 5.3 Rendre le bucket accessible publiquement en lecture
+
+!!! warning "Étape obligatoire"
+    Par défaut, MinIO bloque tous les accès anonymes. Sans cette commande, les URLs de fichiers retournées par l'API (`R2_PUBLIC_URL/...`) renvoient une erreur `Access Denied` dans le navigateur.
+
+```powershell
+# Autoriser la lecture publique (GET anonyme) sur tout le bucket
+& "C:\mc.exe" anonymous set download cockpit/cockpit-storage
+
+# Vérifier
+& "C:\mc.exe" anonymous get cockpit/cockpit-storage
+# → Access permission for `cockpit/cockpit-storage` is `download`
+```
+
+Cette politique est **persistée dans MinIO** — elle n'a besoin d'être appliquée qu'une seule fois, même après redémarrage.
+
+---
+
+### 5.4 Créer un utilisateur applicatif dédié
 
 !!! tip "Bonne pratique"
     Ne pas utiliser le compte root dans l'application NestJS.
@@ -487,4 +505,59 @@ Invoke-WebRequest -Uri "http://localhost:9000/minio/health/ready" -UseBasicParsi
 # ─── Utilisateurs ────────────────────────────────────────────────────────────
 & "C:\tools\minio\mc.exe" admin user list cockpit
 & "C:\tools\minio\mc.exe" admin user setpassword cockpit cockpit_app NOUVEAU_MDP
+```
+
+---
+
+## Dépannage — Erreurs fréquentes
+
+### `Access Denied` sur une URL de fichier dans le navigateur
+
+Le bucket n'a pas de politique de lecture publique. Appliquer une seule fois :
+
+```powershell
+& "C:\mc.exe" anonymous set download cockpit/cockpit-storage
+```
+
+---
+
+### `mc: The Access Key Id you provided does not exist`
+
+L'alias `mc` et MinIO utilisent des credentials différents. Les credentials de l'alias doivent correspondre exactement à `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` de l'instance MinIO.
+
+**Sous PM2 :** vérifier que les env vars MinIO dans `ecosystem.config.js` correspondent à l'alias mc :
+
+```javascript
+// ecosystem.config.js — section cockpit-minio
+env: {
+  MINIO_ROOT_USER: 'admin',
+  MINIO_ROOT_PASSWORD: 'Cockpit2026!',
+},
+```
+
+```powershell
+# Alias mc correspondant
+& "C:\mc.exe" alias set cockpit http://127.0.0.1:9000 admin Cockpit2026!
+```
+
+Puis appliquer les env vars et vérifier :
+
+```powershell
+pm2 start ecosystem.config.js --update-env
+# Attendre 3-4s
+& "C:\mc.exe" admin info cockpit
+```
+
+!!! warning "pm2 restart ≠ pm2 start --update-env"
+    `pm2 restart cockpit-minio` redémarre le processus **sans** recharger les variables d'environnement du fichier ecosystem. Utiliser `pm2 start ecosystem.config.js --update-env` pour appliquer des changements d'env vars.
+
+---
+
+### MinIO démarre mais `cockpit_app` est introuvable
+
+L'utilisateur applicatif n'est pas persisté dans le bon répertoire de données. Vérifier que `C:\minio-data` est bien le répertoire utilisé à chaque démarrage, puis recréer l'utilisateur :
+
+```powershell
+& "C:\mc.exe" admin user add cockpit cockpit_app DevStorage2026!
+& "C:\mc.exe" admin policy attach cockpit readwrite --user cockpit_app
 ```
