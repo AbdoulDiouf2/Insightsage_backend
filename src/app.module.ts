@@ -16,6 +16,7 @@ import { LogsModule } from './logs/logs.module';
 import { AdminModule } from './admin/admin.module';
 import { RolesModule } from './roles/roles.module';
 import { HealthModule } from './health/health.module';
+import { JobRegistryModule } from './health/job-registry.module';
 import { AgentsModule } from './agents/agents.module';
 import { AuditLogModule } from './logs/audit-log.module';
 import { MailerModule } from './mailer/mailer.module';
@@ -70,6 +71,7 @@ import { AiModule } from './ai/ai.module';
     LogsModule,
     AdminModule,
     RolesModule,
+    JobRegistryModule,
     HealthModule,
     AgentsModule,
     AuditLogModule,

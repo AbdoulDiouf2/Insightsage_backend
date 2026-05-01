@@ -24,6 +24,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { REDIS_CLIENT } from '../redis/redis.module';
 import type { RedisClientType } from 'redis';
 import { AiRouterService } from '../ai/ai-router.service';
+import { JobRegistryService } from '../health/job-registry.service';
 
 // Durée de vie d'un token : 30 jours (Section 2.4)
 const TOKEN_TTL_DAYS = 30;
@@ -48,14 +49,14 @@ export class AgentsService implements OnModuleInit {
     private eventEmitter: EventEmitter2,
     private aiRouter: AiRouterService,
     @Inject(REDIS_CLIENT) private redis: RedisClientType,
+    private jobRegistry: JobRegistryService,
   ) { }
 
   onModuleInit() {
-    // Lancer les tâches de nettoyage toutes les minutes
     setInterval(() => {
-      this.markStaleAgentsOffline().catch(() => { });
-      this.cleanupStaleJobs().catch(() => { });
-      this.warnExpiringTokens().catch(() => { });
+      this.jobRegistry.run('Agents hors ligne', () => this.markStaleAgentsOffline()).catch(() => {});
+      this.jobRegistry.run('Nettoyage jobs SQL', () => this.cleanupStaleJobs()).catch(() => {});
+      this.jobRegistry.run('Alertes expiration tokens', () => this.warnExpiringTokens()).catch(() => {});
     }, 60000);
   }
 

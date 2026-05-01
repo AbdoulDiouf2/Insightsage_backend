@@ -1,6 +1,7 @@
 import { Controller, Get, Inject } from '@nestjs/common';
 import { Public } from '../auth/decorators';
 import { PrismaService } from '../prisma/prisma.service';
+import { JobRegistryService } from './job-registry.service';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { REDIS_CLIENT } from '../redis/redis.module';
 import { ConfigService } from '@nestjs/config';
@@ -12,6 +13,7 @@ export class HealthController {
   constructor(
     private prisma: PrismaService,
     private config: ConfigService,
+    private jobRegistry: JobRegistryService,
     @Inject(REDIS_CLIENT) private redis: RedisClientType
   ) {}
 
@@ -114,5 +116,11 @@ export class HealthController {
 
     health.status = hasError ? 'error' : 'ok';
     return health;
+  }
+
+  @Get('jobs')
+  @ApiOperation({ summary: 'Background jobs status' })
+  getJobs() {
+    return this.jobRegistry.getAll();
   }
 }

@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { JobRegistryService } from './job-registry.service';
 import { REDIS_CLIENT } from '../redis/redis.module';
 import type { RedisClientType } from 'redis';
 
@@ -17,6 +18,7 @@ export class HealthMonitorService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly config: ConfigService,
+    private readonly jobRegistry: JobRegistryService,
     @Inject(REDIS_CLIENT) private readonly redis: RedisClientType,
   ) {}
 
@@ -29,28 +31,26 @@ export class HealthMonitorService implements OnModuleInit {
 
   private async checkAll(): Promise<void> {
     await Promise.allSettled([
-      this.check('Base de données', () => this.checkDb()),
-      this.check('Cache Redis',     () => this.checkRedis()),
-      this.check('MinIO',           () => this.checkMinio()),
+      this.jobRegistry.run('Santé Base de données', () => this.checkWithAlert('Base de données', () => this.checkDb())),
+      this.jobRegistry.run('Santé Cache Redis',     () => this.checkWithAlert('Cache Redis',     () => this.checkRedis())),
+      this.jobRegistry.run('Santé MinIO',           () => this.checkWithAlert('MinIO',           () => this.checkMinio())),
     ]);
   }
 
-  private async check(name: string, fn: () => Promise<boolean>): Promise<void> {
-    try {
-      const healthy = await fn();
-      const prev = this.states.get(name);
-      this.states.set(name, healthy);
+  private async checkWithAlert(name: string, fn: () => Promise<boolean>): Promise<void> {
+    const healthy = await fn();
+    const prev = this.states.get(name);
+    this.states.set(name, healthy);
 
-      if (!healthy && prev !== false) {
-        this.logger.warn(`[HealthMonitor] ${name} DOWN`);
-        this.notifications.notifySystemComponentDown(name).catch(() => {});
-      } else if (healthy && prev === false) {
-        this.logger.log(`[HealthMonitor] ${name} RECOVERED`);
-        this.notifications.notifySystemComponentRecovered(name).catch(() => {});
-      }
-    } catch {
-      // Ignorer les erreurs du check lui-même
+    if (!healthy && prev !== false) {
+      this.logger.warn(`[HealthMonitor] ${name} DOWN`);
+      this.notifications.notifySystemComponentDown(name).catch(() => {});
+    } else if (healthy && prev === false) {
+      this.logger.log(`[HealthMonitor] ${name} RECOVERED`);
+      this.notifications.notifySystemComponentRecovered(name).catch(() => {});
     }
+
+    if (!healthy) throw new Error(`${name} indisponible`);
   }
 
   private async checkDb(): Promise<boolean> {

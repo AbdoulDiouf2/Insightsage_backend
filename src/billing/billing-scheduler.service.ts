@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailerService } from '../mailer/mailer.service';
+import { JobRegistryService } from '../health/job-registry.service';
 import { differenceInCalendarDays } from 'date-fns';
 
 /** Jours avant la fin d'essai auxquels on envoie un rappel. */
@@ -14,15 +15,15 @@ export class BillingSchedulerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mailer: MailerService,
+    private readonly jobRegistry: JobRegistryService,
   ) {}
 
-  /**
-   * Tous les matins à 8h00 (heure serveur) :
-   * envoie un email de rappel aux orgs en TRIALING dont la fin d'essai
-   * tombe dans exactement REMINDER_DAYS jours.
-   */
   @Cron('0 8 * * *', { name: 'trial-ending-reminders' })
   async sendTrialEndingReminders(): Promise<void> {
+    await this.jobRegistry.run('Rappels fin d\'essai', () => this._sendTrialEndingReminders()).catch(() => {});
+  }
+
+  private async _sendTrialEndingReminders(): Promise<void> {
     this.logger.log('Vérification des fins de période d\'essai...');
 
     const today = new Date();
@@ -78,3 +79,4 @@ export class BillingSchedulerService {
     this.logger.log(`Rappels essai envoyés : ${sent} / ${subscriptions.length} abonnements en essai`);
   }
 }
+
