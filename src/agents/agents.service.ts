@@ -825,11 +825,18 @@ export class AgentsService implements OnModuleInit {
     // 5. Créer le job
     const job = await this.createJob(organizationId, agent.id, finalSql, userId);
 
-    // 6. Envoyer via WebSocket
-    const sent = await gateway.emitExecuteSql(organizationId, job.id, finalSql);
+    // 6. Envoyer via WebSocket — retry 15s pour absorber les micro-déconnexions du proxy
+    let sent = false;
+    const WS_RETRY_MAX_MS = 15_000;
+    const WS_RETRY_INTERVAL_MS = 500;
+    const wsDeadline = Date.now() + WS_RETRY_MAX_MS;
+    while (Date.now() < wsDeadline) {
+      sent = await gateway.emitExecuteSql(organizationId, job.id, finalSql);
+      if (sent) break;
+      await new Promise((r) => setTimeout(r, WS_RETRY_INTERVAL_MS));
+    }
 
     if (!sent) {
-      // Si l'agent n'est pas connecté via WebSocket, on marque le job en erreur
       await this.updateJobResult(job.id, organizationId, null, "L'agent est online par heartbeat mais pas par WebSocket.");
       throw new BadRequestException("L'agent n'est pas prêt pour une exécution en temps réel.");
     }

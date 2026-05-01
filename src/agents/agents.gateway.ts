@@ -13,10 +13,12 @@ import { AgentsService } from './agents.service';
 
 @WebSocketGateway({
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3001',
-    credentials: true,
+    origin: '*',
+    credentials: false,
   },
   namespace: 'agents',
+  pingInterval: 10000,
+  pingTimeout: 5000,
 })
 export class AgentsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
