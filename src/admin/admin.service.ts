@@ -1679,4 +1679,33 @@ export class AdminService {
 
     return { migratedBugs, migratedReleases, total: migratedBugs + migratedReleases };
   }
+
+  async updateStoragePublicUrl(oldPrefix: string, newPrefix: string) {
+    const releases = await this.prisma.agentRelease.findMany({
+      where: { fileUrl: { startsWith: oldPrefix } },
+    });
+    let migratedReleases = 0;
+    for (const release of releases) {
+      await this.prisma.agentRelease.update({
+        where: { id: release.id },
+        data: { fileUrl: release.fileUrl.replace(oldPrefix, newPrefix) },
+      });
+      migratedReleases++;
+    }
+
+    const bugs = await this.prisma.bug.findMany({ select: { id: true, attachments: true } });
+    let migratedBugs = 0;
+    for (const bug of bugs) {
+      if (!Array.isArray(bug.attachments)) continue;
+      const hasOld = bug.attachments.some((url: string) => url.startsWith(oldPrefix));
+      if (!hasOld) continue;
+      const newAttachments = bug.attachments.map((url: string) =>
+        url.startsWith(oldPrefix) ? url.replace(oldPrefix, newPrefix) : url,
+      );
+      await this.prisma.bug.update({ where: { id: bug.id }, data: { attachments: newAttachments } });
+      migratedBugs++;
+    }
+
+    return { migratedBugs, migratedReleases, total: migratedBugs + migratedReleases };
+  }
 }

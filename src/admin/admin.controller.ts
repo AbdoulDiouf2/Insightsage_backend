@@ -707,4 +707,11 @@ export class AdminController {
   async migrateLocalToMinio() {
     return this.adminService.migrateLocalToMinio();
   }
+
+  @Post('storage/update-public-url')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Remplacer un préfixe URL de stockage dans toute la base de données' })
+  async updateStoragePublicUrl(@Body() dto: { oldPrefix: string; newPrefix: string }) {
+    return this.adminService.updateStoragePublicUrl(dto.oldPrefix, dto.newPrefix);
+  }
 }
