@@ -591,6 +591,35 @@ export class MailerService implements OnModuleInit {
     });
   }
 
+  async sendAdminSystemHealthAlert(
+    email: string,
+    firstName: string | null | undefined,
+    componentName: string,
+    status: 'down' | 'recovered',
+  ): Promise<void> {
+    const greeting = firstName ? `Bonjour ${firstName},` : 'Bonjour,';
+    if (!this.smtpConfigured) {
+      this.logger.log(`[DEV] sendAdminSystemHealthAlert → ${email} | ${componentName} ${status.toUpperCase()}`);
+      return;
+    }
+    const isDown = status === 'down';
+    const frontendUrl = this.config.get<string>('FRONTEND_URL') ?? '';
+    const html = this.adminHtml(
+      isDown ? '#dc2626' : '#22c55e',
+      isDown ? `🚨 Composant hors ligne : ${componentName}` : `✅ Composant rétabli : ${componentName}`,
+      `<p>${greeting}</p>
+       <p>Le composant <strong>${componentName}</strong> est ${isDown
+         ? 'actuellement <strong style="color:#dc2626">hors ligne</strong>'
+         : 'de nouveau <strong style="color:#22c55e">opérationnel</strong>'}.</p>
+       <p><a href="${frontendUrl}/health" style="color:#3b66ac;">Voir la page Santé Système</a></p>`,
+    );
+    await this.send({
+      to: email,
+      subject: `[Cockpit] ${isDown ? 'ALERTE' : 'Rétablissement'} — ${componentName} ${isDown ? 'hors ligne' : 'opérationnel'}`,
+      html,
+    });
+  }
+
   private async send(options: { to: string; subject: string; html: string }): Promise<void> {
     try {
       await this.transporter!.sendMail({

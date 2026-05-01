@@ -254,6 +254,36 @@ export class NotificationsService {
     this.logger.log(`[notifyBugMention] Alertes envoyées pour modification "${bug.bugId}" à ${users.length} admin(s)`);
   }
 
+  async notifySystemComponentDown(componentName: string): Promise<void> {
+    const cooldownKey = `systemHealth:${componentName}:down`;
+    if (this.isCoolingDown(cooldownKey, 15 * 60 * 1000)) return;
+    const { notif, recipients } = await this.getConfig();
+    if (notif.systemHealth === false || !recipients.length) return;
+    const users = await this.resolveRecipients(recipients);
+    await Promise.allSettled(
+      users.map((u) =>
+        this.mailer.sendAdminSystemHealthAlert(u.email, u.firstName, componentName, 'down'),
+      ),
+    );
+    this.markAlertSent(cooldownKey);
+    this.logger.log(`[notifySystemComponentDown] "${componentName}" DOWN → ${users.length} admin(s)`);
+  }
+
+  async notifySystemComponentRecovered(componentName: string): Promise<void> {
+    const cooldownKey = `systemHealth:${componentName}:recovered`;
+    if (this.isCoolingDown(cooldownKey)) return;
+    const { notif, recipients } = await this.getConfig();
+    if (notif.systemHealth === false || !recipients.length) return;
+    const users = await this.resolveRecipients(recipients);
+    await Promise.allSettled(
+      users.map((u) =>
+        this.mailer.sendAdminSystemHealthAlert(u.email, u.firstName, componentName, 'recovered'),
+      ),
+    );
+    this.markAlertSent(cooldownKey);
+    this.logger.log(`[notifySystemComponentRecovered] "${componentName}" RECOVERED → ${users.length} admin(s)`);
+  }
+
   async notifyBugAssigned(
     bug: any, 
     assignedUser: { firstName?: string | null; lastName?: string | null; email: string },
