@@ -806,6 +806,33 @@ Quand `total = 0`, tous les fichiers sont déjà migrés vers MinIO.
 
 ---
 
+### POST `/admin/storage/update-public-url`
+
+> Remplacer un préfixe d'URL dans toutes les références de fichiers en base de données. Utile quand l'URL publique de MinIO change (ex. changement de domaine ou de reverse proxy).
+
+**Accès :** `manage:all` (superadmin)
+
+**Body :**
+```json
+{
+  "oldPrefix": "http://localhost:9000/cockpit-storage",
+  "newPrefix": "https://cockpit.nafakatech.com/storage/cockpit-storage"
+}
+```
+
+**Réponse 200 :**
+```json
+{
+  "updatedReleases": 4,
+  "updatedBugs": 2
+}
+```
+
+!!! note
+    Contrairement à `migrate-local-to-minio` qui remplace l'URL locale `APP_URL/uploads/…` par l'URL MinIO, cette route permet de changer le préfixe MinIO lui-même (ex. après mise en place d'un reverse proxy IIS).
+
+---
+
 ## Module Roles — `/roles`
 
 ### GET `/roles`
@@ -960,6 +987,51 @@ Si un composant est inaccessible, `status` passe à `"error"` et un champ `*Erro
 
 !!! note "Timeout"
     MkDocs et MinIO sont vérifiés avec un timeout de 2 secondes pour ne pas bloquer le health check global.
+
+---
+
+### GET `/health/jobs`
+
+> Retourner l'état de tous les jobs autonomes enregistrés dans le `JobRegistryService`.
+
+**Accès :** Authentifié (JWT)
+
+**Réponse 200 :**
+```json
+[
+  {
+    "name": "Agents hors ligne",
+    "lastRunAt": "2026-05-01T08:00:01.234Z",
+    "lastRunDurationMs": 42,
+    "lastRunSuccess": true,
+    "lastError": null,
+    "runCount": 1440
+  },
+  {
+    "name": "Rappels fin d'essai",
+    "lastRunAt": "2026-05-01T08:00:00.000Z",
+    "lastRunDurationMs": 153,
+    "lastRunSuccess": false,
+    "lastError": "SMTP connection refused",
+    "runCount": 12
+  }
+]
+```
+
+Jobs enregistrés automatiquement :
+
+| Nom | Service | Fréquence |
+|-----|---------|-----------|
+| `Agents hors ligne` | AgentsService | toutes les 60s |
+| `Nettoyage jobs SQL` | AgentsService | toutes les 60s |
+| `Alertes expiration tokens` | AgentsService | toutes les 60s |
+| `Santé Base de données` | HealthMonitorService | toutes les 5 min |
+| `Santé Cache Redis` | HealthMonitorService | toutes les 5 min |
+| `Santé MinIO` | HealthMonitorService | toutes les 5 min |
+| `Rappels fin d'essai` | BillingSchedulerService | tous les jours à 08h00 |
+
+!!! info "Disponible dans l'Admin Cockpit"
+    Ces données sont affichées dans **Santé Système → Tâches planifiées** avec badges succès/échec et temps relatif du dernier run.
 
 ---
 

@@ -17,8 +17,9 @@ description: Technologies utilisées par la plateforme Cockpit
 | **Auth** | Passport + JWT | — | Authentification JWT |
 | **Crypto** | bcrypt | v6 | Hash des mots de passe |
 | **Validation** | class-validator + class-transformer | — | DTO validation |
-| **Queue** | Bull + Redis | — | Jobs asynchrones |
-| **Email** | Nodemailer | v6 | Emails transactionnels (SMTP) |
+| **Cache / Queue** | Redis + ioredis | — | Sessions, rate limiting, cooldowns notifications |
+| **Storage** | MinIO (S3-compatible) | RELEASE | Fichiers binaires (releases agent, pièces jointes bugs) |
+| **Email** | Nodemailer | v6 | Emails transactionnels (SMTP) — fallback console en dev |
 | **Logging** | Winston + DailyRotateFile | v3 | Logs fichier rotatifs |
 | **Monitoring** | Sentry | v10 | Error tracking |
 | **Docs** | Swagger UI | v5 | Documentation interactive |
@@ -131,13 +132,17 @@ graph TB
 
 | Composant | Technologie | Notes |
 |-----------|-------------|-------|
-| **Hébergement API** | Node.js / Docker | `dist/main.js` ou container |
-| **Base de données** | Supabase (PostgreSQL) | PaaS managé |
-| **Hébergement Frontend** | Vercel / Nginx | Static build `dist/` |
-| **CI/CD** | GitHub Actions | Build, test, deploy |
-| **Reverse Proxy** | Nginx | SSL termination |
-| **Monitoring** | Sentry | Error tracking prod |
+| **Hébergement API** | PM2 + Node.js | `dist/main.js` — Windows Server 2022 prod |
+| **Base de données** | Supabase (PostgreSQL) | PaaS managé, PgBouncer pooling |
+| **Hébergement Frontend** | IIS + Vite build | Static `dist/` servi par IIS |
+| **Stockage objet** | MinIO | Service Windows (NSSM), exposé via IIS reverse proxy `/storage/*` |
+| **Cache** | Redis | Service Windows, port 6379 |
+| **Agent on-premise** | PM2 + Python | `socket_client.py`, reconnexion exponentielle |
+| **CI/CD** | GitHub Actions | `git fetch` + `git reset --hard origin/main` (évite les conflits lock) |
+| **Monitoring santé** | HealthMonitorService | Vérifie DB/Redis/MinIO toutes les 5 min, alerte par email |
+| **Job observability** | JobRegistryService | Registre global de tous les crons/intervals |
 | **Logs** | Winston + rotate | Fichiers journaliers |
+| **Error tracking** | Sentry | Erreurs runtime prod |
 
 ---
 

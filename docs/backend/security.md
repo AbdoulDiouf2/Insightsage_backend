@@ -598,3 +598,38 @@ payload: {
 ```
 
 **Résultat** : les audit logs des superadmins contiennent `superadmin_cross_tenant: true`, permettant de filtrer et auditer tous les accès cross-tenant depuis l'interface admin.
+
+
+---
+
+## 17. Alertes système et anti-spam (NotificationsService)
+
+### Problème
+
+Les jobs autonomes (HealthMonitorService, AgentsService) peuvent détecter des pannes répétitives et déclencher des dizaines d'emails en quelques minutes.
+
+### Solution : cooldowns en mémoire
+
+`NotificationsService` maintient une Map en mémoire avec des timestamps de dernière alerte par clé :
+
+| Type d'alerte | Clé cooldown | Durée |
+|--------------|--------------|-------|
+| Composant système DOWN | `systemHealth:<nom>:down` | 15 min |
+| Composant système RECOVERED | `systemHealth:<nom>:recovered` | 1 h |
+| Token agent expiré | `agentTokenExpiry:<id>` | 23 h |
+| Token agent expirant (J-7/3/1) | `agentTokenWarn:<id>:<days>` | 23 h |
+| Agent hors ligne | `agentOffline:<id>` | 1 h |
+
+Les admins notifiés sont ceux dont `notificationPreferences.systemHealth === true` (configurable dans Paramètres → Notifications).
+
+### Monitoring santé continu
+
+`HealthMonitorService` (module `health/`) effectue un cycle de checks toutes les **5 minutes** (délai initial de 30s pour laisser les services démarrer) :
+
+```
+DB → Redis → MinIO
+```
+
+Pour chaque composant, il maintient l'état précédent (`states: Map<string, boolean>`) et notifie uniquement lors d'une **transition** :
+- `prev !== false` → `false` : alerte DOWN
+- `prev === false` → `true` : alerte RECOVERED

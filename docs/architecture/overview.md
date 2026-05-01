@@ -60,6 +60,9 @@ Construit avec **NestJS v11**, le backend est une API REST multi-tenant qui orch
 - Wizard d'onboarding en 5 étapes
 - Audit logging global avec masquage PII
 - Gestion des plans d'abonnement
+- Monitoring continu des composants système (DB, Redis, MinIO) avec alertes email
+- Stockage de fichiers via MinIO (releases, pièces jointes bugs)
+- Suivi en temps réel de tous les jobs autonomes (JobRegistry)
 
 **Guard chain (appliquée globalement) :**
 
@@ -86,6 +89,9 @@ Interface d'administration React pour les **SuperAdmins** (équipe Nafaka Tech).
 - Monitorer les agents et leur santé
 - Configurer les plans d'abonnement
 - Consulter les logs d'audit globaux
+- Visualiser l'état de tous les jobs planifiés en temps réel
+- Gérer les notifications (cooldowns, alertes système, expiration tokens)
+- Migrer les URLs de stockage (local → MinIO)
 
 ### 3. L'Agent — Le pont sécurisé
 
@@ -191,19 +197,43 @@ graph LR
     APP --> ROLES["RolesModule\nRBAC"]
     APP --> LOGS["LogsModule\nAudit queries"]
     APP --> AUDIT["AuditLogModule\n@Global"]
-    APP --> SUBS["SubscriptionsModule\nPlans"]
+    APP --> JOBREG["JobRegistryModule\n@Global - Jobs tracking"]
+    APP --> SUBS["SubscriptionsModule\nPlans + Billing cron"]
     APP --> DASH["DashboardsModule"]
     APP --> WIDGET["WidgetsModule"]
     APP --> NLQ["NlqModule"]
-    APP --> HEALTH["HealthModule"]
+    APP --> HEALTH["HealthModule\nHealthMonitorService"]
+    APP --> NOTIF["NotificationsModule\nAlertes email + cooldowns"]
+    APP --> MAILER["MailerModule\nNodemailer + templates"]
+    APP --> STORAGE["StorageModule\nMinIO S3-compatible"]
+    APP --> REDIS["RedisModule\n@Global - Cache + rate limit"]
+    APP --> BUGS["BugsModule\nTicketing interne"]
+    APP --> BILLING["BillingModule\nFlutterwave + cron rappels"]
 
     AUDIT -.->|"Injecté partout"| AGENTS
     AUDIT -.->|"Injecté partout"| AUTH
     AUDIT -.->|"Injecté partout"| ORGS
+    JOBREG -.->|"Injecté partout"| AGENTS
+    JOBREG -.->|"Injecté partout"| HEALTH
+    JOBREG -.->|"Injecté partout"| BILLING
 
     style APP fill:#0d9488,color:#fff
     style AUDIT fill:#eab308,color:#000
+    style JOBREG fill:#7c3aed,color:#fff
+    style REDIS fill:#dc2626,color:#fff
+    style STORAGE fill:#0369a1,color:#fff
 ```
+
+---
+
+## Infrastructure complémentaire
+
+| Composant | Rôle |
+|-----------|------|
+| **Redis** | Cache sessions, rate limiting (ThrottlerModule), stockage cooldowns notifications |
+| **MinIO** | Stockage objet S3-compatible (releases agent, pièces jointes bugs) — exposé via IIS reverse proxy |
+| **HealthMonitorService** | Vérifie DB / Redis / MinIO toutes les 5 min, envoie des emails aux admins en cas de panne ou de rétablissement |
+| **JobRegistryService** | Registre `@Global` — chaque job autonome l'appelle via `run(name, fn)` pour tracer durée, succès et erreurs |
 
 ---
 
@@ -217,3 +247,5 @@ graph LR
 | **PII by Default** | Aucun email/password en clair dans les logs |
 | **Token TTL strict** | Access 15min, Refresh 7j, Agent 30j avec révocation instantanée |
 | **No Migrate** | `prisma db push` uniquement — drift existant en DB Supabase |
+| **Job Observability** | Tout job planifié est wrappé dans `jobRegistry.run()` — visible dans `GET /health/jobs` |
+| **Alert Cooldowns** | Notifications avec cooldown en mémoire — évite le spam email pour les alertes récurrentes |
