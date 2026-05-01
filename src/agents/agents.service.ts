@@ -575,7 +575,7 @@ export class AgentsService implements OnModuleInit {
    * Marque les agents sans heartbeat récent comme offline (appelé par un cron job)
    */
   async markStaleAgentsOffline() {
-    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+    const twoMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
 
     // Trouver d'abord les agents concernés (updateMany ne retourne pas les enregistrements)
     const staleAgents = await this.prisma.agent.findMany({
