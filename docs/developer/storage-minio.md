@@ -27,7 +27,7 @@ graph TD
     API --> RD["⚡ Memurai\nlocalhost:6379"]
     API --> MN["🪣 MinIO\nlocalhost:9000"]
 
-    MN --> DATA["💾 D:\\Cockpit\\data\\minio\\\n(stockage local)"]
+    MN --> DATA["💾 C:\\Cockpit\\data\\minio\\\n(stockage local)"]
 
     style MN fill:#e8f5e9,stroke:#4caf50,color:#1b5e20
     style DATA fill:#e8f5e9,stroke:#4caf50,color:#1b5e20
@@ -37,7 +37,7 @@ graph TD
 |---|---|---|
 | MinIO API (S3 compatible) | `9000` | Interne uniquement (NestJS) |
 | MinIO Console web | `9001` | Interne uniquement (administration) |
-| Données stockées | — | `D:\Cockpit\data\minio\` |
+| Données stockées | — | `C:\Cockpit\data\minio\` |
 
 !!! warning "Isolation réseau"
     Les ports 9000 et 9001 ne doivent **jamais** être exposés à Internet.
@@ -70,8 +70,8 @@ graph TD
 # Dossier binaires MinIO
 New-Item -ItemType Directory -Force -Path C:\tools\minio
 
-# Dossier données (sur disque D: recommandé pour les données volumineuses)
-New-Item -ItemType Directory -Force -Path D:\Cockpit\data\minio
+# Dossier données MinIO
+New-Item -ItemType Directory -Force -Path C:\Cockpit\data\minio
 
 # Dossier logs MinIO
 New-Item -ItemType Directory -Force -Path C:\Cockpit\logs\minio
@@ -126,7 +126,7 @@ C:\tools\nssm\win64\nssm.exe set CockpitMinio AppDirectory "C:\tools\minio"
 
 # Arguments : serveur + dossier données + port console
 C:\tools\nssm\win64\nssm.exe set CockpitMinio AppParameters `
-  "server D:\Cockpit\data\minio --address :9000 --console-address :9001"
+  "server C:\Cockpit\data\minio --address :9000 --console-address :9001"
 
 # Variables d'environnement (remplacer les valeurs)
 C:\tools\nssm\win64\nssm.exe set CockpitMinio AppEnvironmentExtra `
@@ -210,10 +210,10 @@ cockpit-storage/
 
 ```powershell
 # Autoriser la lecture publique (GET anonyme) sur tout le bucket
-& "C:\mc.exe" anonymous set download cockpit/cockpit-storage
+& "C:\tools\minio\mc.exe" anonymous set download cockpit/cockpit-storage
 
 # Vérifier
-& "C:\mc.exe" anonymous get cockpit/cockpit-storage
+& "C:\tools\minio\mc.exe" anonymous get cockpit/cockpit-storage
 # → Access permission for `cockpit/cockpit-storage` is `download`
 ```
 
@@ -433,7 +433,7 @@ $date = Get-Date -Format 'yyyyMMdd_HHmm'
 & "C:\tools\minio\mc.exe" mirror cockpit/ "C:\Cockpit\backup\minio_$date\" --overwrite
 
 # Ou via robocopy (service arrêté recommandé)
-robocopy "D:\Cockpit\data\minio" "E:\Backups\minio_$date" /E /Z /LOG:"C:\Cockpit\logs\minio\backup_$date.log"
+robocopy "C:\Cockpit\data\minio" "C:\Cockpit\backup\minio_$date" /E /Z /LOG:"C:\Cockpit\logs\minio\backup_$date.log"
 ```
 
 ---
@@ -449,7 +449,7 @@ robocopy "D:\Cockpit\data\minio" "E:\Backups\minio_$date" /E /Z /LOG:"C:\Cockpit
 - [ ] Bucket `cockpit-storage` créé
 - [ ] Utilisateur applicatif `cockpit_app` créé (pas le compte root dans `.env.prod`)
 - [ ] Ports 9000 et 9001 **bloqués** vers l'extérieur (règles Firewall)
-- [ ] Dossier `D:\Cockpit\data\minio\` sur volume dédié (pas le disque OS)
+- [ ] Dossier `C:\Cockpit\data\minio\` créé et accessible
 
 ### Variables d'environnement
 
@@ -516,7 +516,7 @@ Invoke-WebRequest -Uri "http://localhost:9000/minio/health/ready" -UseBasicParsi
 Le bucket n'a pas de politique de lecture publique. Appliquer une seule fois :
 
 ```powershell
-& "C:\mc.exe" anonymous set download cockpit/cockpit-storage
+& "C:\tools\minio\mc.exe" anonymous set download cockpit/cockpit-storage
 ```
 
 ---
@@ -525,27 +525,17 @@ Le bucket n'a pas de politique de lecture publique. Appliquer une seule fois :
 
 L'alias `mc` et MinIO utilisent des credentials différents. Les credentials de l'alias doivent correspondre exactement à `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` de l'instance MinIO.
 
-**Sous PM2 :** vérifier que les env vars MinIO dans `ecosystem.config.js` correspondent à l'alias mc :
-
-```javascript
-// ecosystem.config.js — section cockpit-minio
-env: {
-  MINIO_ROOT_USER: 'admin',
-  MINIO_ROOT_PASSWORD: 'Cockpit2026!',
-},
-```
+**Sous NSSM (prod) :** vérifier que les env vars définies via `nssm set CockpitMinio AppEnvironmentExtra` correspondent à l'alias mc :
 
 ```powershell
-# Alias mc correspondant
-& "C:\mc.exe" alias set cockpit http://127.0.0.1:9000 admin Cockpit2026!
-```
+# Vérifier les env vars du service
+C:\tools\nssm\win64\nssm.exe get CockpitMinio AppEnvironmentExtra
 
-Puis appliquer les env vars et vérifier :
+# Reconfigurer l'alias mc pour correspondre
+& "C:\tools\minio\mc.exe" alias set cockpit http://127.0.0.1:9000 cockpit_minio VOTRE_MDP_ROOT
 
-```powershell
-pm2 start ecosystem.config.js --update-env
-# Attendre 3-4s
-& "C:\mc.exe" admin info cockpit
+# Vérifier
+& "C:\tools\minio\mc.exe" admin info cockpit
 ```
 
 !!! warning "pm2 restart ≠ pm2 start --update-env"
@@ -558,6 +548,6 @@ pm2 start ecosystem.config.js --update-env
 L'utilisateur applicatif n'est pas persisté dans le bon répertoire de données. Vérifier que `C:\minio-data` est bien le répertoire utilisé à chaque démarrage, puis recréer l'utilisateur :
 
 ```powershell
-& "C:\mc.exe" admin user add cockpit cockpit_app DevStorage2026!
-& "C:\mc.exe" admin policy attach cockpit readwrite --user cockpit_app
+& "C:\tools\minio\mc.exe" admin user add cockpit cockpit_app VOTRE_MDP_APP
+& "C:\tools\minio\mc.exe" admin policy attach cockpit readwrite --user cockpit_app
 ```
