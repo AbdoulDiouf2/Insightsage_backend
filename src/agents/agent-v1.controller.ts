@@ -8,6 +8,7 @@ import {
   HttpStatus,
   Ip,
   Param,
+  Headers,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AgentsService } from './agents.service';
@@ -118,6 +119,26 @@ export class AgentV1Controller {
     @Body() dto: HeartbeatV1Dto,
   ) {
     return this.agentsService.heartbeatV1(agentId, organizationId, dto);
+  }
+
+  /**
+   * Vérifie si une nouvelle version de l'agent est disponible.
+   * Appelé par le ManagementDashboard Electron au démarrage.
+   */
+  @Public()
+  @UseGuards(AgentTokenGuard)
+  @Throttle({ default: { ttl: 300000, limit: 10 } }) // 10 checks / 5min
+  @Get('check-update')
+  @ApiOperation({
+    summary: "Vérifier la disponibilité d'une mise à jour de l'agent",
+    description:
+      "Appelé par le dashboard de gestion Electron. Retourne hasUpdate + metadata si une version plus récente est disponible pour la plateforme win32.",
+  })
+  @ApiResponse({ status: 200, description: '{ hasUpdate, latest: { version, fileUrl, checksum, changelog } | null }' })
+  async checkUpdate(
+    @Headers('x-agent-version') agentVersion: string,
+  ) {
+    return this.agentsService.getLatestRelease('win32', agentVersion || '0.0.0');
   }
 
   // ============================================================

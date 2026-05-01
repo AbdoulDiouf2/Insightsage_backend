@@ -36,6 +36,7 @@ export type AuditEventType =
   | 'agent_token_regenerated'
   | 'agent_token_revoked'
   | 'agent_token_expired'
+  | 'agent_token_auto_renewed'
   | 'agent_heartbeat'
   | 'agent_error'
   | 'agent_connection_tested'

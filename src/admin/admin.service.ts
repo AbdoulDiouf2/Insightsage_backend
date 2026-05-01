@@ -1496,7 +1496,10 @@ export class AdminService {
     const token = `isag_${crypto.randomBytes(24).toString('hex')}`;
     const tokenExpiresAt = new Date(Date.now() + TOKEN_TTL_DAYS * 24 * 3600 * 1000);
 
-    const existing = await this.prisma.agent.findFirst({ where: { organizationId } });
+    const [existing, org] = await Promise.all([
+      this.prisma.agent.findFirst({ where: { organizationId } }),
+      this.prisma.organization.findUnique({ where: { id: organizationId }, select: { name: true } }),
+    ]);
 
     let agent;
     if (existing) {
@@ -1509,7 +1512,7 @@ export class AdminService {
         data: {
           token,
           tokenExpiresAt,
-          name: name || 'Agent Principal',
+          name: name || `Agent Sage — ${org?.name ?? organizationId.slice(0, 8)}`,
           status: 'pending',
           organizationId,
         },

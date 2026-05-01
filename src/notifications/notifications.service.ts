@@ -140,6 +140,71 @@ export class NotificationsService {
     this.logger.log(`[notifyPaymentSuccess] Alertes envoyées pour "${orgName}" à ${users.length} admin(s)`);
   }
 
+  private async resolveOrgOwner(
+    organizationId: string,
+  ): Promise<{ email: string; firstName?: string | null } | null> {
+    const org = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { owner: { select: { email: true, firstName: true } } },
+    });
+    return org?.owner ?? null;
+  }
+
+  private mergeAndDedup(
+    ...lists: ({ email: string; firstName?: string | null } | null)[][]
+  ): { email: string; firstName?: string | null }[] {
+    const seen = new Set<string>();
+    const result: { email: string; firstName?: string | null }[] = [];
+    for (const list of lists) {
+      for (const u of list) {
+        if (!u || seen.has(u.email)) continue;
+        seen.add(u.email);
+        result.push(u);
+      }
+    }
+    return result;
+  }
+
+  async notifyTokenAutoRenewed(
+    agentName: string,
+    organizationId: string,
+    newExpiresAt: Date,
+  ): Promise<void> {
+    const { recipients } = await this.getConfig();
+    const [admins, owner] = await Promise.all([
+      this.resolveRecipients(recipients),
+      this.resolveOrgOwner(organizationId),
+    ]);
+    const users  = this.mergeAndDedup(admins, owner ? [owner] : []);
+    const orgName = await this.resolveOrgName(organizationId);
+    await Promise.allSettled(
+      users.map((u) =>
+        this.mailer.sendAdminTokenAutoRenewedAlert(u.email, u.firstName, agentName, orgName, newExpiresAt),
+      ),
+    );
+    this.logger.log(`[notifyTokenAutoRenewed] Confirmations envoyées pour "${agentName}" à ${users.length} destinataire(s)`);
+  }
+
+  async notifyTokenAutoRenewFailed(
+    agentName: string,
+    organizationId: string,
+    errorMsg: string,
+  ): Promise<void> {
+    const { recipients } = await this.getConfig();
+    const [admins, owner] = await Promise.all([
+      this.resolveRecipients(recipients),
+      this.resolveOrgOwner(organizationId),
+    ]);
+    const users   = this.mergeAndDedup(admins, owner ? [owner] : []);
+    const orgName = await this.resolveOrgName(organizationId);
+    await Promise.allSettled(
+      users.map((u) =>
+        this.mailer.sendAdminTokenAutoRenewFailedAlert(u.email, u.firstName, agentName, orgName, errorMsg),
+      ),
+    );
+    this.logger.log(`[notifyTokenAutoRenewFailed] Alertes échec envoyées pour "${agentName}" à ${users.length} destinataire(s)`);
+  }
+
   async notifyTokenExpiringSoon(
     agentId: string,
     agentName: string,

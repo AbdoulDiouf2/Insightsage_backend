@@ -9,6 +9,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { UseFilters, UsePipes, ValidationPipe, Logger } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 import { AgentsService } from './agents.service';
 
 @WebSocketGateway({
@@ -172,5 +173,22 @@ export class AgentsGateway implements OnGatewayConnection, OnGatewayDisconnect {
    */
   isAgentConnected(organizationId: string): boolean {
     return this.activeAgents.has(organizationId);
+  }
+
+  /**
+   * Reçoit l'événement de renouvellement automatique émis par AgentsService
+   * et pousse le nouveau token à l'agent via WebSocket.
+   */
+  @OnEvent('agent.token_auto_renewed')
+  handleTokenAutoRenewed(payload: { organizationId: string; newToken: string; tokenExpiresAt: Date }) {
+    const socketId = this.activeAgents.get(payload.organizationId);
+    if (!socketId) return;
+
+    this.server.to(socketId).emit('token_renewal', {
+      newToken: payload.newToken,
+      expiresAt: payload.tokenExpiresAt.toISOString(),
+    });
+
+    this.logger.log(`token_renewal pushed to org ${payload.organizationId}`);
   }
 }

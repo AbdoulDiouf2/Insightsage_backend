@@ -342,6 +342,57 @@ export class MailerService implements OnModuleInit {
     await this.send({ to: email, subject: `[Cockpit] Paiement reçu — ${orgName}`, html });
   }
 
+  async sendAdminTokenAutoRenewedAlert(
+    email: string,
+    firstName: string | null | undefined,
+    agentName: string,
+    orgName: string,
+    newExpiresAt: Date,
+  ): Promise<void> {
+    const greeting   = firstName ? `Bonjour ${firstName},` : 'Bonjour,';
+    const expiresStr = newExpiresAt.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+    if (!this.smtpConfigured) {
+      this.logger.log(`[DEV] sendAdminTokenAutoRenewedAlert → ${email} | agent: ${agentName} (${orgName}) — expire le ${expiresStr}`);
+      return;
+    }
+    const html = this.adminHtml(
+      '#22c55e',
+      '🔄 Token agent renouvelé automatiquement',
+      `<p>${greeting}</p>
+       <p>Le token de l'agent on-premise suivant a été <strong>renouvelé automatiquement</strong> par la plateforme Cockpit.</p>
+       <p>Agent : <strong>${agentName}</strong></p>
+       <p>Organisation : <strong>${orgName}</strong></p>
+       <p>Nouveau token valide jusqu'au : <strong>${expiresStr}</strong></p>
+       <p>Aucune action requise — l'agent a reçu son nouveau token via connexion sécurisée et a redémarré automatiquement.</p>`,
+    );
+    await this.send({ to: email, subject: `[Cockpit] Token agent renouvelé automatiquement — ${agentName}`, html });
+  }
+
+  async sendAdminTokenAutoRenewFailedAlert(
+    email: string,
+    firstName: string | null | undefined,
+    agentName: string,
+    orgName: string,
+    errorMsg: string,
+  ): Promise<void> {
+    const greeting = firstName ? `Bonjour ${firstName},` : 'Bonjour,';
+    if (!this.smtpConfigured) {
+      this.logger.log(`[DEV] sendAdminTokenAutoRenewFailedAlert → ${email} | agent: ${agentName} (${orgName}) — ${errorMsg}`);
+      return;
+    }
+    const html = this.adminHtml(
+      '#dc2626',
+      '❌ Échec du renouvellement automatique du token',
+      `<p>${greeting}</p>
+       <p>Le renouvellement automatique du token de l'agent on-premise suivant a <strong>échoué</strong>.</p>
+       <p>Agent : <strong>${agentName}</strong></p>
+       <p>Organisation : <strong>${orgName}</strong></p>
+       <p>Erreur : <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;">${errorMsg}</code></p>
+       <p><strong>Action requise :</strong> Vérifiez l'état de l'agent et régénérez le token manuellement depuis le portail si nécessaire.</p>`,
+    );
+    await this.send({ to: email, subject: `[Cockpit] ÉCHEC renouvellement token — ${agentName} (${orgName})`, html });
+  }
+
   async sendAdminTokenExpiringSoonAlert(
     email: string,
     firstName: string | null | undefined,

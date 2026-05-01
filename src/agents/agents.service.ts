@@ -57,6 +57,7 @@ export class AgentsService implements OnModuleInit {
       this.jobRegistry.run('Agents hors ligne', () => this.markStaleAgentsOffline()).catch(() => {});
       this.jobRegistry.run('Nettoyage jobs SQL', () => this.cleanupStaleJobs()).catch(() => {});
       this.jobRegistry.run('Alertes expiration tokens', () => this.warnExpiringTokens()).catch(() => {});
+      this.jobRegistry.run('Renouvellement auto tokens', () => this.autoRenewConnectedTokens()).catch(() => {});
     }, 60000);
   }
 
@@ -196,6 +197,11 @@ export class AgentsService implements OnModuleInit {
     const token = this.generateToken();
     const tokenExpiresAt = this.getTokenExpiresAt();
 
+    const org = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { name: true },
+    });
+
     // Si un agent existe déjà et force=true : on rotate son token (pas de création en double)
     if (existingAgent && dto.force) {
       const agent = await this.prisma.agent.update({
@@ -236,7 +242,7 @@ export class AgentsService implements OnModuleInit {
     const agent = await this.prisma.agent.create({
       data: {
         token,
-        name: dto.name || `Agent-${organizationId.slice(0, 8)}`,
+        name: dto.name || `Agent Sage — ${org?.name ?? organizationId.slice(0, 8)}`,
         status: 'pending',
         organizationId,
         tokenExpiresAt,
@@ -620,6 +626,66 @@ export class AgentsService implements OnModuleInit {
       if (daysLeft !== null && [7, 3, 1].includes(daysLeft)) {
         this.notifications
           .notifyTokenExpiringSoon(agent.id, agent.name, agent.organization.name, daysLeft)
+          .catch(() => {});
+      }
+    }
+  }
+
+  /**
+   * Renouvelle automatiquement les tokens d'agents connectés qui expirent dans ≤7 jours.
+   * Cooldown Redis 23h par agent pour éviter les re-déclenchements répétés.
+   * Émet 'agent.token_auto_renewed' → AgentsGateway pousse le nouveau token via WebSocket.
+   */
+  async autoRenewConnectedTokens() {
+    const sevenDaysFromNow = new Date(Date.now() + TOKEN_EXPIRY_WARNING_DAYS * 24 * 3600 * 1000);
+    const agents = await this.prisma.agent.findMany({
+      where: {
+        isRevoked: false,
+        tokenExpiresAt: { gt: new Date(), lte: sevenDaysFromNow },
+        status: 'online',
+      },
+      include: { organization: { select: { name: true } } },
+    });
+
+    for (const agent of agents) {
+      const cooldownKey = `auto_renewal:${agent.id}`;
+      const alreadySent = await this.redis.get(cooldownKey).catch(() => null);
+      if (alreadySent) continue;
+      if (!this.connectedAgents.has(agent.organizationId)) continue;
+
+      try {
+        const newToken       = this.generateToken();
+        const tokenExpiresAt = this.getTokenExpiresAt();
+
+        await this.prisma.agent.update({
+          where: { id: agent.id },
+          data: { token: newToken, tokenExpiresAt },
+        });
+
+        await this.redis.set(cooldownKey, '1', { EX: 23 * 3600 }).catch(() => {});
+
+        this.auditLog.log({
+          organizationId: agent.organizationId,
+          event: 'agent_token_auto_renewed',
+          payload: { agentId: agent.id },
+        }).catch(() => {});
+
+        this.eventEmitter.emit('agent.token_auto_renewed', {
+          organizationId: agent.organizationId,
+          newToken,
+          tokenExpiresAt,
+        });
+
+        this.notifications
+          .notifyTokenAutoRenewed(agent.name, agent.organizationId, tokenExpiresAt)
+          .catch(() => {});
+
+        this.logger.log(`Token auto-renewed for agent ${agent.id} (org ${agent.organizationId})`);
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        this.logger.error(`Token auto-renewal failed for agent ${agent.id}: ${errorMsg}`);
+        this.notifications
+          .notifyTokenAutoRenewFailed(agent.name, agent.organizationId, errorMsg)
           .catch(() => {});
       }
     }
@@ -1268,6 +1334,38 @@ export class AgentsService implements OnModuleInit {
         pages: Math.ceil(total / limit),
       },
     };
+  }
+
+  /**
+   * Vérifie si une version plus récente de l'agent est disponible pour la plateforme donnée.
+   * Utilisé par GET /api/v1/agent/check-update (appelé par le ManagementDashboard Electron).
+   */
+  async getLatestRelease(
+    platform: string,
+    currentVersion: string,
+  ): Promise<{
+    hasUpdate: boolean;
+    latest: { version: string; fileUrl: string; checksum: string; changelog: string | null } | null;
+  }> {
+    const release = await this.prisma.agentRelease.findFirst({
+      where: { isLatest: true, platform },
+      orderBy: { uploadedAt: 'desc' },
+      select: { version: true, fileUrl: true, checksum: true, changelog: true },
+    });
+
+    if (!release) return { hasUpdate: false, latest: null };
+
+    const hasUpdate = this.isNewerVersion(release.version, currentVersion);
+    return { hasUpdate, latest: hasUpdate ? release : null };
+  }
+
+  private isNewerVersion(latest: string, current: string): boolean {
+    const parse = (v: string) => v.replace(/^v/, '').split('.').map(Number);
+    const [lMaj = 0, lMin = 0, lPatch = 0] = parse(latest);
+    const [cMaj = 0, cMin = 0, cPatch = 0] = parse(current);
+    if (lMaj !== cMaj) return lMaj > cMaj;
+    if (lMin !== cMin) return lMin > cMin;
+    return lPatch > cPatch;
   }
 
   /**
