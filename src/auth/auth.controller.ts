@@ -76,7 +76,7 @@ export class AuthController {
   }
 
   @Public()
-  @Throttle({ default: { ttl: 60000, limit: 5 } }) // 5 tentatives/min par IP (anti brute-force)
+  @Throttle({ default: { ttl: 60000, limit: 10 } }) // 10 req/min par IP — le Redis lockout (5 mauvais mdp) tire en premier
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login user' })
