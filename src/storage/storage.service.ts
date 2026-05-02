@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3Client, PutObjectCommand, CopyObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
-import { join, basename, extname, dirname } from 'path';
+import { join, basename, extname, dirname, resolve } from 'path';
 import * as fs from 'fs-extra';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -38,6 +38,12 @@ export class StorageService implements OnModuleInit {
     }
   }
 
+  private isPathSafe(pathToCheck: string): boolean {
+    const resolvedPath = resolve(pathToCheck);
+    const resolvedUploadDir = resolve(this.uploadDir);
+    return resolvedPath.startsWith(resolvedUploadDir);
+  }
+
   async uploadFile(file: Express.Multer.File, folder = 'temp', customKey?: string): Promise<string> {
     const fileName = customKey ?? `${uuidv4()}-${file.originalname}`;
     const key = `${folder}/${fileName}`;
@@ -60,6 +66,9 @@ export class StorageService implements OnModuleInit {
     }
 
     const localPath = join(this.uploadDir, key);
+    if (!this.isPathSafe(localPath)) {
+      throw new Error('Invalid upload path');
+    }
     await fs.ensureDir(dirname(localPath));
     await fs.writeFile(localPath, file.buffer);
     return `${this.appUrl}/uploads/${key}`;
@@ -103,6 +112,12 @@ export class StorageService implements OnModuleInit {
       const newDir = join(this.uploadDir, 'bugs', bugId);
       const newPath = join(newDir, newFileName);
 
+      if (!this.isPathSafe(oldPath) || !this.isPathSafe(newPath)) {
+        this.logger.error(`Path traversal attempt blocked: ${oldPath} -> ${newPath}`);
+        finalUrls.push(url);
+        continue;
+      }
+
       if (await fs.pathExists(oldPath)) {
         await fs.ensureDir(newDir);
         await fs.move(oldPath, newPath, { overwrite: true });
@@ -138,6 +153,11 @@ export class StorageService implements OnModuleInit {
     if (fileUrl.startsWith(appUrlBase)) {
       const relativePath = fileUrl.slice(appUrlBase.length);
       const localPath = join(this.uploadDir, relativePath);
+
+      if (!this.isPathSafe(localPath)) {
+        this.logger.warn(`Potential path traversal attempt blocked during delete: ${fileUrl}`);
+        return;
+      }
       try {
         await fs.remove(localPath);
       } catch (e) {
