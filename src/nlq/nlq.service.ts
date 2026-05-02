@@ -136,20 +136,36 @@ export class NlqService {
             };
         }
 
+        // 4. Vérification préalable : template désactivé ?
+        const templateCheck = await this.prisma.nlqTemplate.findUnique({
+            where: { intentKey_sageType: { intentKey: intent.key, sageType: org.sageType } },
+            select: { isActive: true },
+        });
+        if (templateCheck && !templateCheck.isActive) {
+            const latencyMs = Date.now() - startTime;
+            await this.prisma.nlqSession.update({
+                where: { id: session.id },
+                data: { status: 'disabled', latencyMs },
+            });
+            return {
+                sessionId: session.id,
+                status: 'TEMPLATE_DISABLED',
+                message: 'Ce KPI est temporairement désactivé.',
+            };
+        }
+
         try {
-            // 4. Récupération du template
+            // 5. Récupération du template
             const template = await this.getTemplate(intent.key, org.sageType);
 
-            // 5. Exécution via l'agent
-            // Note: Le SQL du template contient déjà les placeholders {{database_name}}
-            // qui seront injectés par agentsService.executeRealTimeQuery
+            // 6. Exécution via l'agent
             const job = await this.agentsService.executeRealTimeQuery(
                 organizationId,
                 template.sqlQuery,
                 this.agentsGateway,
             );
 
-            // 6. Mise à jour session
+            // 7. Mise à jour session
             const latencyMs = Date.now() - startTime;
             await this.prisma.nlqSession.update({
                 where: { id: session.id },
