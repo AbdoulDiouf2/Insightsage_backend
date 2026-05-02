@@ -1345,7 +1345,7 @@ export class AgentsService implements OnModuleInit {
     currentVersion: string,
   ): Promise<{
     hasUpdate: boolean;
-    latest: { version: string; fileUrl: string; checksum: string; changelog: string | null } | null;
+    latest: { version: string; fileUrl: string; checksum: string | null; changelog: string | null } | null;
   }> {
     const release = await this.prisma.agentRelease.findFirst({
       where: { isLatest: true, platform },
