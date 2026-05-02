@@ -5,6 +5,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 export type AuditEventType =
   // ── Auth ───────────────────────────────────────────────────────────────────
   | 'user_login'
+  | 'login_account_locked'
   | 'user_logout'
   | 'user_created'
   | 'user_updated'

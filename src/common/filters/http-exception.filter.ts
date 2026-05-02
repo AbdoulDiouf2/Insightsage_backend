@@ -22,6 +22,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     let status: number;
     let message: string | string[];
     let error: string;
+    let extra: Record<string, unknown> = {};
 
     if (exception instanceof ThrottlerException) {
       status = HttpStatus.TOO_MANY_REQUESTS;
@@ -39,6 +40,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
         const raw = resObj.message ?? exception.message;
         message = Array.isArray(raw) ? raw[0] : raw;
         error = resObj.error ?? HttpStatus[status] ?? 'Error';
+        if (resObj.remainingAttempts !== undefined) {
+          extra = { ...extra, remainingAttempts: resObj.remainingAttempts };
+        }
+        if (resObj.lockoutRemainingSeconds !== undefined) {
+          extra = { ...extra, lockoutRemainingSeconds: resObj.lockoutRemainingSeconds };
+        }
       } else {
         message = exception.message;
         error = HttpStatus[status] ?? 'Error';
@@ -64,6 +71,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       statusCode: status,
       error,
       message,
+      ...extra,
       path: request.url,
       timestamp: new Date().toISOString(),
     });

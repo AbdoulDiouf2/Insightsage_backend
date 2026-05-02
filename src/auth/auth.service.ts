@@ -2,6 +2,9 @@ import {
   Injectable,
   UnauthorizedException,
   BadRequestException,
+  HttpException,
+  HttpStatus,
+  Inject,
 } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
@@ -18,8 +21,12 @@ import { AuditLogService } from '../logs/audit-log.service';
 import { LicenseGuardianService } from '../subscriptions/license-guardian.service';
 import { MailerService } from '../mailer/mailer.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { REDIS_CLIENT } from '../redis/redis.module';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_LOCKOUT_TTL = 15 * 60; // 15 minutes in seconds
 
 @Injectable()
 export class AuthService {
@@ -32,6 +39,7 @@ export class AuthService {
     private licenseGuardian: LicenseGuardianService,
     private mailer: MailerService,
     private notifications: NotificationsService,
+    @Inject(REDIS_CLIENT) private redis: any,
   ) { }
 
   // GET /auth/invitation-info?token=xxx
@@ -228,18 +236,62 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const user = await this.usersService.findByEmail(dto.email);
+    const email = dto.email.toLowerCase().trim();
+    const lockKey = `login:lockout:${email}`;
+    const attemptsKey = `login:attempts:${email}`;
+
+    // Check lockout before hitting DB
+    const isLocked = await this.redis.get(lockKey);
+    if (isLocked) {
+      const ttl = await this.redis.ttl(lockKey);
+      throw new HttpException(
+        {
+          message: `Compte temporairement verrouillé suite à trop de tentatives. Réessayez dans ${Math.ceil(ttl / 60)} minute(s).`,
+          lockoutRemainingSeconds: ttl,
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    const user = await this.usersService.findByEmail(email);
     if (!user) {
+      // Increment counter even for unknown emails (prevents enumeration via lockout)
+      await this.redis.incr(attemptsKey);
+      await this.redis.expire(attemptsKey, LOGIN_LOCKOUT_TTL);
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const isPasswordValid = await bcrypt.compare(
-      dto.password,
-      user.passwordHash,
-    );
+    const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      const attempts = await this.redis.incr(attemptsKey);
+      await this.redis.expire(attemptsKey, LOGIN_LOCKOUT_TTL);
+
+      if (attempts >= LOGIN_MAX_ATTEMPTS) {
+        await this.redis.set(lockKey, '1', { EX: LOGIN_LOCKOUT_TTL });
+        await this.redis.del(attemptsKey);
+
+        await this.auditLog.log({
+          organizationId: user.organizationId,
+          userId: user.id,
+          event: 'login_account_locked',
+          payload: { email, reason: `${LOGIN_MAX_ATTEMPTS} failed attempts` },
+        });
+
+        throw new HttpException(
+          `Trop de tentatives échouées. Compte verrouillé pour ${LOGIN_LOCKOUT_TTL / 60} minutes.`,
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+
+      const remainingAttempts = LOGIN_MAX_ATTEMPTS - attempts;
+      throw new UnauthorizedException({ message: 'Invalid credentials', remainingAttempts });
     }
+
+    // Success — reset counters
+    await Promise.all([
+      this.redis.del(attemptsKey),
+      this.redis.del(lockKey),
+    ]);
 
     const tokens = await this.getTokens(user.id, user.email);
     await this.updateRefreshTokenHash(user.id, tokens.refreshToken);
