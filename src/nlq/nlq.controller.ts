@@ -7,6 +7,7 @@ import {
     UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import { NlqService } from './nlq.service';
 import { SubscriptionGuard } from '../subscriptions/guards/subscription.guard';
 import { RequiresFeature } from '../subscriptions/decorators/requires-feature.decorator';
@@ -20,6 +21,7 @@ import { NlqAddToDashboardDto } from './dto/nlq-add-to-dashboard.dto';
 @ApiTags('NLQ')
 @ApiBearerAuth()
 @Controller('nlq')
+@SkipThrottle()
 @UseGuards(SubscriptionGuard, PermissionsGuard)
 @RequiresFeature('hasNlq')
 export class NlqController {
