@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3Client, PutObjectCommand, CopyObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { NodeHttpHandler } from '@smithy/node-http-handler';
 import { join, basename, extname, dirname, resolve } from 'path';
 import * as fs from 'fs-extra';
 import { v4 as uuidv4 } from 'uuid';
@@ -34,6 +35,10 @@ export class StorageService implements OnModuleInit {
         endpoint,
         credentials: { accessKeyId, secretAccessKey },
         forcePathStyle: true, // obligatoire avec MinIO (path-style vs virtual-hosted)
+        requestHandler: new NodeHttpHandler({
+          requestTimeout: 120000,   // 2min max par requête MinIO
+          connectionTimeout: 5000,  // fail vite si MinIO injoignable
+        }),
       });
     }
   }
