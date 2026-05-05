@@ -347,14 +347,30 @@ export class AuthService {
 
     const token = crypto.randomBytes(32).toString('hex');
     const tokenHash = this.hashToken(token);
-    const resetPasswordExpires = new Date(Date.now() + 3600000); // 1 hour
+
+    // User jamais connecté = setup initial non complété → lien 24h + email welcome-setup
+    const isFirstSetup = !user.hashedRefreshToken;
+    const resetPasswordExpires = new Date(Date.now() + (isFirstSetup ? 86400000 : 3600000)); // 24h ou 1h
 
     await this.usersService.update(user.id, {
-      resetPasswordToken: tokenHash, // Seul le hash est stocké en DB
+      resetPasswordToken: tokenHash,
       resetPasswordExpires,
     });
 
-    await this.mailer.sendResetPasswordEmail(user.email, token, dto.source ?? 'client'); // Token brut dans l'email
+    if (isFirstSetup) {
+      const org = await this.prisma.organization.findUnique({
+        where: { id: user.organizationId },
+        select: { name: true },
+      });
+      await this.mailer.sendWelcomeSetupEmail(
+        user.email,
+        token,
+        org?.name ?? '',
+        dto.source === 'admin' ? 'admin' : 'client',
+      );
+    } else {
+      await this.mailer.sendResetPasswordEmail(user.email, token, dto.source ?? 'client');
+    }
 
     // L'audit log est toujours déclenché (y compris en dev) — Section 2.3
     await this.auditLog.log({
