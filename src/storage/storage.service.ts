@@ -1,8 +1,10 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3Client, PutObjectCommand, CopyObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { NodeHttpHandler } from '@smithy/node-http-handler';
 import { join, basename, extname, dirname, resolve } from 'path';
+import { createReadStream } from 'fs';
 import * as fs from 'fs-extra';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -36,8 +38,8 @@ export class StorageService implements OnModuleInit {
         credentials: { accessKeyId, secretAccessKey },
         forcePathStyle: true, // obligatoire avec MinIO (path-style vs virtual-hosted)
         requestHandler: new NodeHttpHandler({
-          requestTimeout: 120000,   // 2min max par requête MinIO
-          connectionTimeout: 5000,  // fail vite si MinIO injoignable
+          requestTimeout: 900000,   // 15min — gros binaires agent
+          connectionTimeout: 5000,
         }),
       });
     }
@@ -49,9 +51,20 @@ export class StorageService implements OnModuleInit {
     return resolvedPath.startsWith(resolvedUploadDir);
   }
 
+  /** Génère une URL pré-signée pour upload direct browser → MinIO (valide 1h). Retourne null si MinIO non configuré. */
+  async getPresignedUploadUrl(key: string, contentType: string, expiresIn = 3600): Promise<string | null> {
+    if (!this.s3Client) return null;
+    const bucket = this.configService.get<string>('R2_BUCKET_NAME');
+    const command = new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: contentType });
+    return getSignedUrl(this.s3Client, command, { expiresIn });
+  }
+
   async uploadFile(file: Express.Multer.File, folder = 'temp', customKey?: string): Promise<string> {
     const fileName = customKey ?? `${uuidv4()}-${file.originalname}`;
     const key = `${folder}/${fileName}`;
+
+    // Disk storage → stream; memory storage → buffer
+    const body = file.path ? createReadStream(file.path) : file.buffer;
 
     if (this.s3Client) {
       try {
@@ -60,10 +73,12 @@ export class StorageService implements OnModuleInit {
         await this.s3Client.send(new PutObjectCommand({
           Bucket: bucket,
           Key: key,
-          Body: file.buffer,
+          Body: body,
+          ContentLength: file.size,
           ContentType: file.mimetype,
           ContentDisposition: `attachment; filename="${file.originalname}"`,
         }));
+        if (file.path) await fs.remove(file.path).catch(() => {});
         return `${publicUrl}/${key}`;
       } catch (e) {
         this.logger.error(`R2 Upload fallback: ${e.message}`);
@@ -75,7 +90,11 @@ export class StorageService implements OnModuleInit {
       throw new Error('Invalid upload path');
     }
     await fs.ensureDir(dirname(localPath));
-    await fs.writeFile(localPath, file.buffer);
+    if (file.path) {
+      await fs.move(file.path, localPath, { overwrite: true });
+    } else {
+      await fs.writeFile(localPath, file.buffer);
+    }
     return `${this.appUrl}/uploads/${key}`;
   }
 

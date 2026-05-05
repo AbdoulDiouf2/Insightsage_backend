@@ -544,6 +544,12 @@ Au prochain redémarrage du serveur, PM2 et l'API Cockpit démarreront automatiq
             </rule>
           </rules>
         </rewrite>
+        <!-- Upload agent releases : lever la limite de taille IIS (défaut 30MB) -->
+        <security>
+          <requestFiltering>
+            <requestLimits maxAllowedContentLength="524288000" /> <!-- 500 MB -->
+          </requestFiltering>
+        </security>
         <httpProtocol>
           <customHeaders>
             <add name="X-Content-Type-Options" value="nosniff" />
@@ -554,6 +560,38 @@ Au prochain redémarrage du serveur, PM2 et l'API Cockpit démarreront automatiq
       </system.webServer>
     </configuration>
     ```
+
+    !!! warning "ARR timeout — commande à exécuter une seule fois sur le serveur"
+        Le timeout proxy ARR par défaut est **30 secondes**. Pour les uploads de gros binaires
+        (agent releases > 50 Mo sur connexion lente), augmenter à 10 minutes :
+
+        ```powershell
+        Import-Module WebAdministration
+        Set-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' `
+            -Filter 'system.webServer/proxy' -Name 'timeout' -Value '00:10:00'
+        iisreset
+        ```
+
+        Vérifier : `Get-WebConfigurationProperty -PSPath 'MACHINE/WEBROOT/APPHOST' -Filter 'system.webServer/proxy' -Name 'timeout'`
+
+    !!! info "Architecture upload agent releases (depuis v1.2)"
+        Les releases agent sont uploadées **directement depuis le navigateur vers MinIO** via URL pré-signée (presigned PUT). L'API NestJS n'est plus dans le chemin du fichier → le timeout IIS ARR est hors-sujet pour ces uploads. Seul le step de confirmation (JSON léger) passe par le proxy.
+
+        **Pré-requis : configurer les CORS MinIO** pour autoriser le navigateur à faire un PUT direct.
+
+        ```powershell
+        # Via le client mc (MinIO Client) — à installer si absent
+        # mc.exe alias set myminio http://localhost:9000 MINIO_ROOT_USER MINIO_ROOT_PASSWORD
+        mc.exe cors set myminio/cockpit-storage `
+          --allowed-origins "https://admin.votre-domaine.com" `
+          --allowed-methods "PUT,GET,HEAD" `
+          --allowed-headers "*" `
+          --max-age "3600"
+        ```
+
+        Ou via l'interface MinIO Console → Bucket → Access → CORS.
+
+        Si MinIO tourne derrière IIS ARR sur un sous-chemin (ex: `/storage/*`), le PUT presigned passe bien par HTTPS sans problème de mixed content.
 
 === "Nginx for Windows (alternative)"
 

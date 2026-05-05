@@ -8,11 +8,19 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { join } from 'path';
+import { tmpdir } from 'os';
+import { mkdirSync } from 'fs';
+
+const RELEASE_TEMP_DIR = join(tmpdir(), 'cockpit-releases');
+try { mkdirSync(RELEASE_TEMP_DIR, { recursive: true }); } catch {}
 import {
   ApiBearerAuth,
   ApiBody,
@@ -23,7 +31,7 @@ import {
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
 import { RequirePermissions, CurrentUser } from '../../auth/decorators';
 import { AgentReleasesService } from './agent-releases.service';
-import { CreateAgentReleaseDto } from './agent-release.dto';
+import { ConfirmAgentReleaseDto, CreateAgentReleaseDto, PresignedUploadQueryDto } from './agent-release.dto';
 
 @ApiTags('Admin — Agent Releases')
 @ApiBearerAuth()
@@ -35,7 +43,13 @@ export class AgentReleasesController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', {
+    storage: diskStorage({
+      destination: RELEASE_TEMP_DIR,
+      filename: (_req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
+    }),
+    limits: { fileSize: 600 * 1024 * 1024 }, // 600 MB max
+  }))
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -57,6 +71,28 @@ export class AgentReleasesController {
     @CurrentUser('id') userId: string,
   ) {
     return this.agentReleasesService.uploadRelease(file, dto, userId);
+  }
+
+  @Get('presigned-upload')
+  @ApiOperation({ summary: 'URL pré-signée pour upload direct browser → MinIO' })
+  getPresignedUpload(@Query() query: PresignedUploadQueryDto) {
+    return this.agentReleasesService.getPresignedUpload(
+      query.filename,
+      query.contentType,
+      query.version,
+      query.platform,
+      query.arch,
+    );
+  }
+
+  @Post('confirm')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Confirmer upload MinIO direct et créer la release en DB' })
+  confirmRelease(
+    @Body() dto: ConfirmAgentReleaseDto,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.agentReleasesService.confirmRelease(dto, userId);
   }
 
   @Get()
