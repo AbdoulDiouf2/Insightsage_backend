@@ -295,10 +295,11 @@ export class AdminService {
 
     return users.map(({ hashedRefreshToken, resetPasswordToken, resetPasswordExpires, passwordHash, ...u }) => ({
       ...u,
-      setupStatus: hashedRefreshToken !== null
+      // resetPasswordToken null = setup complété (token consommé). hashedRefreshToken null après logout.
+      setupStatus: resetPasswordToken === null
         ? 'active'
         : (resetPasswordExpires && resetPasswordExpires > new Date() ? 'pending' : 'expired'),
-      setupTokenExpiresAt: (!hashedRefreshToken && resetPasswordExpires) ? resetPasswordExpires : null,
+      setupTokenExpiresAt: (resetPasswordToken !== null && resetPasswordExpires) ? resetPasswordExpires : null,
     }));
   }
 
