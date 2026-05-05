@@ -3578,7 +3578,7 @@
       "G_SECTION",
       "F_COMPTE"
     ],
-    "sqlSage100": "SELECT code_axe, LEFT(compte_general,2) AS classe, SUM(montant) FROM VW_ANALYTIQUE WHERE sens_code='D' GROUP BY code_axe, LEFT(compte_general,2)",
+    "sqlSage100": "SELECT code_axe, LEFT(compte_general,2) AS classe, SUM(montant) FROM VW_ANALYTIQUE WHERE sens_code=0 GROUP BY code_axe, LEFT(compte_general,2)",
     "mlUsage": "Feature prévision budgétaire par BU. Modèles d'allocation de coûts."
   },
   {
@@ -3647,7 +3647,7 @@
       "G_ECRITUREC",
       "G_SECTION"
     ],
-    "sqlSage100": "SELECT code_axe, mois, (montant - budget) AS ecart, ((montant - budget)/NULLIF(budget,0)*100) AS taux_ecart FROM VW_ANALYTIQUE GROUP BY code_axe, mois",
+    "sqlSage100": "SELECT code_axe, mois, SUM(montant) - SUM(budget) AS ecart, (SUM(montant) - SUM(budget))/NULLIF(SUM(budget),0)*100 AS taux_ecart FROM VW_ANALYTIQUE GROUP BY code_axe, mois",
     "mlUsage": "Feature reprévision automatique. Modèle forecasting adaptatif."
   },
   {
