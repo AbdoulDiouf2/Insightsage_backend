@@ -285,21 +285,21 @@ export class AdminService {
   // --- Users Management ---
 
   async findAllUsers() {
-    return this.prisma.user.findMany({
+    const users = await this.prisma.user.findMany({
       include: {
-        organization: {
-          select: { name: true },
-        },
-        userRoles: {
-          include: {
-            role: {
-              select: { name: true },
-            },
-          },
-        },
+        organization: { select: { name: true } },
+        userRoles: { include: { role: { select: { name: true } } } },
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    return users.map(({ hashedRefreshToken, resetPasswordToken, resetPasswordExpires, passwordHash, ...u }) => ({
+      ...u,
+      setupStatus: hashedRefreshToken !== null
+        ? 'active'
+        : (resetPasswordExpires && resetPasswordExpires > new Date() ? 'pending' : 'expired'),
+      setupTokenExpiresAt: (!hashedRefreshToken && resetPasswordExpires) ? resetPasswordExpires : null,
+    }));
   }
 
   async findUserById(id: string) {
@@ -425,6 +425,45 @@ export class AdminService {
     });
 
     return user;
+  }
+
+  async resendSetupEmail(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { organization: { select: { name: true } } },
+    });
+
+    if (!user) throw new NotFoundException(`Utilisateur introuvable : ${userId}`);
+    if (user.hashedRefreshToken !== null) throw new BadRequestException('Compte déjà activé — connexion déjà effectuée.');
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(Date.now() + 24 * 3600000); // 24h
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { resetPasswordToken: tokenHash, resetPasswordExpires: expiresAt },
+    });
+
+    const isSuperAdmin = await this.prisma.userRole.findFirst({
+      where: { userId, role: { name: 'superadmin' } },
+    });
+
+    await this.mailer.sendWelcomeSetupEmail(
+      user.email,
+      token,
+      user.organization.name,
+      isSuperAdmin ? 'admin' : 'client',
+    );
+
+    await this.auditLog.log({
+      organizationId: user.organizationId,
+      userId,
+      event: 'password_reset_requested',
+      payload: { method: 'resend_setup', triggeredBy: 'superadmin' },
+    });
+
+    return { message: 'Email de setup renvoyé.', expiresAt };
   }
 
   // --- Audit Logs ---

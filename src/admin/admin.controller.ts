@@ -130,6 +130,17 @@ export class AdminController {
     return this.adminService.createUser(dto);
   }
 
+  @Post('users/:id/resend-setup')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Renvoyer l\'email de setup à un utilisateur non encore activé (SuperAdmin)' })
+  @ApiParam({ name: 'id', description: 'ID de l\'utilisateur' })
+  @ApiResponse({ status: 200, description: 'Email renvoyé.' })
+  @ApiResponse({ status: 400, description: 'Compte déjà activé.' })
+  @ApiResponse({ status: 404, description: 'Utilisateur introuvable.' })
+  async resendSetupEmail(@Param('id') id: string) {
+    return this.adminService.resendSetupEmail(id);
+  }
+
   @Delete('users/:id')
   @ApiOperation({ summary: 'Delete a user' })
   async deleteUser(
