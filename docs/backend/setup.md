@@ -313,7 +313,18 @@ Redis est utilisé pour le rate limiting distribué des requêtes SQL temps rée
     # REDIS_URL=redis://localhost:6379
     ```
 
-=== "Production (Upstash — recommandé)"
+=== "Production (WSL2 — utilisé en prod)"
+    Redis 8.0.5 tourne dans WSL2 (Ubuntu) sur le serveur Windows Server 2022.
+    Auto-démarrage configuré via `/etc/wsl.conf` + Task Scheduler Windows.
+
+    ```env
+    REDIS_URL="redis://localhost:6379"
+    ```
+
+    !!! warning "Ne pas utiliser Memurai"
+        Memurai Developer Edition s'éteint automatiquement après 10 jours et interdit l'usage en production.
+
+=== "Production (Upstash — alternative cloud)"
     1. Créer une base sur [console.upstash.com](https://console.upstash.com)
     2. Récupérer l'URL Redis avec TLS
     3. Définir dans `.env.prod` :

@@ -136,7 +136,7 @@ graph TB
 | **Base de données** | Supabase (PostgreSQL) | PaaS managé, PgBouncer pooling |
 | **Hébergement Frontend** | IIS + Vite build | Static `dist/` servi par IIS |
 | **Stockage objet** | MinIO | Service Windows (NSSM), exposé via IIS reverse proxy `/storage/*` |
-| **Cache** | Redis | Service Windows, port 6379 |
+| **Cache** | Redis 8.0.5 via WSL2 (Ubuntu) | Port 6379 — remplace Memurai Developer Edition (limite 10j) |
 | **Agent on-premise** | PM2 + Python | `socket_client.py`, reconnexion exponentielle |
 | **CI/CD** | GitHub Actions | `git fetch` + `git reset --hard origin/main` (évite les conflits lock) |
 | **Monitoring santé** | HealthMonitorService | Vérifie DB/Redis/MinIO toutes les 5 min, alerte par email |

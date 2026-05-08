@@ -1,19 +1,20 @@
 ---
 title: Déploiement sans Docker — Windows Server natif
-description: Guide de déploiement Cockpit sur Windows Server 2022 sans Docker ni WSL2. PostgreSQL 16, Redis (Memurai) et NestJS via PM2 installés nativement. Pour serveurs VM sans virtualisation imbriquée.
+description: Guide de déploiement Cockpit sur Windows Server 2022 sans Docker. PostgreSQL 16, Redis (WSL2/Ubuntu) et NestJS via PM2. Serveur prod actuel Nafaka Tech.
 ---
 
 # Déploiement Production — Sans Docker (Windows natif)
 
 !!! info "Quand utiliser ce guide"
-    Ce guide s'applique lorsque votre serveur est **une VM Windows Server sans virtualisation imbriquée**
-    (hébergeurs Hyper-V, Azure, OVH, VMware…). Dans ce cas :
+    Ce guide s'applique au déploiement **nativement sur Windows Server 2022** sans Docker.
+    C'est la configuration utilisée sur le serveur de production Nafaka Tech.
 
-    - ❌ WSL2 impossible → Docker Linux impossible
-    - ✅ Ce guide : tout installé **nativement sur Windows Server**
+    - ✅ WSL2 disponible (virtualisation imbriquée activée sur le CPU)
+    - ✅ Redis via WSL2/Ubuntu (remplace Memurai Developer Edition)
+    - ✅ PM2 + `pm2-windows-startup` pour l'auto-démarrage
 
-    Si au contraire WSL2 est disponible sur votre serveur, utilisez le guide
-    [Déploiement avec Docker](deployment.md).
+    !!! warning "Ne pas utiliser Memurai Developer Edition en production"
+        Memurai Developer Edition s'éteint automatiquement après **10 jours** et interdit explicitement l'usage en production (licence). Utiliser Redis via WSL2 à la place.
 
 ---
 
@@ -30,7 +31,7 @@ graph TD
     RP -->|"/api/* et /socket.io/*"| API["⚙️ NestJS API\nlocalhost:3000\n(PM2 cluster)"]
 
     API --> PG["🐘 PostgreSQL 16\nlocalhost:5432\n(Service Windows)"]
-    API --> RD["⚡ Memurai (Redis 7)\nlocalhost:6379\n(Service Windows)"]
+    API --> RD["⚡ Redis 8.0.5\nlocalhost:6379\n(WSL2/Ubuntu)"]
 ```
 
 | Composant | Solution | URL / Accès |
@@ -39,7 +40,7 @@ graph TD
 | Frontend Client | Build statique — IIS | `votre-domaine.com` |
 | Frontend Admin | Build statique — IIS | `admin.votre-domaine.com` |
 | Base de données | PostgreSQL 16 for Windows | `localhost:5432` (interne) |
-| Cache / Jobs | Memurai (compatible Redis 7) | `localhost:6379` (interne) |
+| Cache / Jobs | Redis 8.0.5 via WSL2 (Ubuntu) | `localhost:6379` (interne) |
 | Reverse proxy | IIS + ARR **ou** Nginx for Windows | Port 80/443 |
 | SSL | win-acme (Let's Encrypt) | Auto-renouvellement |
 
@@ -72,7 +73,7 @@ graph TD
 | Node.js | 20 LTS | nodejs.org/fr/download |
 | Git for Windows | Dernière stable | git-scm.com |
 | PostgreSQL | 16 (EDB installer) | postgresql.org/download/windows |
-| Memurai | Developer Edition | memurai.com/get-memurai |
+| WSL2 + Ubuntu | Via `wsl --install` | Intégré Windows Server 2022 (virtualisation requise) |
 | IIS ARR | 3.0 | iis.net/downloads/microsoft/application-request-routing |
 | IIS URL Rewrite | 2.1 | iis.net/downloads/microsoft/url-rewrite |
 | win-acme | Dernière stable | github.com/win-acme/win-acme/releases |
@@ -178,55 +179,83 @@ Redémarrer le service : `services.msc` → `postgresql-x64-16` → Redémarrer.
 
 ---
 
-## 6. Installation Memurai (Redis pour Windows)
+## 6. Installation Redis via WSL2
 
-!!! note "Pourquoi Memurai ?"
-    Redis n'a pas de build officiel Windows depuis la version 3.x (2016).
-    **Memurai** est un serveur Redis-compatible (API Redis 7) natif Windows,
-    développé par d'anciens contributeurs Redis. La Developer Edition est **gratuite**
-    et sans limite de temps d'utilisation.
+!!! warning "Ne pas utiliser Memurai Developer Edition"
+    Memurai Developer Edition s'éteint automatiquement après **10 jours** et interdit l'usage en production.
+    Utiliser Redis via WSL2 à la place — gratuit, sans limite.
 
-### 6.1 Installer
-
-1. Télécharger **Memurai Developer Edition** sur memurai.com
-2. Lancer l'installeur — s'installe automatiquement comme service Windows
-3. Répertoire par défaut : `C:\Program Files\Memurai\`
-
-### 6.2 Configurer
-
-Éditer `C:\Program Files\Memurai\memurai.conf` :
-
-```conf
-# Écoute locale uniquement
-bind 127.0.0.1
-
-# Port standard Redis
-port 6379
-
-# Mot de passe obligatoire
-requirepass REMPLACER_PAR_MOT_DE_PASSE_REDIS
-
-# Persistance AOF (recommandé)
-appendonly yes
-appendfilename "appendonly.aof"
-
-# Répertoire données
-dir "C:/ProgramData/Memurai"
-
-# Limite mémoire (adapter à la RAM disponible)
-maxmemory 512mb
-maxmemory-policy allkeys-lru
-```
-
-### 6.3 Redémarrer et vérifier
+### 6.1 Activer WSL2
 
 ```powershell
-# Redémarrer le service Memurai
-Restart-Service Memurai
+# Activer les features nécessaires
+dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
+dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
 
-# Test de connexion
-& "C:\Program Files\Memurai\memurai-cli.exe" -a VOTRE_MOT_DE_PASSE_REDIS ping
+# Redémarrer le serveur
+Restart-Computer -Force
+```
+
+### 6.2 Installer le kernel WSL2 et Ubuntu
+
+Après reboot :
+
+```powershell
+# Mettre à jour WSL + installer kernel
+wsl --update
+
+# Définir WSL2 par défaut
+wsl --set-default-version 2
+
+# Installer Ubuntu
+wsl --install -d Ubuntu
+```
+
+Au premier lancement, créer un utilisateur Unix (ex: `redisadmin`) et un mot de passe.
+
+### 6.3 Installer Redis dans Ubuntu
+
+```bash
+# Dans le terminal Ubuntu
+sudo apt update && sudo apt install redis-server -y
+
+# Vérifier
+redis-cli ping
 # Réponse attendue : PONG
+```
+
+### 6.4 Configurer l'auto-démarrage
+
+**Étape A — `wsl.conf`** (démarrage Redis à chaque lancement WSL) :
+
+```bash
+sudo nano /etc/wsl.conf
+```
+
+```ini
+[boot]
+systemd=true
+command = service redis-server start
+
+[user]
+default=<votre-user-ubuntu>
+```
+
+**Étape B — Task Scheduler Windows** (lance WSL au boot du serveur) :
+
+```powershell
+$action = New-ScheduledTaskAction -Execute "wsl.exe" -Argument "-d Ubuntu -u root -- service redis-server start"
+$trigger = New-ScheduledTaskTrigger -AtStartup
+$principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+$settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Seconds 30) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
+Register-ScheduledTask -TaskName "WSL Redis Auto-Start" -Action $action -Trigger $trigger -Principal $principal -Settings $settings
+```
+
+### 6.5 Vérifier l'accès depuis Windows
+
+```powershell
+Test-NetConnection -ComputerName localhost -Port 6379
+# TcpTestSucceeded : True
 ```
 
 ---
@@ -255,8 +284,8 @@ PORT=3000
 DATABASE_URL=postgresql://cockpit_user:MOT_DE_PASSE_PG@localhost:5432/cockpit?schema=public
 DIRECT_URL=postgresql://cockpit_user:MOT_DE_PASSE_PG@localhost:5432/cockpit?schema=public
 
-# ─── Redis self-hosted (Memurai local) ───────────────────────────────────────
-REDIS_URL=redis://:MOT_DE_PASSE_REDIS@localhost:6379
+# ─── Redis self-hosted (WSL2/Ubuntu local) ───────────────────────────────────
+REDIS_URL=redis://localhost:6379
 
 # ─── JWT (générer des secrets uniques) ───────────────────────────────────────
 # Commande PowerShell : -join ((1..64) | ForEach-Object { '{0:x}' -f (Get-Random -Max 16) })
@@ -404,17 +433,19 @@ pm2 status
 pm2 save
 ```
 
-### 10.3 Service Windows pour PM2 (démarrage automatique)
+### 10.3 Auto-démarrage PM2 (démarrage automatique)
+
+!!! warning "`pm2 startup` ne fonctionne pas sur Windows"
+    Utiliser `pm2-windows-startup` à la place.
 
 ```powershell
-# Installer PM2 comme service Windows
-pm2-service-install -n CockpitPM2
+# Installer pm2-windows-startup
+npm install -g pm2-windows-startup
+npx pm2-windows-startup install
+
+# Sauvegarder la liste des processus PM2
+pm2 save
 ```
-
-Vérifier dans `services.msc` :
-
-- Service **CockpitPM2** → Type de démarrage : **Automatique**
-- Service **CockpitPM2** → État : **En cours d'exécution**
 
 Au prochain redémarrage du serveur, PM2 et l'API Cockpit démarreront automatiquement.
 
@@ -782,7 +813,7 @@ pm2 logs cockpit-api --lines 100   # 100 dernières lignes
 | API (erreurs) | `C:\Cockpit\logs\api-error.log` |
 | PostgreSQL | `C:\Program Files\PostgreSQL\16\data\log\` |
 | IIS | `C:\inetpub\logs\LogFiles\` |
-| Memurai | `C:\ProgramData\Memurai\memurai.log` |
+| Redis (WSL2) | `wsl -d Ubuntu -- journalctl -u redis-server` |
 
 ### Health check
 
@@ -852,20 +883,22 @@ npm run build
 - [ ] Seed exécuté : 5 rôles + 4 plans présents en base
 - [ ] Sauvegarde automatique planifiée (`pg_dump` via Task Scheduler)
 
-### Memurai (Redis)
+### Redis (WSL2/Ubuntu)
 
-- [ ] Service `Memurai` démarrage **Automatique**
-- [ ] Mot de passe `requirepass` configuré dans `memurai.conf`
-- [ ] `bind 127.0.0.1` configuré (accès local uniquement)
-- [ ] Test `memurai-cli ping` → `PONG`
+- [ ] WSL2 activé (features DISM + kernel MSI installé)
+- [ ] Ubuntu installé (`wsl --install -d Ubuntu`)
+- [ ] `redis-server` installé dans Ubuntu (`sudo apt install redis-server`)
+- [ ] `/etc/wsl.conf` configuré : `[boot] command = service redis-server start`
+- [ ] Task Scheduler "WSL Redis Auto-Start" créée (SYSTEM, AtStartup)
+- [ ] `Test-NetConnection localhost -Port 6379` → `TcpTestSucceeded : True`
 
 ### Node.js / PM2
 
 - [ ] Node.js 20 LTS installé (`node -v`)
 - [ ] PM2 installé globalement (`pm2 -v`)
-- [ ] Service `CockpitPM2` démarrage **Automatique**
-- [ ] `pm2 status` : `cockpit-api` en `online`
+- [ ] `pm2-windows-startup` installé (`npx pm2-windows-startup install`)
 - [ ] `pm2 save` exécuté après le premier démarrage
+- [ ] `pm2 status` : `cockpit-api` en `online`
 
 ### Frontend Client (`Client-cockpit`)
 
@@ -902,7 +935,7 @@ npm run build
 
 - [ ] `.env.prod` présent et non commité dans git (`.gitignore`)
 - [ ] `DATABASE_URL` valide (test : `npx prisma db push` sans erreur)
-- [ ] `REDIS_URL` valide (test : `memurai-cli ping`)
+- [ ] `REDIS_URL` valide (test : `Test-NetConnection localhost -Port 6379`)
 - [ ] Secrets JWT générés de manière cryptographique (64+ chars)
 - [ ] `FRONTEND_URL` correspond au domaine réel
 
@@ -946,10 +979,11 @@ Stop-Service  postgresql-x64-16
 # Sauvegarde manuelle
 & "C:\Program Files\PostgreSQL\16\bin\pg_dump.exe" -U cockpit_user cockpit > C:\Cockpit\backup_$(Get-Date -Format 'yyyyMMdd').sql
 
-# ─── Memurai ─────────────────────────────────────────────────────────────────
-Start-Service Memurai
-Stop-Service  Memurai
-& "C:\Program Files\Memurai\memurai-cli.exe" -a MOT_DE_PASSE info server
+# ─── Redis (WSL2) ────────────────────────────────────────────────────────────
+wsl -d Ubuntu -- service redis-server status
+wsl -d Ubuntu -u root -- service redis-server start
+wsl -d Ubuntu -u root -- service redis-server stop
+wsl -d Ubuntu -- redis-cli ping
 
 # ─── IIS ─────────────────────────────────────────────────────────────────────
 iisreset          # Redémarrer IIS
@@ -957,5 +991,10 @@ iisreset /stop    # Arrêter IIS
 iisreset /start   # Démarrer IIS
 
 # ─── Vérification services ───────────────────────────────────────────────────
-Get-Service postgresql-x64-16, Memurai, CockpitPM2 | Select-Object Name, Status, StartType
+# Vérifier services Windows
+Get-Service postgresql-x64-16 | Select-Object Name, Status, StartType
+# Vérifier Redis WSL2
+wsl -d Ubuntu -- service redis-server status
+# Vérifier tâche planifiée WSL
+Get-ScheduledTask -TaskName "WSL Redis Auto-Start" | Select-Object TaskName, State
 ```
