@@ -27,6 +27,12 @@ jobs:
         run: npx prisma generate
         working-directory: C:\Cockpit\repos\Insightsage_backend
 
+      - name: Seed KPIs
+        env:
+          DOTENV_CONFIG_PATH: .env
+        run: npx ts-node prisma/seed-kpis.ts
+        working-directory: C:\Cockpit\repos\Insightsage_backend
+
       - name: Build
         run: npm run build
         working-directory: C:\Cockpit\repos\Insightsage_backend
