@@ -34,9 +34,15 @@ export class NlqService {
             // Match exact sur la clé technique (ex: "f01_ca_ht pour current_quarter en XOF")
             const keyMatch = normalizedText.includes(intent.key.toLowerCase()) ? 100 : 0;
 
-            const matchCount = intent.keywords.filter(keyword =>
-                normalizedText.includes(keyword.toLowerCase())
-            ).length;
+            const matchCount = intent.keywords.filter(keyword => {
+                const kw = keyword.toLowerCase();
+                // Exact substring match (fast path)
+                if (normalizedText.includes(kw)) return true;
+                // Word-bag match: all significant words of keyword phrase must appear in text.
+                // Handles "top 5 clients" matching keyword "top clients" (number inserted between words).
+                const words = kw.split(/\s+/).filter(w => w.length > 1);
+                return words.length >= 2 && words.every(w => normalizedText.includes(w));
+            }).length;
 
             return { ...intent, score: keyMatch + matchCount };
         });
@@ -136,10 +142,10 @@ export class NlqService {
             };
         }
 
-        // 4. Vérification préalable : template désactivé ?
+        // 4. Vérification préalable : template désactivé ou placeholder non-exécutable ?
         const templateCheck = await this.prisma.nlqTemplate.findUnique({
             where: { intentKey_sageType: { intentKey: intent.key, sageType: org.sageType } },
-            select: { isActive: true },
+            select: { isActive: true, sqlQuery: true },
         });
         if (templateCheck && !templateCheck.isActive) {
             const latencyMs = Date.now() - startTime;
@@ -151,6 +157,21 @@ export class NlqService {
                 sessionId: session.id,
                 status: 'TEMPLATE_DISABLED',
                 message: 'Ce KPI est temporairement désactivé.',
+            };
+        }
+        // SQL commençant par -- = placeholder (ex: ml07_nlq_natural_language_query)
+        // Ce KPI est une interface interactive, pas un KPI de données à exécuter.
+        if (templateCheck && templateCheck.sqlQuery.trim().startsWith('--')) {
+            const latencyMs = Date.now() - startTime;
+            await this.prisma.nlqSession.update({
+                where: { id: session.id },
+                data: { status: 'success', latencyMs },
+            });
+            return {
+                sessionId: session.id,
+                status: 'NLQ_INTERACTIVE',
+                intentKey: intent.key,
+                message: 'Interface NLQ interactive — saisissez votre question.',
             };
         }
 
