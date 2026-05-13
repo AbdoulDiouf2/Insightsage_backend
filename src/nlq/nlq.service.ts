@@ -1,11 +1,22 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AgentsService } from '../agents/agents.service';
 import { AgentsGateway } from '../agents/agents.gateway';
 import { AiRouterService } from '../ai/ai-router.service';
+import { REDIS_CLIENT } from '../redis/redis.module';
 
-// Seuil de confiance minimum pour accepter la classification IA
 const AI_CONFIDENCE_THRESHOLD = 0.7;
+const HISTORY_TTL = 60 * 60 * 24 * 7; // 7 jours
+const HISTORY_MAX = 20;
+
+export interface NlqHistoryEntry {
+    queryText: string;
+    intentLabel: string;
+    intentKey: string;
+    vizType: string;
+    jobId: string;
+    ts: number;
+}
 
 @Injectable()
 export class NlqService {
@@ -16,7 +27,25 @@ export class NlqService {
         private agentsService: AgentsService,
         private agentsGateway: AgentsGateway,
         private aiRouter: AiRouterService,
+        @Inject(REDIS_CLIENT) private redis: any,
     ) { }
+
+    private histKey(organizationId: string, userId: string) {
+        return `nlq:hist:${organizationId}:${userId}`;
+    }
+
+    private async saveToHistory(organizationId: string, userId: string, entry: NlqHistoryEntry) {
+        const key = this.histKey(organizationId, userId);
+        await this.redis.lPush(key, JSON.stringify(entry));
+        await this.redis.lTrim(key, 0, HISTORY_MAX - 1);
+        await this.redis.expire(key, HISTORY_TTL);
+    }
+
+    async getHistory(organizationId: string, userId: string): Promise<NlqHistoryEntry[]> {
+        const key = this.histKey(organizationId, userId);
+        const raw: string[] = await this.redis.lRange(key, 0, HISTORY_MAX - 1);
+        return raw.map(s => JSON.parse(s) as NlqHistoryEntry);
+    }
 
     /**
      * Analyse le texte utilisateur pour détecter une intention métier.
@@ -197,6 +226,16 @@ export class NlqService {
                     jobId: job.id,
                 },
             });
+
+            // 8. Sauvegarde dans l'historique Redis
+            this.saveToHistory(organizationId, userId, {
+                queryText: text,
+                intentLabel: intent.label,
+                intentKey: intent.key,
+                vizType: template.defaultVizType,
+                jobId: job.id,
+                ts: Date.now(),
+            }).catch(() => {});
 
             return {
                 sessionId: session.id,

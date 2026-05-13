@@ -5,9 +5,10 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { AgentsModule } from '../agents/agents.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { UsersModule } from '../users/users.module';
+import { RedisModule } from '../redis/redis.module';
 
 @Module({
-  imports: [PrismaModule, AgentsModule, SubscriptionsModule, UsersModule],
+  imports: [PrismaModule, AgentsModule, SubscriptionsModule, UsersModule, RedisModule],
   controllers: [NlqController],
   providers: [NlqService],
   exports: [NlqService],

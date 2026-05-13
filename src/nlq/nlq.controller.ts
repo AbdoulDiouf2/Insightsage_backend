@@ -1,6 +1,7 @@
 import {
     Body,
     Controller,
+    Get,
     HttpCode,
     HttpStatus,
     Post,
@@ -26,6 +27,17 @@ import { NlqAddToDashboardDto } from './dto/nlq-add-to-dashboard.dto';
 @RequiresFeature('hasNlq')
 export class NlqController {
     constructor(private readonly nlqService: NlqService) { }
+
+    @Get('history')
+    @HttpCode(HttpStatus.OK)
+    @RequirePermissions({ action: 'read', resource: 'dashboards' })
+    @ApiOperation({ summary: 'Historique des requêtes NLQ de l\'utilisateur (Redis, 20 dernières)' })
+    async getHistory(
+        @OrganizationId() organizationId: string,
+        @CurrentUser('id') userId: string,
+    ) {
+        return this.nlqService.getHistory(organizationId, userId);
+    }
 
     @Post('query')
     @HttpCode(HttpStatus.OK)
