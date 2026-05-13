@@ -201,6 +201,7 @@ export class NlqService {
             return {
                 sessionId: session.id,
                 intent: intent.label,
+                intentKey: intent.key,
                 vizType: template.defaultVizType,
                 jobId: job.id,
                 status: 'SUCCESS',
