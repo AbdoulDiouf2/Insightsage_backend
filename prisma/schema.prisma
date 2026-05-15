@@ -478,13 +478,15 @@ model KpiDefinition {
 // Templates de visualisation disponibles
 model WidgetTemplate {
   id            String   @id @default(uuid())
-  name          String   // "KPI Card", "Graphique Barres"
-  vizType       String   @unique // "card" | "bar" | "line" | "gauge" | "table"
+  name          String
+  vizType       String   // "card" | "bar" | "line" | "gauge" | "table" | "pie" | "map" | "text" | "scatter" | "treemap" | "image" | "ai_insights" | "decomp_tree"
+  subtype       String   @default("default") // "default" | "grouped" | "stacked" | "donut" | "area" | etc.
   description   String?
   defaultConfig Json     // { "period": "month", "aggregation": "sum" }
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
 
+  @@unique([vizType, subtype])
   @@map("widget_templates")
 }
 

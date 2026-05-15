@@ -439,61 +439,75 @@ async function main() {
   }
   console.log('✅ KPI Definitions & NLQ seeded.');
 
-  // 7. Seed Widget Templates (Widget Store base)
+  // 7. Seed Widget Templates — un template par variante (vizType + subtype)
+  // Purge des anciens templates génériques (subtype='default') créés avant Option B
+  await prisma.widgetTemplate.deleteMany({ where: { subtype: 'default' } });
+
   const WIDGET_TEMPLATES = [
-    {
-      name: 'Carte KPI',
-      vizType: 'card',
-      description: 'Affichage simple d\'une valeur clé avec tendance',
-      defaultConfig: { period: 'month', showTrend: true },
-    },
-    {
-      name: 'Graphique Barres',
-      vizType: 'bar',
-      description: 'Graphique en barres pour comparer des périodes ou catégories',
-      defaultConfig: { period: 'month', aggregation: 'sum' },
-    },
-    {
-      name: 'Courbe Temporelle',
-      vizType: 'line',
-      description: 'Évolution d\'une métrique sur une période glissante',
-      defaultConfig: { period: 'year', granularity: 'month' },
-    },
-    {
-      name: 'Jauge',
-      vizType: 'gauge',
-      description: 'Indicateur circulaire pour visualiser un ratio ou objectif',
-      defaultConfig: { target: 100, unit: '%' },
-    },
-    {
-      name: 'Tableau',
-      vizType: 'table',
-      description: 'Tableau de données détaillées avec pagination',
-      defaultConfig: { limit: 20, sortable: true },
-    },
-    {
-      name: 'Camembert',
-      vizType: 'pie',
-      description: 'Répartition en secteurs',
-      defaultConfig: {},
-    },
-    {
-      name: 'Carte Géographique',
-      vizType: 'map',
-      description: 'Visualisation géographique',
-      defaultConfig: {},
-    },
-    {
-      name: 'Texte / Commentaire',
-      vizType: 'text',
-      description: 'Bloc texte libre ou KPI narratif',
-      defaultConfig: {},
-    },
+    // ── card ──────────────────────────────────────────────────────────────────
+    { name: 'Carte KPI',                        vizType: 'card',       subtype: 'card',           description: 'Valeur clé avec tendance et objectif',                                   defaultConfig: { period: 'month', showTrend: true, showVariance: true, showTarget: false } },
+    { name: 'Indicateur de Performance Clé',    vizType: 'card',       subtype: 'kpi',            description: 'KPI avec variance, cible et statut coloré',                              defaultConfig: { period: 'month', showTrend: true, showVariance: true, showTarget: true } },
+
+    // ── bar ───────────────────────────────────────────────────────────────────
+    { name: 'Histogramme groupé',               vizType: 'bar',        subtype: 'grouped',        description: 'Colonnes côte-à-côte pour comparer plusieurs séries',                    defaultConfig: { period: 'month', aggregation: 'sum', orientation: 'vertical' } },
+    { name: 'Graphique à barres groupées',      vizType: 'bar',        subtype: 'grouped_h',      description: 'Barres horizontales côte-à-côte',                                        defaultConfig: { period: 'month', aggregation: 'sum', orientation: 'horizontal' } },
+    { name: 'Histogramme empilé',               vizType: 'bar',        subtype: 'stacked',        description: 'Colonnes empilées pour visualiser la composition',                       defaultConfig: { period: 'month', aggregation: 'sum', orientation: 'vertical' } },
+    { name: 'Graphique à barres empilées',      vizType: 'bar',        subtype: 'stacked_h',      description: 'Barres horizontales empilées',                                           defaultConfig: { period: 'month', aggregation: 'sum', orientation: 'horizontal' } },
+    { name: 'Histogramme empilé 100%',          vizType: 'bar',        subtype: 'stacked100',     description: 'Colonnes normalisées à 100% pour comparer des proportions',              defaultConfig: { period: 'month', aggregation: 'sum', orientation: 'vertical' } },
+    { name: 'Graphique à barres empilées 100%', vizType: 'bar',        subtype: 'stacked100_h',   description: 'Barres horizontales normalisées à 100%',                                 defaultConfig: { period: 'month', aggregation: 'sum', orientation: 'horizontal' } },
+    { name: 'Graphique en cascade',             vizType: 'bar',        subtype: 'waterfall',      description: 'Variations cumulées (ex: pont de passage du CA au résultat)',            defaultConfig: { period: 'month', aggregation: 'sum' } },
+    { name: 'Entonnoir',                        vizType: 'bar',        subtype: 'funnel',         description: 'Conversion étape par étape (ex: pipeline commercial)',                   defaultConfig: { period: 'month' } },
+    { name: 'Graphique de ruban',               vizType: 'bar',        subtype: 'ribbon',         description: 'Rang relatif de catégories sur plusieurs périodes',                      defaultConfig: { period: 'month', aggregation: 'sum' } },
+    { name: 'Courbe et histogramme empilé',     vizType: 'bar',        subtype: 'combo_stacked',  description: 'Histogramme empilé combiné avec courbe de tendance',                     defaultConfig: { period: 'month', aggregation: 'sum' } },
+    { name: 'Courbe et histogramme empilé 100%',vizType: 'bar',        subtype: 'combo_stacked100',description: 'Histogramme 100% combiné avec courbe de tendance',                     defaultConfig: { period: 'month', aggregation: 'sum' } },
+
+    // ── line ──────────────────────────────────────────────────────────────────
+    { name: 'Graphique en courbe',              vizType: 'line',       subtype: 'line',           description: 'Évolution d\'une ou plusieurs métriques dans le temps',                 defaultConfig: { period: 'year', granularity: 'month' } },
+    { name: 'Graphique en aires',               vizType: 'line',       subtype: 'area',           description: 'Courbe avec aire colorée sous la ligne',                                defaultConfig: { period: 'year', granularity: 'month' } },
+    { name: 'Graphique de zone empilé',         vizType: 'line',       subtype: 'area_stacked',   description: 'Aires empilées pour visualiser la composition dans le temps',            defaultConfig: { period: 'year', granularity: 'month' } },
+    { name: 'Graphique en aires empilé à 100%', vizType: 'line',       subtype: 'area_stacked100',description: 'Aires normalisées à 100% pour comparer des proportions dans le temps',  defaultConfig: { period: 'year', granularity: 'month' } },
+
+    // ── gauge ─────────────────────────────────────────────────────────────────
+    { name: 'Jauge',                            vizType: 'gauge',      subtype: 'gauge',          description: 'Indicateur circulaire pour visualiser un ratio ou objectif',             defaultConfig: { target: 100, unit: '%', showGoalLine: false } },
+    { name: 'Objectif',                         vizType: 'gauge',      subtype: 'goal',           description: 'Barre de progression vers un objectif chiffré',                         defaultConfig: { target: 100, unit: '%', showGoalLine: true } },
+
+    // ── table ─────────────────────────────────────────────────────────────────
+    { name: 'Table',                            vizType: 'table',      subtype: 'flat',           description: 'Tableau de données détaillées avec pagination et tri',                   defaultConfig: { limit: 20, sortable: true, showSubtotals: false } },
+    { name: 'Matrice',                          vizType: 'table',      subtype: 'matrix',         description: 'Tableau croisé avec lignes/colonnes hiérarchiques et sous-totaux',       defaultConfig: { limit: 20, sortable: true, showSubtotals: true } },
+
+    // ── pie ───────────────────────────────────────────────────────────────────
+    { name: 'Graphique en secteurs',            vizType: 'pie',        subtype: 'pie',            description: 'Répartition en parts de camembert',                                      defaultConfig: {} },
+    { name: 'Graphique en anneau',              vizType: 'pie',        subtype: 'donut',          description: 'Répartition en anneau (donut) avec valeur centrale',                     defaultConfig: {} },
+
+    // ── map ───────────────────────────────────────────────────────────────────
+    { name: 'Carte',                            vizType: 'map',        subtype: 'bubble',         description: 'Carte géographique avec bulles proportionnelles aux valeurs',             defaultConfig: {} },
+    { name: 'Carte choroplèthe',                vizType: 'map',        subtype: 'choropleth',     description: 'Carte colorée par intensité de valeur par région',                       defaultConfig: {} },
+    { name: 'Azure Maps',                       vizType: 'map',        subtype: 'azure',          description: 'Visualisation géographique avancée via Azure Maps',                      defaultConfig: {} },
+
+    // ── text ──────────────────────────────────────────────────────────────────
+    { name: 'Texte / Commentaire',              vizType: 'text',       subtype: 'text',           description: 'Bloc texte libre ou annotation',                                         defaultConfig: {} },
+    { name: 'Narratif',                         vizType: 'text',       subtype: 'narrative',      description: 'Résumé narratif automatique de données',                                 defaultConfig: {} },
+    { name: 'Rapport paginé',                   vizType: 'text',       subtype: 'paginated',      description: 'Rapport structuré multi-pages',                                          defaultConfig: {} },
+
+    // ── scatter ───────────────────────────────────────────────────────────────
+    { name: 'Nuage de points',                  vizType: 'scatter',    subtype: 'scatter',        description: 'Corrélation entre deux métriques quantitatives',                         defaultConfig: { xAxis: 'value', yAxis: 'value', dotSize: 'medium' } },
+
+    // ── treemap ───────────────────────────────────────────────────────────────
+    { name: 'Treemap',                          vizType: 'treemap',    subtype: 'treemap',        description: 'Répartition hiérarchique par superficie (ex: budget par centre de coût)',defaultConfig: { groupBy: 'category', metric: 'value', showLabels: true } },
+
+    // ── image ─────────────────────────────────────────────────────────────────
+    { name: 'Image',                            vizType: 'image',      subtype: 'image',          description: 'Bloc image statique (logo, illustration, bannière)',                      defaultConfig: { fit: 'contain', align: 'center' } },
+
+    // ── ai_insights ───────────────────────────────────────────────────────────
+    { name: 'Influenceurs Clé',                 vizType: 'ai_insights',subtype: 'ai_insights',    description: 'Facteurs d\'influence sur une métrique cible (analyse IA)',               defaultConfig: { targetMetric: null, topN: 5 } },
+
+    // ── decomp_tree ───────────────────────────────────────────────────────────
+    { name: 'Arborescence de Décomposition',    vizType: 'decomp_tree',subtype: 'decomp_tree',    description: 'Décomposition hiérarchique d\'une métrique en sous-facteurs',             defaultConfig: { rootMetric: null, maxDepth: 4 } },
   ];
 
   for (const tpl of WIDGET_TEMPLATES) {
     await prisma.widgetTemplate.upsert({
-      where: { vizType: tpl.vizType },
+      where: { vizType_subtype: { vizType: tpl.vizType, subtype: tpl.subtype } },
       update: {
         name: tpl.name,
         description: tpl.description,

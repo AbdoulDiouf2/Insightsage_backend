@@ -327,7 +327,7 @@ export class AdminController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Créer un nouveau Widget Template',
-    description: 'Le vizType doit être unique : card | bar | line | gauge | table.',
+    description: 'Le vizType doit être unique : card | bar | line | gauge | table | pie | map | text | scatter | treemap | image | ai_insights | decomp_tree',
   })
   async createWidgetTemplate(@Body() dto: CreateWidgetTemplateDto) {
     return this.adminService.createWidgetTemplate(dto);

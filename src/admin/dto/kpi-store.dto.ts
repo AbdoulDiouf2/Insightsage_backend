@@ -84,7 +84,7 @@ export class CreateKpiDefinitionDto {
     description: 'Type de visualisation par défaut',
   })
   @IsString()
-  @IsIn(['gauge', 'bar', 'card', 'kpi', 'line', 'table', 'pie', 'map', 'text'])
+  @IsIn(['gauge', 'bar', 'card', 'kpi', 'line', 'table', 'pie', 'map', 'text', 'scatter', 'treemap', 'image', 'ai_insights', 'decomp_tree'])
   defaultVizType: string;
 
   @ApiPropertyOptional({ example: 'VW_Finances_Clients_Flat', description: 'Vue Sage 100 principale' })
@@ -175,7 +175,7 @@ export class UpdateKpiDefinitionDto {
 
   @ApiPropertyOptional({ example: 'bar' })
   @IsString()
-  @IsIn(['gauge', 'bar', 'card', 'kpi', 'line', 'table', 'pie', 'map', 'text'])
+  @IsIn(['gauge', 'bar', 'card', 'kpi', 'line', 'table', 'pie', 'map', 'text', 'scatter', 'treemap', 'image', 'ai_insights', 'decomp_tree'])
   @IsOptional()
   defaultVizType?: string;
 
@@ -210,26 +210,34 @@ export class UpdateKpiDefinitionDto {
 // ─── WidgetTemplate DTOs ──────────────────────────────────────────────────────
 
 export class CreateWidgetTemplateDto {
-  @ApiProperty({ example: 'Carte KPI' })
+  @ApiProperty({ example: 'Histogramme empilé' })
   @IsString()
   @IsNotEmpty()
   name: string;
 
   @ApiProperty({
-    example: 'card',
-    description: 'Type de visualisation unique : card | bar | line | gauge | table | pie | map | text',
+    example: 'bar',
+    description: 'Type de visualisation : card | bar | line | gauge | table | pie | map | text | scatter | treemap | image | ai_insights | decomp_tree',
   })
   @IsString()
-  @IsIn(['card', 'bar', 'line', 'gauge', 'table', 'pie', 'map', 'text'])
+  @IsIn(['card', 'bar', 'line', 'gauge', 'table', 'pie', 'map', 'text', 'scatter', 'treemap', 'image', 'ai_insights', 'decomp_tree'])
   vizType: string;
 
-  @ApiPropertyOptional({ example: 'Affiche une métrique KPI sous forme de carte' })
+  @ApiPropertyOptional({
+    example: 'stacked',
+    description: 'Variante du vizType. "default" si absent. Ex: grouped | stacked | stacked100 | waterfall | funnel | donut | area | choropleth | matrix | narrative',
+  })
+  @IsString()
+  @IsOptional()
+  subtype?: string;
+
+  @ApiPropertyOptional({ example: 'Barres empilées pour comparer des parts sur une période' })
   @IsString()
   @IsOptional()
   description?: string;
 
   @ApiProperty({
-    example: { period: 'month' },
+    example: { period: 'month', subtype: 'stacked', orientation: 'vertical' },
     description: 'Configuration JSON par défaut du widget',
   })
   @IsObject()
@@ -237,17 +245,22 @@ export class CreateWidgetTemplateDto {
 }
 
 export class UpdateWidgetTemplateDto {
-  @ApiPropertyOptional({ example: 'Carte KPI (v2)' })
+  @ApiPropertyOptional({ example: 'Histogramme empilé (v2)' })
   @IsString()
   @IsOptional()
   name?: string;
+
+  @ApiPropertyOptional({ example: 'stacked' })
+  @IsString()
+  @IsOptional()
+  subtype?: string;
 
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
   description?: string;
 
-  @ApiPropertyOptional({ example: { period: 'quarter' } })
+  @ApiPropertyOptional({ example: { period: 'quarter', subtype: 'stacked' } })
   @IsObject()
   @IsOptional()
   defaultConfig?: Record<string, unknown>;

@@ -793,15 +793,17 @@ export class AdminService {
   }
 
   async createWidgetTemplate(dto: CreateWidgetTemplateDto) {
+    const subtype = dto.subtype ?? 'default';
     const existing = await this.prisma.widgetTemplate.findUnique({
-      where: { vizType: dto.vizType },
+      where: { vizType_subtype: { vizType: dto.vizType, subtype } },
     });
     if (existing) {
-      throw new BadRequestException(`Un Widget Template avec vizType "${dto.vizType}" existe déjà.`);
+      throw new BadRequestException(`Un Widget Template "${dto.vizType}/${subtype}" existe déjà.`);
     }
     return this.prisma.widgetTemplate.create({
       data: {
         ...dto,
+        subtype,
         defaultConfig: dto.defaultConfig as Prisma.InputJsonValue,
       },
     });
