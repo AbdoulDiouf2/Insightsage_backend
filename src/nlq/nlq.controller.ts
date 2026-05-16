@@ -1,9 +1,11 @@
 import {
     Body,
     Controller,
+    Delete,
     Get,
     HttpCode,
     HttpStatus,
+    Param,
     Post,
     UseGuards,
 } from '@nestjs/common';
@@ -53,6 +55,41 @@ export class NlqController {
         @Body() dto: NlqQueryDto,
     ) {
         return this.nlqService.processQuery(organizationId, userId, dto.query);
+    }
+
+    @Get('favorites')
+    @HttpCode(HttpStatus.OK)
+    @RequirePermissions({ action: 'read', resource: 'dashboards' })
+    @ApiOperation({ summary: 'Récupérer les jobIds favoris NLQ de l\'utilisateur' })
+    async getFavorites(
+        @OrganizationId() organizationId: string,
+        @CurrentUser('id') userId: string,
+    ) {
+        return this.nlqService.getFavorites(organizationId, userId);
+    }
+
+    @Post('favorites/:jobId')
+    @HttpCode(HttpStatus.OK)
+    @RequirePermissions({ action: 'read', resource: 'dashboards' })
+    @ApiOperation({ summary: 'Ajouter un jobId aux favoris NLQ' })
+    async addFavorite(
+        @OrganizationId() organizationId: string,
+        @CurrentUser('id') userId: string,
+        @Param('jobId') jobId: string,
+    ) {
+        return this.nlqService.addFavorite(organizationId, userId, jobId);
+    }
+
+    @Delete('favorites/:jobId')
+    @HttpCode(HttpStatus.OK)
+    @RequirePermissions({ action: 'read', resource: 'dashboards' })
+    @ApiOperation({ summary: 'Retirer un jobId des favoris NLQ' })
+    async removeFavorite(
+        @OrganizationId() organizationId: string,
+        @CurrentUser('id') userId: string,
+        @Param('jobId') jobId: string,
+    ) {
+        return this.nlqService.removeFavorite(organizationId, userId, jobId);
     }
 
     @Post('add-to-dashboard')

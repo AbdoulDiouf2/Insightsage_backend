@@ -34,6 +34,29 @@ export class NlqService {
         return `nlq:hist:${organizationId}:${userId}`;
     }
 
+    private favsKey(organizationId: string, userId: string) {
+        return `nlq:favs:${organizationId}:${userId}`;
+    }
+
+    async getFavorites(organizationId: string, userId: string): Promise<string[]> {
+        const members = await this.redis.sMembers(this.favsKey(organizationId, userId));
+        return members;
+    }
+
+    async addFavorite(organizationId: string, userId: string, jobId: string): Promise<{ favorites: string[] }> {
+        const key = this.favsKey(organizationId, userId);
+        await this.redis.sAdd(key, jobId);
+        const favorites = await this.redis.sMembers(key);
+        return { favorites };
+    }
+
+    async removeFavorite(organizationId: string, userId: string, jobId: string): Promise<{ favorites: string[] }> {
+        const key = this.favsKey(organizationId, userId);
+        await this.redis.sRem(key, jobId);
+        const favorites = await this.redis.sMembers(key);
+        return { favorites };
+    }
+
     private async saveToHistory(organizationId: string, userId: string, entry: NlqHistoryEntry) {
         const key = this.histKey(organizationId, userId);
         await this.redis.lPush(key, JSON.stringify(entry));
