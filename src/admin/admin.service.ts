@@ -266,12 +266,9 @@ export class AdminService {
       }
 
       // 2. Widget → Dashboard (pas de cascade DB sur Dashboard)
-      const dashboards = await tx.dashboard.findMany({ where: { organizationId: id }, select: { id: true } });
-      const dashboardIds = dashboards.map((d) => d.id);
-      if (dashboardIds.length > 0) {
-        await tx.widget.deleteMany({ where: { dashboardId: { in: dashboardIds } } });
-        await tx.dashboard.deleteMany({ where: { organizationId: id } });
-      }
+      // Supprime tous les widgets de l'org directement (dashboardId nullable = widgets orphelins possibles)
+      await tx.widget.deleteMany({ where: { organizationId: id } });
+      await tx.dashboard.deleteMany({ where: { organizationId: id } });
 
       // 3. Dissocier l'owner pour éviter la contrainte circulaire Organization ↔ User
       await tx.organization.update({ where: { id }, data: { ownerId: null } });
