@@ -27,13 +27,9 @@
       "revenus ht",
       "facturation"
     ],
-    "sqlSage100View": "VW_Finances_Clients_Flat",
-    "sqlSage100Tables": [
-      "F_COMPTET",
-      "G_ECRITUREC",
-      "F_PIECE"
-    ],
-    "sqlSage100": "SELECT SUM(Montant_HT) FROM VW_Finances_Clients_Flat WHERE Type_Piece IN ('FA','FD')",
+    "sqlSage100View": "VW_FINANCE_GENERAL",
+    "sqlSage100Tables": [],
+    "sqlSage100": "SELECT SUM(CASE WHEN v.annee_mois = m.mois1 THEN v.ca_ht ELSE 0 END) AS [current], SUM(CASE WHEN v.annee_mois = m.mois2 THEN v.ca_ht ELSE 0 END) AS [previous] FROM VW_FINANCE_GENERAL v CROSS JOIN (SELECT t1.mois1, MAX(t2.annee_mois) AS mois2 FROM (SELECT MAX(annee_mois) AS mois1 FROM VW_FINANCE_GENERAL) t1 JOIN (SELECT DISTINCT annee_mois FROM VW_FINANCE_GENERAL) t2 ON t2.annee_mois < t1.mois1 GROUP BY t1.mois1) m",
     "mlUsage": "Feature principale pour prévision de revenus (time-series forecasting). Détection d'anomalies de CA."
   },
   {

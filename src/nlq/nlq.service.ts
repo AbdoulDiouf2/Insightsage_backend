@@ -236,6 +236,7 @@ export class NlqService {
                 organizationId,
                 template.sqlQuery,
                 this.agentsGateway,
+                userId,
             );
 
             // 7. Mise à jour session
