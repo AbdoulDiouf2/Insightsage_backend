@@ -103,27 +103,36 @@ async function main() {
     kpiCount++;
   }
 
-  // Delete orphan templates / intents / definitions
-  const validKeys = kpis.map((k) => k.key);
-  const [delTemplates, delIntents, delDefs] = await Promise.all([
-    prisma.nlqTemplate.deleteMany({ where: { intentKey: { notIn: validKeys } } }),
-    prisma.nlqIntent.deleteMany({ where: { key: { notIn: validKeys } } }),
-    prisma.kpiDefinition.deleteMany({ where: { key: { notIn: validKeys } } }),
-  ]);
-  if (delTemplates.count) console.log(`🗑  Orphan templates deleted: ${delTemplates.count}`);
-  if (delIntents.count) console.log(`🗑  Orphan intents deleted: ${delIntents.count}`);
-  if (delDefs.count) console.log(`🗑  Orphan definitions deleted: ${delDefs.count}`);
+  // Orphan cleanup désactivé — préserve les KPIs/Intents/Templates créés via l'UI admin.
+  // Pour nettoyer manuellement : SET PURGE_ORPHANS=1 avant d'exécuter le script.
+  if (process.env.PURGE_ORPHANS === '1') {
+    const validKeys = kpis.map((k) => k.key);
+    const [delTemplates, delIntents, delDefs] = await Promise.all([
+      prisma.nlqTemplate.deleteMany({ where: { intentKey: { notIn: validKeys } } }),
+      prisma.nlqIntent.deleteMany({ where: { key: { notIn: validKeys } } }),
+      prisma.kpiDefinition.deleteMany({ where: { key: { notIn: validKeys } } }),
+    ]);
+    if (delTemplates.count) console.log(`🗑  Orphan templates deleted: ${delTemplates.count}`);
+    if (delIntents.count) console.log(`🗑  Orphan intents deleted: ${delIntents.count}`);
+    if (delDefs.count) console.log(`🗑  Orphan definitions deleted: ${delDefs.count}`);
+  }
 
   console.log(`✅ KPIs upserted: ${kpiCount}`);
 
-  // KpiPacks — rebuild by category
-  console.log('📦 Rebuilding KPI Packs...');
-  await prisma.kpiPack.deleteMany();
+  // KpiPacks — upsert par catégorie (préserve les packs créés via l'UI)
+  console.log('📦 Upserting KPI Packs...');
   for (const cat of Array.from(categories)) {
     const kpiKeys = kpis.filter((k) => k.category === cat).map((k) => k.key);
-    await prisma.kpiPack.create({
-      data: {
-        name: `pack_${cat}`,
+    const packName = `pack_${cat}`;
+    await prisma.kpiPack.upsert({
+      where: { name: packName },
+      update: {
+        label: `Pack ${cat.charAt(0).toUpperCase() + cat.slice(1).replace(/_/g, ' ')}`,
+        kpiKeys,
+        description: `Ensemble des indicateurs pour la catégorie ${cat}`,
+      },
+      create: {
+        name: packName,
         label: `Pack ${cat.charAt(0).toUpperCase() + cat.slice(1).replace(/_/g, ' ')}`,
         profile: 'daf',
         kpiKeys,
@@ -131,7 +140,7 @@ async function main() {
       },
     });
   }
-  console.log(`✅ KPI Packs rebuilt: ${categories.size}`);
+  console.log(`✅ KPI Packs upserted: ${categories.size}`);
   console.log('🚀 KPI seed completed.');
 }
 

@@ -197,14 +197,8 @@ const LOWER_IS_BETTER_KEYS = new Set([
 async function main() {
   console.log('🌱 Starting seed...');
 
-  // ─── 0. Cleanup KPI-related data (reset propre) ───────────────────────────
-  console.log('🧹 Cleaning up KPI-related data...');
-  await prisma.widget.deleteMany();
-  await prisma.nlqTemplate.deleteMany();
-  await prisma.nlqIntent.deleteMany();
-  await prisma.kpiPack.deleteMany();
-  await prisma.kpiDefinition.deleteMany();
-  console.log('✅ KPI-related data cleaned.');
+  // ─── 0. Pas de deleteMany — le seed est idempotent (upsert partout) ─────────
+  //        Les KPIs/Intents/Templates créés via l'UI admin sont préservés.
 
   // 1. Seed Permissions
   for (const perm of DEFAULT_PERMISSIONS) {
@@ -399,13 +393,21 @@ async function main() {
     };
 
     // KpiDefinition
-    await prisma.kpiDefinition.create({
-      data: { key: kpi.key, ...kpiData },
+    await prisma.kpiDefinition.upsert({
+      where: { key: kpi.key },
+      update: kpiData,
+      create: { key: kpi.key, ...kpiData },
     });
 
     // NLQ Intent
-    await prisma.nlqIntent.create({
-      data: {
+    await prisma.nlqIntent.upsert({
+      where: { key: kpi.key },
+      update: {
+        label: kpi.name,
+        keywords: kpi.keywords ?? [],
+        category: kpi.category,
+      },
+      create: {
         key: kpi.key,
         label: kpi.name,
         keywords: kpi.keywords ?? [],
@@ -415,8 +417,10 @@ async function main() {
 
     // NLQ Template (Sage 100)
     if (kpi.sqlSage100) {
-      await prisma.nlqTemplate.create({
-        data: {
+      await prisma.nlqTemplate.upsert({
+        where: { intentKey_sageType: { intentKey: kpi.key, sageType: '100' } },
+        update: { sqlQuery: kpi.sqlSage100, defaultVizType: kpi.defaultVizType },
+        create: {
           intentKey: kpi.key,
           sageType: '100',
           sqlQuery: kpi.sqlSage100,
@@ -427,8 +431,10 @@ async function main() {
 
     // NLQ Template (Sage X3) — optionnel
     if (kpi.sqlSageX3) {
-      await prisma.nlqTemplate.create({
-        data: {
+      await prisma.nlqTemplate.upsert({
+        where: { intentKey_sageType: { intentKey: kpi.key, sageType: 'X3' } },
+        update: { sqlQuery: kpi.sqlSageX3, defaultVizType: kpi.defaultVizType },
+        create: {
           intentKey: kpi.key,
           sageType: 'X3',
           sqlQuery: kpi.sqlSageX3,
@@ -524,8 +530,14 @@ async function main() {
     const kpiKeys = kpis.filter((k: any) => k.category === cat).map((k: any) => k.key);
     const packName = `pack_${cat}`;
 
-    await prisma.kpiPack.create({
-      data: {
+    await prisma.kpiPack.upsert({
+      where: { name: packName },
+      update: {
+        label: `Pack ${cat.charAt(0).toUpperCase() + cat.slice(1).replace(/_/g, ' ')}`,
+        kpiKeys: kpiKeys,
+        description: `Ensemble des indicateurs pour la catégorie ${cat}`,
+      },
+      create: {
         name: packName,
         label: `Pack ${cat.charAt(0).toUpperCase() + cat.slice(1).replace(/_/g, ' ')}`,
         profile: 'daf',
