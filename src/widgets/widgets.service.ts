@@ -91,9 +91,11 @@ export class WidgetsService {
   // ─── Widget Templates ─────────────────────────────────────────────────────
 
   async createWidgetTemplate(dto: CreateWidgetTemplateDto) {
-    const existing = await this.prisma.widgetTemplate.findUnique({ where: { vizType: dto.vizType } });
+    const existing = await this.prisma.widgetTemplate.findUnique({
+      where: { vizType_subtype: { vizType: dto.vizType, subtype: dto.subtype ?? 'default' } },
+    });
     if (existing) {
-      throw new BadRequestException(`Un Widget Template avec vizType "${dto.vizType}" existe déjà.`);
+      throw new BadRequestException(`Un Widget Template avec vizType "${dto.vizType}" et subtype "${dto.subtype ?? 'default'}" existe déjà.`);
     }
     return this.prisma.widgetTemplate.create({
       data: { ...dto, defaultConfig: dto.defaultConfig as Prisma.InputJsonValue },
