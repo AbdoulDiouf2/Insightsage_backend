@@ -34,6 +34,7 @@ import {
   CreateNlqTemplateDto,
   UpdateNlqTemplateDto,
   CreateKpiFullDto,
+  UpdateKpiFullDto,
 } from './dto/nlq.dto';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermissions, CurrentUser } from '../auth/decorators';
@@ -455,6 +456,13 @@ export class AdminController {
   @ApiOperation({ summary: 'Créer KPI + Intent NLQ + Templates SQL en une transaction' })
   async createKpiFull(@Body() dto: CreateKpiFullDto) {
     return this.adminService.createKpiFull(dto);
+  }
+
+  @Patch('kpi-full/:id')
+  @ApiOperation({ summary: 'Mettre à jour KPI + Intent NLQ + Templates SQL en une transaction' })
+  @ApiParam({ name: 'id', description: 'ID UUID du KPI' })
+  async updateKpiFull(@Param('id') id: string, @Body() dto: UpdateKpiFullDto) {
+    return this.adminService.updateKpiFull(id, dto);
   }
 
   @Post('nlq-intents')

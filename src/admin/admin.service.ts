@@ -1170,6 +1170,75 @@ export class AdminService {
     });
   }
 
+  async updateKpiFull(kpiId: string, dto: Record<string, any>) {
+    const kpi = await this.prisma.kpiDefinition.findUnique({ where: { id: kpiId } });
+    if (!kpi) throw new NotFoundException(`KPI introuvable : ${kpiId}`);
+    const key = kpi.key;
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Mise à jour KpiDefinition
+      const { intentLabel, intentDescription, intentCategory, intentKeywords,
+              sqlSage100, sqlSageX3, templateVizType, ...kpiData } = dto;
+      await tx.kpiDefinition.update({ where: { id: kpiId }, data: kpiData });
+
+      // 2. Intent NLQ
+      if (intentLabel !== undefined) {
+        const intent = await (tx as any).nlqIntent.findUnique({ where: { key } });
+        if (intent) {
+          await (tx as any).nlqIntent.update({
+            where: { key },
+            data: { label: intentLabel, description: intentDescription,
+                    category: intentCategory ?? intent.category,
+                    keywords: intentKeywords ?? intent.keywords },
+          });
+        } else {
+          await (tx as any).nlqIntent.create({
+            data: { key, label: intentLabel, description: intentDescription,
+                    category: intentCategory ?? 'finance', keywords: intentKeywords ?? [] },
+          });
+        }
+      }
+
+      // 3. Template Sage 100
+      if (sqlSage100 !== undefined) {
+        const tpl = await (tx as any).nlqTemplate.findUnique({
+          where: { intentKey_sageType: { intentKey: key, sageType: '100' } },
+        });
+        if (tpl) {
+          await (tx as any).nlqTemplate.update({
+            where: { intentKey_sageType: { intentKey: key, sageType: '100' } },
+            data: { sqlQuery: sqlSage100, ...(templateVizType ? { defaultVizType: templateVizType } : {}) },
+          });
+        } else if (sqlSage100.trim()) {
+          await (tx as any).nlqTemplate.create({
+            data: { intentKey: key, sageType: '100', sqlQuery: sqlSage100,
+                    defaultVizType: templateVizType ?? kpi.defaultVizType ?? 'card' },
+          });
+        }
+      }
+
+      // 4. Template Sage X3
+      if (sqlSageX3 !== undefined) {
+        const tpl = await (tx as any).nlqTemplate.findUnique({
+          where: { intentKey_sageType: { intentKey: key, sageType: 'X3' } },
+        });
+        if (tpl) {
+          await (tx as any).nlqTemplate.update({
+            where: { intentKey_sageType: { intentKey: key, sageType: 'X3' } },
+            data: { sqlQuery: sqlSageX3, ...(templateVizType ? { defaultVizType: templateVizType } : {}) },
+          });
+        } else if (sqlSageX3.trim()) {
+          await (tx as any).nlqTemplate.create({
+            data: { intentKey: key, sageType: 'X3', sqlQuery: sqlSageX3,
+                    defaultVizType: templateVizType ?? kpi.defaultVizType ?? 'card' },
+          });
+        }
+      }
+
+      return { key, message: 'KPI mis à jour avec succès.' };
+    });
+  }
+
   async createNlqIntent(dto: { key: string; label: string; description?: string; category: string; keywords?: string[] }) {
     const existing = await (this.prisma as any).nlqIntent.findUnique({ where: { key: dto.key } });
     if (existing) throw new BadRequestException(`Un intent avec la clé "${dto.key}" existe déjà.`);

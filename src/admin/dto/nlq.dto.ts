@@ -42,6 +42,39 @@ export class CreateKpiFullDto {
   @ApiPropertyOptional({ default: 'card' }) @IsString() @IsOptional() templateVizType?: string;
 }
 
+// ─── KPI Full Update ─────────────────────────────────────────────────────────
+
+export class UpdateKpiFullDto {
+  // ── KpiDefinition ──
+  @ApiPropertyOptional() @IsString() @IsOptional() name?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() code?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() domain?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() description?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() category?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() subcategory?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() unit?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() defaultVizType?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() usage?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() frequency?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() risk?: string;
+  @ApiPropertyOptional({ type: [String] }) @IsArray() @IsString({ each: true }) @IsOptional() profiles?: string[];
+  @ApiPropertyOptional({ type: [String] }) @IsArray() @IsString({ each: true }) @IsOptional() sectors?: string[];
+  @ApiPropertyOptional() @IsString() @IsOptional() sqlSage100View?: string;
+  @ApiPropertyOptional({ type: [String] }) @IsArray() @IsString({ each: true }) @IsOptional() sqlSage100Tables?: string[];
+  @ApiPropertyOptional({ enum: ['HIGHER_IS_BETTER', 'LOWER_IS_BETTER'] }) @IsString() @IsIn(['HIGHER_IS_BETTER', 'LOWER_IS_BETTER']) @IsOptional() direction?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() mlUsage?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() isActive?: string;
+  // ── NlqIntent ──
+  @ApiPropertyOptional() @IsString() @IsOptional() intentLabel?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() intentDescription?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() intentCategory?: string;
+  @ApiPropertyOptional({ type: [String] }) @IsArray() @IsString({ each: true }) @IsOptional() intentKeywords?: string[];
+  // ── NlqTemplates ──
+  @ApiPropertyOptional() @IsString() @IsOptional() sqlSage100?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() sqlSageX3?: string;
+  @ApiPropertyOptional() @IsString() @IsOptional() templateVizType?: string;
+}
+
 const NLQ_CATEGORIES = ['finance', 'commercial', 'treasury'] as const;
 const SAGE_TYPES = ['100', 'X3'] as const;
 const VIZ_TYPES = ['card', 'gauge', 'bar', 'line', 'table', 'pie', 'map', 'text'] as const;
