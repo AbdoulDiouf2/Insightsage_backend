@@ -28,6 +28,13 @@ import {
   CreateKpiPackDto,
   UpdateKpiPackDto,
 } from './dto/kpi-store.dto';
+import {
+  CreateNlqIntentDto,
+  UpdateNlqIntentDto,
+  CreateNlqTemplateDto,
+  UpdateNlqTemplateDto,
+  CreateKpiFullDto,
+} from './dto/nlq.dto';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermissions, CurrentUser } from '../auth/decorators';
 import {
@@ -442,6 +449,52 @@ export class AdminController {
   @ApiParam({ name: 'id', description: 'ID UUID du NLQ Template' })
   async toggleNlqTemplate(@Param('id') id: string) {
     return this.adminService.toggleNlqTemplate(id);
+  }
+
+  @Post('kpi-full')
+  @ApiOperation({ summary: 'Créer KPI + Intent NLQ + Templates SQL en une transaction' })
+  async createKpiFull(@Body() dto: CreateKpiFullDto) {
+    return this.adminService.createKpiFull(dto);
+  }
+
+  @Post('nlq-intents')
+  @ApiOperation({ summary: 'Créer un NLQ Intent' })
+  async createNlqIntent(@Body() dto: CreateNlqIntentDto) {
+    return this.adminService.createNlqIntent(dto);
+  }
+
+  @Patch('nlq-intents/:id')
+  @ApiOperation({ summary: 'Modifier un NLQ Intent' })
+  @ApiParam({ name: 'id', description: 'ID UUID de l\'intent' })
+  async updateNlqIntent(@Param('id') id: string, @Body() dto: UpdateNlqIntentDto) {
+    return this.adminService.updateNlqIntent(id, dto);
+  }
+
+  @Delete('nlq-intents/:id')
+  @ApiOperation({ summary: 'Supprimer un NLQ Intent (cascade templates)' })
+  @ApiParam({ name: 'id', description: 'ID UUID de l\'intent' })
+  async deleteNlqIntent(@Param('id') id: string) {
+    return this.adminService.deleteNlqIntent(id);
+  }
+
+  @Post('nlq-templates')
+  @ApiOperation({ summary: 'Créer un NLQ Template SQL' })
+  async createNlqTemplate(@Body() dto: CreateNlqTemplateDto) {
+    return this.adminService.createNlqTemplate(dto);
+  }
+
+  @Patch('nlq-templates/:id')
+  @ApiOperation({ summary: 'Modifier un NLQ Template SQL' })
+  @ApiParam({ name: 'id', description: 'ID UUID du template' })
+  async updateNlqTemplate(@Param('id') id: string, @Body() dto: UpdateNlqTemplateDto) {
+    return this.adminService.updateNlqTemplate(id, dto);
+  }
+
+  @Delete('nlq-templates/:id')
+  @ApiOperation({ summary: 'Supprimer un NLQ Template SQL' })
+  @ApiParam({ name: 'id', description: 'ID UUID du template' })
+  async deleteNlqTemplate(@Param('id') id: string) {
+    return this.adminService.deleteNlqTemplate(id);
   }
 
   @Get('nlq-sessions')

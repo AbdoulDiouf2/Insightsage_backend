@@ -1101,6 +1101,116 @@ export class AdminService {
     });
   }
 
+  async createKpiFull(dto: {
+    key: string; name: string; code?: string; domain?: string; description?: string;
+    category: string; subcategory?: string; unit?: string; defaultVizType: string;
+    usage?: string; frequency?: string; risk?: string; profiles?: string[]; sectors?: string[];
+    sqlSage100View?: string; sqlSage100Tables?: string[]; direction?: string; mlUsage?: string;
+    intentLabel?: string; intentDescription?: string; intentCategory?: string; intentKeywords?: string[];
+    sqlSage100?: string; sqlSageX3?: string; templateVizType?: string;
+  }) {
+    const existing = await this.prisma.kpiDefinition.findUnique({ where: { key: dto.key } });
+    if (existing) throw new BadRequestException(`KPI avec la clé "${dto.key}" existe déjà.`);
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. KpiDefinition
+      await tx.kpiDefinition.create({
+        data: {
+          key: dto.key, name: dto.name, code: dto.code, domain: dto.domain,
+          description: dto.description, category: dto.category, subcategory: dto.subcategory,
+          unit: dto.unit, defaultVizType: dto.defaultVizType, usage: dto.usage,
+          frequency: dto.frequency, risk: dto.risk, profiles: dto.profiles ?? [],
+          sectors: dto.sectors ?? [], sqlSage100View: dto.sqlSage100View,
+          sqlSage100Tables: dto.sqlSage100Tables ?? [], direction: dto.direction ?? 'HIGHER_IS_BETTER',
+          mlUsage: dto.mlUsage,
+        },
+      });
+
+      // 2. NlqIntent (si label fourni)
+      if (dto.intentLabel) {
+        const intentExists = await (tx as any).nlqIntent.findUnique({ where: { key: dto.key } });
+        if (!intentExists) {
+          await (tx as any).nlqIntent.create({
+            data: {
+              key: dto.key,
+              label: dto.intentLabel,
+              description: dto.intentDescription,
+              category: dto.intentCategory ?? 'finance',
+              keywords: dto.intentKeywords ?? [],
+            },
+          });
+        }
+
+        // 3. NlqTemplate Sage 100
+        if (dto.sqlSage100) {
+          await (tx as any).nlqTemplate.create({
+            data: {
+              intentKey: dto.key,
+              sageType: '100',
+              sqlQuery: dto.sqlSage100,
+              defaultVizType: dto.templateVizType ?? dto.defaultVizType ?? 'card',
+            },
+          });
+        }
+
+        // 4. NlqTemplate Sage X3
+        if (dto.sqlSageX3) {
+          await (tx as any).nlqTemplate.create({
+            data: {
+              intentKey: dto.key,
+              sageType: 'X3',
+              sqlQuery: dto.sqlSageX3,
+              defaultVizType: dto.templateVizType ?? dto.defaultVizType ?? 'card',
+            },
+          });
+        }
+      }
+
+      return { key: dto.key, message: 'KPI créé avec succès.' };
+    });
+  }
+
+  async createNlqIntent(dto: { key: string; label: string; description?: string; category: string; keywords?: string[] }) {
+    const existing = await (this.prisma as any).nlqIntent.findUnique({ where: { key: dto.key } });
+    if (existing) throw new BadRequestException(`Un intent avec la clé "${dto.key}" existe déjà.`);
+    return (this.prisma as any).nlqIntent.create({ data: { ...dto, keywords: dto.keywords ?? [] } });
+  }
+
+  async updateNlqIntent(id: string, dto: { label?: string; description?: string; category?: string; keywords?: string[] }) {
+    const intent = await (this.prisma as any).nlqIntent.findUnique({ where: { id } });
+    if (!intent) throw new NotFoundException(`NLQ Intent introuvable : ${id}`);
+    return (this.prisma as any).nlqIntent.update({ where: { id }, data: dto });
+  }
+
+  async deleteNlqIntent(id: string) {
+    const intent = await (this.prisma as any).nlqIntent.findUnique({ where: { id } });
+    if (!intent) throw new NotFoundException(`NLQ Intent introuvable : ${id}`);
+    await (this.prisma as any).nlqTemplate.deleteMany({ where: { intentKey: intent.key } });
+    return (this.prisma as any).nlqIntent.delete({ where: { id } });
+  }
+
+  async createNlqTemplate(dto: { intentKey: string; sageType: string; sqlQuery: string; defaultVizType?: string }) {
+    const intent = await (this.prisma as any).nlqIntent.findUnique({ where: { key: dto.intentKey } });
+    if (!intent) throw new BadRequestException(`Intent "${dto.intentKey}" introuvable.`);
+    const existing = await (this.prisma as any).nlqTemplate.findUnique({
+      where: { intentKey_sageType: { intentKey: dto.intentKey, sageType: dto.sageType } },
+    });
+    if (existing) throw new BadRequestException(`Un template pour "${dto.intentKey}" / Sage ${dto.sageType} existe déjà.`);
+    return (this.prisma as any).nlqTemplate.create({ data: { ...dto, defaultVizType: dto.defaultVizType ?? 'card' } });
+  }
+
+  async updateNlqTemplate(id: string, dto: { sqlQuery?: string; defaultVizType?: string }) {
+    const template = await (this.prisma as any).nlqTemplate.findUnique({ where: { id } });
+    if (!template) throw new NotFoundException(`NLQ Template introuvable : ${id}`);
+    return (this.prisma as any).nlqTemplate.update({ where: { id }, data: dto });
+  }
+
+  async deleteNlqTemplate(id: string) {
+    const template = await (this.prisma as any).nlqTemplate.findUnique({ where: { id } });
+    if (!template) throw new NotFoundException(`NLQ Template introuvable : ${id}`);
+    return (this.prisma as any).nlqTemplate.delete({ where: { id } });
+  }
+
   async findAllNlqSessions() {
     return this.prisma.nlqSession.findMany({
       orderBy: { createdAt: 'desc' },
