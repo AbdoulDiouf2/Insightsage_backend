@@ -1,5 +1,6 @@
 import {
   IsArray,
+  IsBoolean,
   IsIn,
   IsNotEmpty,
   IsOptional,
@@ -63,7 +64,7 @@ export class UpdateKpiFullDto {
   @ApiPropertyOptional({ type: [String] }) @IsArray() @IsString({ each: true }) @IsOptional() sqlSage100Tables?: string[];
   @ApiPropertyOptional({ enum: ['HIGHER_IS_BETTER', 'LOWER_IS_BETTER'] }) @IsString() @IsIn(['HIGHER_IS_BETTER', 'LOWER_IS_BETTER']) @IsOptional() direction?: string;
   @ApiPropertyOptional() @IsString() @IsOptional() mlUsage?: string;
-  @ApiPropertyOptional() @IsString() @IsOptional() isActive?: string;
+  @ApiPropertyOptional() @IsBoolean() @IsOptional() isActive?: boolean;
   // ── NlqIntent ──
   @ApiPropertyOptional() @IsString() @IsOptional() intentLabel?: string;
   @ApiPropertyOptional() @IsString() @IsOptional() intentDescription?: string;
