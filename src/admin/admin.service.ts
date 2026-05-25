@@ -270,10 +270,13 @@ export class AdminService {
       await tx.widget.deleteMany({ where: { organizationId: id } });
       await tx.dashboard.deleteMany({ where: { organizationId: id } });
 
-      // 3. Dissocier l'owner pour éviter la contrainte circulaire Organization ↔ User
+      // 3. NlqSession (pas de cascade DB)
+      await tx.nlqSession.deleteMany({ where: { organizationId: id } });
+
+      // 4. Dissocier l'owner pour éviter la contrainte circulaire Organization ↔ User
       await tx.organization.update({ where: { id }, data: { ownerId: null } });
 
-      // 4. Supprimer l'organisation — le reste cascade (User, Invitation, AuditLog,
+      // 5. Supprimer l'organisation — le reste cascade (User, Invitation, AuditLog,
       //    OnboardingStatus, BillingCustomer, BillingSubscription, BillingInvoice…)
       return tx.organization.delete({ where: { id } });
     });
