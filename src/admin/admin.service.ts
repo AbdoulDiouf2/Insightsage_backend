@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Prisma, JobStatus } from '@prisma/client';
+import { Prisma, JobStatus, DemoRequestStatus } from '@prisma/client';
+import { UpdateDemoRequestDto } from './dto/update-demo-request.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { AdminUpdateOrganizationDto } from './dto/update-organization.dto';
@@ -1931,5 +1932,22 @@ export class AdminService {
     }
 
     return { migratedBugs, migratedReleases, total: migratedBugs + migratedReleases };
+  }
+
+  // ── Demo Requests ─────────────────────────────────────────────────────────
+
+  getDemoRequests(status?: DemoRequestStatus) {
+    return this.prisma.demoRequest.findMany({
+      where: status ? { status } : undefined,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  updateDemoRequest(id: string, dto: UpdateDemoRequestDto) {
+    return this.prisma.demoRequest.update({ where: { id }, data: dto });
+  }
+
+  deleteDemoRequest(id: string) {
+    return this.prisma.demoRequest.delete({ where: { id } });
   }
 }

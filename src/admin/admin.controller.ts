@@ -36,6 +36,8 @@ import {
   CreateKpiFullDto,
   UpdateKpiFullDto,
 } from './dto/nlq.dto';
+import { UpdateDemoRequestDto } from './dto/update-demo-request.dto';
+import { DemoRequestStatus } from '@prisma/client';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermissions, CurrentUser } from '../auth/decorators';
 import {
@@ -785,5 +787,29 @@ export class AdminController {
   @ApiOperation({ summary: 'Remplacer un préfixe URL de stockage dans toute la base de données' })
   async updateStoragePublicUrl(@Body() dto: { oldPrefix: string; newPrefix: string }) {
     return this.adminService.updateStoragePublicUrl(dto.oldPrefix, dto.newPrefix);
+  }
+
+  // ── Demo Requests ─────────────────────────────────────────────────────────
+
+  @Get('demo-requests')
+  @ApiOperation({ summary: 'Liste des demandes de démo soumises depuis la landing page' })
+  getDemoRequests(@Query('status') status?: DemoRequestStatus) {
+    return this.adminService.getDemoRequests(status);
+  }
+
+  @Patch('demo-requests/:id')
+  @ApiOperation({ summary: 'Mettre à jour le statut / les notes d\'une demande de démo' })
+  updateDemoRequest(
+    @Param('id') id: string,
+    @Body() dto: UpdateDemoRequestDto,
+  ) {
+    return this.adminService.updateDemoRequest(id, dto);
+  }
+
+  @Delete('demo-requests/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Supprimer une demande de démo' })
+  deleteDemoRequest(@Param('id') id: string) {
+    return this.adminService.deleteDemoRequest(id);
   }
 }

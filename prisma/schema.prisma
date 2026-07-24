@@ -812,3 +812,26 @@ model BugComment {
   @@index([bugId])
   @@map("bug_comments")
 }
+
+enum DemoRequestStatus {
+  NEW
+  CONTACTED
+  DEMO_SCHEDULED
+  CONVERTED
+  REJECTED
+}
+
+model DemoRequest {
+  id        String            @id @default(cuid())
+  email     String
+  company   String
+  message   String?           @db.Text
+  status    DemoRequestStatus @default(NEW)
+  notes     String?           @db.Text
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("demo_requests")
+}
