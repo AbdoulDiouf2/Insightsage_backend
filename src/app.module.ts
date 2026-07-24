@@ -33,6 +33,7 @@ import { StorageModule } from './storage/storage.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { AiModule } from './ai/ai.module';
+import { PublicModule } from './public/public.module';
 
 @Module({
   imports: [
@@ -81,6 +82,7 @@ import { AiModule } from './ai/ai.module';
     BillingModule,
     BugsModule,
     StorageModule,
+    PublicModule,
   ],
   providers: [
     {

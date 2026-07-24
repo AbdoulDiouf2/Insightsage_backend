@@ -671,7 +671,27 @@ export class MailerService implements OnModuleInit {
     });
   }
 
-  private async send(options: { to: string; subject: string; html: string }): Promise<void> {
+  async sendContactEmail(dto: { email: string; company: string; message?: string }): Promise<void> {
+    if (!this.smtpConfigured) {
+      this.logger.log(`[DEV] Contact form from ${dto.email} (${dto.company}): ${dto.message ?? ''}`);
+      return;
+    }
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #3b82f6;">Demande de démo — Cockpit</h2>
+        <p><strong>Email :</strong> ${dto.email}</p>
+        <p><strong>Entreprise :</strong> ${dto.company}</p>
+        <p><strong>Message :</strong> ${dto.message ?? '—'}</p>
+      </div>`;
+    await this.send({
+      to: 'contact@nafakatech.com',
+      replyTo: dto.email,
+      subject: `Demande de démo — ${dto.company}`,
+      html,
+    });
+  }
+
+  private async send(options: { to: string; subject: string; html: string; replyTo?: string }): Promise<void> {
     try {
       await this.transporter!.sendMail({
         from: this.config.get<string>('SMTP_FROM'),

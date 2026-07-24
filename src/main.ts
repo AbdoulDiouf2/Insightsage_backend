@@ -185,6 +185,8 @@ async function bootstrap() {
     // Production URLs (toujours autorisées même si les vars d'env sont absentes)
     'https://cockpit.nafakatech.com',
     'https://admin.cockpit.nafakatech.com',
+    'https://cockpitbynafaka.com',
+    'https://www.cockpitbynafaka.com',
     // Dev localhost
     'http://localhost:3001',
     'http://localhost:5173',
