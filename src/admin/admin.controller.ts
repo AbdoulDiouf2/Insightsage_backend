@@ -791,6 +791,12 @@ export class AdminController {
 
   // ── Demo Requests ─────────────────────────────────────────────────────────
 
+  @Get('demo-requests/stats')
+  @ApiOperation({ summary: 'Nombre de demandes de démo en statut NEW' })
+  getDemoRequestsStats() {
+    return this.adminService.getDemoRequestsStats();
+  }
+
   @Get('demo-requests')
   @ApiOperation({ summary: 'Liste des demandes de démo soumises depuis la landing page' })
   getDemoRequests(@Query('status') status?: DemoRequestStatus) {

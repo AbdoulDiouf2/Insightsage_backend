@@ -1950,4 +1950,10 @@ export class AdminService {
   deleteDemoRequest(id: string) {
     return this.prisma.demoRequest.delete({ where: { id } });
   }
+
+  getDemoRequestsStats(): Promise<{ new: number }> {
+    return this.prisma.demoRequest
+      .count({ where: { status: 'NEW' } })
+      .then((count) => ({ new: count }));
+  }
 }
