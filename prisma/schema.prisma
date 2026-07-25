@@ -92,7 +92,8 @@ model User {
   bugComments        BugComment[]
   bugsResolved       Bug[]          @relation("BugResolver")
   bugsAssignedBy     Bug[]          @relation("BugAssignor")
-  demoRequestNotes   DemoRequestNote[]
+  demoRequestNotes        DemoRequestNote[]
+  demoRequestStatusEvents DemoRequestStatusEvent[]
 
   @@index([organizationId])
   @@map("users")
@@ -823,16 +824,17 @@ enum DemoRequestStatus {
 }
 
 model DemoRequest {
-  id         String              @id @default(cuid())
-  email      String
-  company    String
-  message    String?             @db.Text
-  status     DemoRequestStatus   @default(NEW)
-  notes      String?             @db.Text
-  statusMeta Json?
-  teamNotes  DemoRequestNote[]
-  createdAt  DateTime            @default(now())
-  updatedAt  DateTime            @updatedAt
+  id            String                   @id @default(cuid())
+  email         String
+  company       String
+  message       String?                  @db.Text
+  status        DemoRequestStatus        @default(NEW)
+  notes         String?                  @db.Text
+  statusMeta    Json?
+  teamNotes     DemoRequestNote[]
+  statusEvents  DemoRequestStatusEvent[]
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
 
   @@index([status])
   @@index([createdAt])
@@ -851,4 +853,18 @@ model DemoRequestNote {
   @@index([demoRequestId])
   @@index([createdAt])
   @@map("demo_request_notes")
+}
+
+model DemoRequestStatusEvent {
+  id            String            @id @default(cuid())
+  demoRequestId String
+  demoRequest   DemoRequest       @relation(fields: [demoRequestId], references: [id], onDelete: Cascade)
+  authorId      String
+  author        User              @relation(fields: [authorId], references: [id])
+  fromStatus    DemoRequestStatus
+  toStatus      DemoRequestStatus
+  createdAt     DateTime          @default(now())
+
+  @@index([demoRequestId])
+  @@map("demo_request_status_events")
 }

@@ -1951,6 +1951,10 @@ export class AdminService {
           include: { author: { select: { id: true, firstName: true, lastName: true, email: true } } },
           orderBy: { createdAt: 'asc' },
         },
+        statusEvents: {
+          include: { author: { select: { id: true, firstName: true, lastName: true, email: true } } },
+          orderBy: { createdAt: 'asc' },
+        },
       },
     });
   }
@@ -1973,7 +1977,15 @@ export class AdminService {
     });
   }
 
-  updateDemoRequest(id: string, dto: UpdateDemoRequestDto) {
+  async updateDemoRequest(id: string, dto: UpdateDemoRequestDto, authorId?: string) {
+    if (dto.status && authorId) {
+      const current = await this.prisma.demoRequest.findUniqueOrThrow({ where: { id }, select: { status: true } });
+      if (current.status !== dto.status) {
+        await this.prisma.demoRequestStatusEvent.create({
+          data: { demoRequestId: id, authorId, fromStatus: current.status, toStatus: dto.status },
+        });
+      }
+    }
     return this.prisma.demoRequest.update({ where: { id }, data: dto });
   }
 

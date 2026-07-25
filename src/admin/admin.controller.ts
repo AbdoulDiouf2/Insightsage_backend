@@ -832,8 +832,9 @@ export class AdminController {
   updateDemoRequest(
     @Param('id') id: string,
     @Body() dto: UpdateDemoRequestDto,
+    @CurrentUser('id') authorId: string,
   ) {
-    return this.adminService.updateDemoRequest(id, dto);
+    return this.adminService.updateDemoRequest(id, dto, authorId);
   }
 
   @Delete('demo-requests/:id')
