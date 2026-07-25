@@ -92,6 +92,7 @@ model User {
   bugComments        BugComment[]
   bugsResolved       Bug[]          @relation("BugResolver")
   bugsAssignedBy     Bug[]          @relation("BugAssignor")
+  demoRequestNotes   DemoRequestNote[]
 
   @@index([organizationId])
   @@map("users")
@@ -822,17 +823,32 @@ enum DemoRequestStatus {
 }
 
 model DemoRequest {
-  id         String            @id @default(cuid())
+  id         String              @id @default(cuid())
   email      String
   company    String
-  message    String?           @db.Text
-  status     DemoRequestStatus @default(NEW)
-  notes      String?           @db.Text
+  message    String?             @db.Text
+  status     DemoRequestStatus   @default(NEW)
+  notes      String?             @db.Text
   statusMeta Json?
-  createdAt  DateTime          @default(now())
-  updatedAt  DateTime          @updatedAt
+  teamNotes  DemoRequestNote[]
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
 
   @@index([status])
   @@index([createdAt])
   @@map("demo_requests")
+}
+
+model DemoRequestNote {
+  id              String      @id @default(cuid())
+  demoRequestId   String
+  demoRequest     DemoRequest @relation(fields: [demoRequestId], references: [id], onDelete: Cascade)
+  authorId        String
+  author          User        @relation(fields: [authorId], references: [id])
+  content         String      @db.Text
+  createdAt       DateTime    @default(now())
+
+  @@index([demoRequestId])
+  @@index([createdAt])
+  @@map("demo_request_notes")
 }

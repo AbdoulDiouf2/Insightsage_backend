@@ -797,6 +797,24 @@ export class AdminController {
     return this.adminService.getDemoRequestsStats();
   }
 
+  @Get('demo-requests/notes/recent')
+  @ApiOperation({ summary: 'Notes récentes sur les demandes de démo (notifications)' })
+  getRecentDemoNotes(@Query('since') since?: string) {
+    const sinceDate = since ? new Date(since) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    return this.adminService.getRecentDemoNotes(sinceDate);
+  }
+
+  @Post('demo-requests/:id/notes')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Ajouter une note interne sur une demande de démo' })
+  addDemoRequestNote(
+    @Param('id') id: string,
+    @Body() dto: { content: string },
+    @CurrentUser() user: any,
+  ) {
+    return this.adminService.addDemoRequestNote(id, dto.content, user.id);
+  }
+
   @Get('demo-requests')
   @ApiOperation({ summary: 'Liste des demandes de démo soumises depuis la landing page' })
   getDemoRequests(@Query('status') status?: DemoRequestStatus) {

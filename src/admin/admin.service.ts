@@ -1944,7 +1944,33 @@ export class AdminService {
   }
 
   getDemoRequest(id: string) {
-    return this.prisma.demoRequest.findUniqueOrThrow({ where: { id } });
+    return this.prisma.demoRequest.findUniqueOrThrow({
+      where: { id },
+      include: {
+        teamNotes: {
+          include: { author: { select: { id: true, firstName: true, lastName: true, email: true } } },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+  }
+
+  addDemoRequestNote(demoRequestId: string, content: string, authorId: string) {
+    return this.prisma.demoRequestNote.create({
+      data: { demoRequestId, content, authorId },
+      include: { author: { select: { id: true, firstName: true, lastName: true, email: true } } },
+    });
+  }
+
+  getRecentDemoNotes(since: Date) {
+    return this.prisma.demoRequestNote.findMany({
+      where: { createdAt: { gt: since } },
+      include: {
+        author: { select: { id: true, firstName: true, lastName: true } },
+        demoRequest: { select: { id: true, company: true, email: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
   updateDemoRequest(id: string, dto: UpdateDemoRequestDto) {
