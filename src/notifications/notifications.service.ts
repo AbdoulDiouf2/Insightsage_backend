@@ -371,4 +371,29 @@ export class NotificationsService {
     
     this.logger.log(`[notifyBugAssigned] Alerte envoyée pour bug "${bug.bugId}" à ${assignedUser.email}`);
   }
+
+  async notifyNewDemoRequest(dto: { email: string; company: string; message?: string }): Promise<void> {
+    const { recipients } = await this.getConfig();
+
+    let resolvedIds = recipients;
+    // Fallback : si aucun recipient configuré, envoyer aux superadmins
+    if (!resolvedIds.length) {
+      const superadmins = await this.prisma.userRole.findMany({
+        where: { role: { name: 'superadmin' } },
+        select: { userId: true },
+      });
+      resolvedIds = superadmins.map((sa) => sa.userId);
+    }
+
+    if (!resolvedIds.length) {
+      this.logger.warn('[notifyNewDemoRequest] Aucun destinataire configuré — notification ignorée');
+      return;
+    }
+
+    const users = await this.resolveRecipients(resolvedIds);
+    await Promise.allSettled(
+      users.map((u) => this.mailer.sendAdminDemoRequestAlert(u.email, u.firstName, dto)),
+    );
+    this.logger.log(`[notifyNewDemoRequest] Alerte envoyée pour "${dto.company}" à ${users.length} admin(s)`);
+  }
 }

@@ -1,7 +1,7 @@
 import { Body, Controller, HttpCode, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
-import { MailerService } from '../mailer/mailer.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ContactDto } from './contact.dto';
 
@@ -9,7 +9,7 @@ import { ContactDto } from './contact.dto';
 @Controller('public')
 export class PublicController {
   constructor(
-    private readonly mailer: MailerService,
+    private readonly notifications: NotificationsService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -21,7 +21,8 @@ export class PublicController {
     await this.prisma.demoRequest.create({
       data: { email: dto.email, company: dto.company, message: dto.message },
     });
-    await this.mailer.sendContactEmail(dto);
+    // Fire-and-forget — on ne bloque pas la réponse si l'email échoue
+    this.notifications.notifyNewDemoRequest(dto).catch(() => {});
     return { ok: true };
   }
 }
