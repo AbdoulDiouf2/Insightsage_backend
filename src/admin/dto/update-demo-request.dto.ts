@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsEnum, IsOptional, IsString, IsObject, MaxLength } from 'class-validator';
 import { DemoRequestStatus } from '@prisma/client';
 
 export class UpdateDemoRequestDto {
@@ -10,4 +10,8 @@ export class UpdateDemoRequestDto {
   @IsOptional()
   @MaxLength(2000)
   notes?: string;
+
+  @IsObject()
+  @IsOptional()
+  statusMeta?: Record<string, any>;
 }

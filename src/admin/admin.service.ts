@@ -1943,6 +1943,10 @@ export class AdminService {
     });
   }
 
+  getDemoRequest(id: string) {
+    return this.prisma.demoRequest.findUniqueOrThrow({ where: { id } });
+  }
+
   updateDemoRequest(id: string, dto: UpdateDemoRequestDto) {
     return this.prisma.demoRequest.update({ where: { id }, data: dto });
   }

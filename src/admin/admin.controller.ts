@@ -803,6 +803,12 @@ export class AdminController {
     return this.adminService.getDemoRequests(status);
   }
 
+  @Get('demo-requests/:id')
+  @ApiOperation({ summary: 'Détail d\'une demande de démo' })
+  getDemoRequest(@Param('id') id: string) {
+    return this.adminService.getDemoRequest(id);
+  }
+
   @Patch('demo-requests/:id')
   @ApiOperation({ summary: 'Mettre à jour le statut / les notes d\'une demande de démo' })
   updateDemoRequest(

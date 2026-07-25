@@ -822,14 +822,15 @@ enum DemoRequestStatus {
 }
 
 model DemoRequest {
-  id        String            @id @default(cuid())
-  email     String
-  company   String
-  message   String?           @db.Text
-  status    DemoRequestStatus @default(NEW)
-  notes     String?           @db.Text
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
+  id         String            @id @default(cuid())
+  email      String
+  company    String
+  message    String?           @db.Text
+  status     DemoRequestStatus @default(NEW)
+  notes      String?           @db.Text
+  statusMeta Json?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
 
   @@index([status])
   @@index([createdAt])
