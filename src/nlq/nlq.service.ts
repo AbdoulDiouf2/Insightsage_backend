@@ -38,35 +38,60 @@ export class NlqService {
         return `nlq:favs:${organizationId}:${userId}`;
     }
 
+    /**
+     * Exécute une opération Redis sans jamais faire échouer l'appelant.
+     * Redis indisponible → `fallback` est retourné (favoris/historique vides)
+     * plutôt qu'une 500 qui casserait toute la page NLQ.
+     */
+    private async safeRedis<T>(op: () => Promise<T>, fallback: T): Promise<T> {
+        try {
+            return await op();
+        } catch (err: any) {
+            this.logger.warn(`Redis indisponible: ${err?.code || err?.message || err}`);
+            return fallback;
+        }
+    }
+
     async getFavorites(organizationId: string, userId: string): Promise<string[]> {
-        const members = await this.redis.sMembers(this.favsKey(organizationId, userId));
-        return members;
+        return this.safeRedis(
+            () => this.redis.sMembers(this.favsKey(organizationId, userId)),
+            [],
+        );
     }
 
     async addFavorite(organizationId: string, userId: string, jobId: string): Promise<{ favorites: string[] }> {
         const key = this.favsKey(organizationId, userId);
-        await this.redis.sAdd(key, jobId);
-        const favorites = await this.redis.sMembers(key);
+        const favorites = await this.safeRedis(async () => {
+            await this.redis.sAdd(key, jobId);
+            return (await this.redis.sMembers(key)) as string[];
+        }, []);
         return { favorites };
     }
 
     async removeFavorite(organizationId: string, userId: string, jobId: string): Promise<{ favorites: string[] }> {
         const key = this.favsKey(organizationId, userId);
-        await this.redis.sRem(key, jobId);
-        const favorites = await this.redis.sMembers(key);
+        const favorites = await this.safeRedis(async () => {
+            await this.redis.sRem(key, jobId);
+            return (await this.redis.sMembers(key)) as string[];
+        }, []);
         return { favorites };
     }
 
     private async saveToHistory(organizationId: string, userId: string, entry: NlqHistoryEntry) {
         const key = this.histKey(organizationId, userId);
-        await this.redis.lPush(key, JSON.stringify(entry));
-        await this.redis.lTrim(key, 0, HISTORY_MAX - 1);
-        await this.redis.expire(key, HISTORY_TTL);
+        await this.safeRedis(async () => {
+            await this.redis.lPush(key, JSON.stringify(entry));
+            await this.redis.lTrim(key, 0, HISTORY_MAX - 1);
+            await this.redis.expire(key, HISTORY_TTL);
+        }, undefined);
     }
 
     async getHistory(organizationId: string, userId: string): Promise<NlqHistoryEntry[]> {
         const key = this.histKey(organizationId, userId);
-        const raw: string[] = await this.redis.lRange(key, 0, HISTORY_MAX - 1);
+        const raw = await this.safeRedis<string[]>(
+            () => this.redis.lRange(key, 0, HISTORY_MAX - 1),
+            [],
+        );
         return raw.map(s => JSON.parse(s) as NlqHistoryEntry);
     }
 

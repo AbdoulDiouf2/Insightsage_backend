@@ -42,6 +42,18 @@ export class AuthService {
     @Inject(REDIS_CLIENT) private redis: any,
   ) { }
 
+  /**
+   * Exécute une opération Redis sans jamais faire échouer l'appelant.
+   * Redis indisponible → `fallback` est retourné (mode dégradé).
+   */
+  private async safeRedis<T>(op: () => Promise<T>, fallback: T): Promise<T> {
+    try {
+      return await op();
+    } catch {
+      return fallback;
+    }
+  }
+
   // GET /auth/invitation-info?token=xxx
   async getInvitationInfo(token: string) {
     if (!token) throw new BadRequestException('Token requis.');
@@ -240,10 +252,13 @@ export class AuthService {
     const lockKey = `login:lockout:${email}`;
     const attemptsKey = `login:attempts:${email}`;
 
-    // Check lockout before hitting DB
-    const isLocked = await this.redis.get(lockKey);
+    // Check lockout before hitting DB.
+    // Redis indisponible → pas de verrouillage possible, mais le login reste
+    // opérationnel (fail-open : la protection brute-force est suspendue le temps
+    // de la coupure plutôt que de bloquer toutes les connexions).
+    const isLocked = await this.safeRedis(() => this.redis.get(lockKey), null);
     if (isLocked) {
-      const ttl = await this.redis.ttl(lockKey);
+      const ttl = await this.safeRedis(() => this.redis.ttl(lockKey), LOGIN_LOCKOUT_TTL);
       throw new HttpException(
         {
           message: `Compte temporairement verrouillé suite à trop de tentatives. Réessayez dans ${Math.ceil(ttl / 60)} minute(s).`,
@@ -256,19 +271,27 @@ export class AuthService {
     const user = await this.usersService.findByEmail(email);
     if (!user) {
       // Increment counter even for unknown emails (prevents enumeration via lockout)
-      await this.redis.incr(attemptsKey);
-      await this.redis.expire(attemptsKey, LOGIN_LOCKOUT_TTL);
+      await this.safeRedis(async () => {
+        await this.redis.incr(attemptsKey);
+        await this.redis.expire(attemptsKey, LOGIN_LOCKOUT_TTL);
+      }, undefined);
       throw new UnauthorizedException('Invalid credentials');
     }
 
     const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!isPasswordValid) {
-      const attempts = await this.redis.incr(attemptsKey);
-      await this.redis.expire(attemptsKey, LOGIN_LOCKOUT_TTL);
+      // Redis down → attempts = 0 : on ne verrouille pas, on ne bloque pas non plus.
+      const attempts = await this.safeRedis(async () => {
+        const n = await this.redis.incr(attemptsKey);
+        await this.redis.expire(attemptsKey, LOGIN_LOCKOUT_TTL);
+        return n as number;
+      }, 0);
 
       if (attempts >= LOGIN_MAX_ATTEMPTS) {
-        await this.redis.set(lockKey, '1', { EX: LOGIN_LOCKOUT_TTL });
-        await this.redis.del(attemptsKey);
+        await this.safeRedis(async () => {
+          await this.redis.set(lockKey, '1', { EX: LOGIN_LOCKOUT_TTL });
+          await this.redis.del(attemptsKey);
+        }, undefined);
 
         await this.auditLog.log({
           organizationId: user.organizationId,
@@ -288,10 +311,10 @@ export class AuthService {
     }
 
     // Success — reset counters
-    await Promise.all([
-      this.redis.del(attemptsKey),
-      this.redis.del(lockKey),
-    ]);
+    await this.safeRedis(
+      () => Promise.all([this.redis.del(attemptsKey), this.redis.del(lockKey)]),
+      undefined as any,
+    );
 
     const tokens = await this.getTokens(user.id, user.email);
     await this.updateRefreshTokenHash(user.id, tokens.refreshToken);
