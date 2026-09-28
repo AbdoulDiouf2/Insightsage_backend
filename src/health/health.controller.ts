@@ -120,7 +120,7 @@ export class HealthController {
 
   @Get('jobs')
   @ApiOperation({ summary: 'Background jobs status' })
-  getJobs() {
+  async getJobs() {
     return this.jobRegistry.getAll();
   }
 }
