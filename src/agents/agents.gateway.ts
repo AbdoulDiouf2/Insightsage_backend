@@ -146,12 +146,23 @@ export class AgentsGateway implements OnGatewayConnection, OnGatewayDisconnect, 
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { protocolVersions: number[]; capabilities: string[] },
   ) {
-    if (!client.data.organizationId || !client.data.agentId ||
-        !Array.isArray(data?.protocolVersions) || !data.protocolVersions.includes(2) ||
-        !Array.isArray(data.capabilities) || !data.capabilities.includes('query_parameters') ||
-        !data.capabilities.includes('typed_schema'))
+    const { organizationId, agentId } = client.data;
+    const protocolVersion = Array.isArray(data?.protocolVersions) && data.protocolVersions.includes(2)
+      ? 2 : Array.isArray(data?.protocolVersions) && data.protocolVersions.includes(1) ? 1 : 'unsupported';
+    const identity = `agentId=${agentId ?? 'unknown'} organizationId=${organizationId ?? 'unknown'} protocolVersion=${protocolVersion}`;
+    this.logger.log(`agent_hello_v2 received ${identity}`);
+    const reason = !organizationId || !agentId ? 'UNAUTHENTICATED_SOCKET'
+      : !Array.isArray(data?.protocolVersions) || !data.protocolVersions.includes(2) ? 'UNSUPPORTED_PROTOCOL_VERSION'
+      : !Array.isArray(data.capabilities) ? 'INVALID_CAPABILITIES'
+      : !data.capabilities.includes('query_parameters') ? 'MISSING_QUERY_PARAMETERS'
+      : !data.capabilities.includes('typed_schema') ? 'MISSING_TYPED_SCHEMA'
+      : null;
+    if (reason) {
+      this.logger.warn(`agent_hello_v2 accepted=false reason=${reason} ${identity}`);
       return { status: 'rejected' };
+    }
     client.data.v2Capable = true;
+    this.logger.log(`agent_hello_v2 accepted=true ${identity} capabilities=query_parameters,typed_schema`);
     return { status: 'accepted', protocolVersion: 2 };
   }
 

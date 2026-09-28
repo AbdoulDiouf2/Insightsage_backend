@@ -1,5 +1,46 @@
 import { AgentsGateway } from '../../agents/agents.gateway';
 import { DataJobV2Dispatcher } from './data-job-v2.dispatcher';
+import { Logger } from '@nestjs/common';
+
+describe('agent_hello_v2 backend logs', () => {
+  let log: jest.SpyInstance;
+  let warn: jest.SpyInstance;
+
+  beforeEach(() => {
+    log = jest.spyOn(Logger.prototype, 'log').mockImplementation();
+    warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+  });
+  afterEach(() => jest.restoreAllMocks());
+
+  it('logs receipt and accepted capabilities without logging the full payload', () => {
+    const gateway = new AgentsGateway({} as any, {} as any);
+    const socket: any = { data: { agentId: 'agent-1', organizationId: 'org-1' } };
+    const payload: any = { protocolVersions: [1, 2],
+      capabilities: ['query_parameters', 'typed_schema', 'secret-capability'],
+      token: 'secret-token', sqlConnection: 'secret-connection' };
+
+    expect(gateway.handleAgentHelloV2(socket, payload)).toEqual({ status: 'accepted', protocolVersion: 2 });
+    const messages = log.mock.calls.map(([message]) => String(message));
+    expect(messages).toContain('agent_hello_v2 received agentId=agent-1 organizationId=org-1 protocolVersion=2');
+    expect(messages).toContain('agent_hello_v2 accepted=true agentId=agent-1 organizationId=org-1 protocolVersion=2 capabilities=query_parameters,typed_schema');
+    expect(messages.join(' ')).not.toMatch(/secret-token|secret-connection|secret-capability/);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('logs rejection with a fixed reason and no sensitive payload fields', () => {
+    const gateway = new AgentsGateway({} as any, {} as any);
+    const socket: any = { data: { agentId: 'agent-1', organizationId: 'org-1' } };
+    const payload: any = { protocolVersions: [1, 2], capabilities: ['query_parameters', 'secret-capability'],
+      token: 'secret-token', encryptionKey: 'secret-key' };
+
+    expect(gateway.handleAgentHelloV2(socket, payload)).toEqual({ status: 'rejected' });
+    expect(socket.data.v2Capable).toBeUndefined();
+    const messages = [...log.mock.calls, ...warn.mock.calls].map(([message]) => String(message)).join(' ');
+    expect(messages).toContain('agent_hello_v2 received agentId=agent-1 organizationId=org-1 protocolVersion=2');
+    expect(messages).toContain('agent_hello_v2 accepted=false reason=MISSING_TYPED_SCHEMA agentId=agent-1 organizationId=org-1 protocolVersion=2');
+    expect(messages).not.toMatch(/secret-token|secret-key|secret-capability/);
+  });
+});
 
 describe('Agent V1/V2 event coexistence', () => {
   const agents: any = { updateJobResult: jest.fn().mockResolvedValue({}) };
