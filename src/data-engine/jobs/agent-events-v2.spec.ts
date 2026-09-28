@@ -42,6 +42,29 @@ describe('agent_hello_v2 backend logs', () => {
   });
 });
 
+describe('Gate 1 Agent event correlation', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('logs acknowledged and result identifiers without logging Agent rows', async () => {
+    const log = jest.spyOn(Logger.prototype, 'log').mockImplementation();
+    const jobs: any = { transition: jest.fn().mockResolvedValue({ changed: true,
+      job: { state: 'RUNNING' } }) };
+    const dispatcher: any = { isPending: jest.fn().mockReturnValue(true),
+      receive: jest.fn().mockReturnValue(true), fail: jest.fn() };
+    const gateway = new AgentsGateway({} as any, jobs, dispatcher);
+    const socket: any = { data: { agentId: 'agent-1', organizationId: 'org-1', v2Capable: true } };
+    const envelope = { protocolVersion: 2 as const, jobId: 'j1', queryId: 'q1', sequence: 1 };
+
+    expect(await gateway.handleQueryAcknowledgedV2(socket, envelope)).toEqual({ status: 'received' });
+    expect(await gateway.handleQueryResultV2(socket, { ...envelope, status: 'success',
+      rows: [{ value: 'secret-amount', customer: 'secret-customer' }] })).toEqual({ status: 'received' });
+    const messages = log.mock.calls.map(([message]) => String(message)).join(' ');
+    expect(messages).toContain('query_acknowledged_v2 queryId=q1 jobId=j1 agentId=agent-1 organizationId=org-1 state=RUNNING');
+    expect(messages).toContain('query_result_v2 queryId=q1 jobId=j1 agentId=agent-1 organizationId=org-1 status=success rows=1');
+    expect(messages).not.toMatch(/secret-amount|secret-customer/);
+  });
+});
+
 describe('Agent V1/V2 event coexistence', () => {
   const agents: any = { updateJobResult: jest.fn().mockResolvedValue({}) };
   const jobs: any = {

@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication, Logger, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { DataEngineModule } from '../src/data-engine/data-engine.module';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -167,5 +167,19 @@ describe('revenue_ht — harness comptable fictif, hors Sage', () => {
     ]);
     expect([a.status, b.status]).toEqual([201, 201]);
     expect([a.body.status, b.body.status].sort()).toEqual(['completed', 'pending']);
+  });
+  it('correlates HTTP queryId, stored job and completion evidence without logging the result value', async () => {
+    const log = jest.spyOn(Logger.prototype, 'log').mockImplementation();
+    try {
+      const response = await request(app.getHttpServer()).post('/api/data/query')
+        .send(fromRequest(absolute('2026-07-01', '2026-07-08'))).expect(201);
+      const queryId = response.body.result.queryId;
+      const job = [...jobs.values()].find(row => row.queryId === queryId);
+      expect(job).toMatchObject({ organizationId: 'org-1', state: 'COMPLETED' });
+      const evidence = log.mock.calls.map(([message]) => String(message))
+        .find(message => message.startsWith(`gate1_v2 completed queryId=${queryId} jobId=${job.id} `));
+      expect(evidence).toContain('state=COMPLETED resultStatus=success resultRows=1 sourceRows=1');
+      expect(evidence).not.toContain(response.body.result.rows[0].value);
+    } finally { log.mockRestore(); }
   });
 });

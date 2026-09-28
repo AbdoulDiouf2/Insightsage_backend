@@ -177,6 +177,7 @@ export class AgentsGateway implements OnGatewayConnection, OnGatewayDisconnect, 
       return { status: 'rejected' };
     const transition = await this.dataJobsV2.transition(data.jobId, organizationId,
       ['DISPATCHED'], 'RUNNING', agentId);
+    this.logger.log(`query_acknowledged_v2 queryId=${data.queryId} jobId=${data.jobId} agentId=${agentId} organizationId=${organizationId} state=${transition.job.state}`);
     return { status: transition.changed || transition.job.state === 'RUNNING' ? 'received' : 'ignored' };
   }
 
@@ -190,6 +191,7 @@ export class AgentsGateway implements OnGatewayConnection, OnGatewayDisconnect, 
     if (!organizationId || !agentId || !client.data.v2Capable || data?.protocolVersion !== 2 ||
         !this.dispatcher?.isPending(data.jobId, organizationId, agentId, data.queryId, data.sequence))
       return { status: 'rejected' };
+    this.logger.log(`query_result_v2 queryId=${data.queryId} jobId=${data.jobId} agentId=${agentId} organizationId=${organizationId} status=${data.status === 'success' ? 'success' : 'error'} rows=${Array.isArray(data.rows) ? data.rows.length : 0}`);
     if (data.status === 'error' || data.error) {
       this.dispatcher.fail(data.jobId, organizationId, agentId, data.queryId, data.sequence,
         new QueryFailure(
