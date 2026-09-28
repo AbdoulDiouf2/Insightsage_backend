@@ -44,7 +44,11 @@ export class DataService {
         const completed = await this.jobs.get(job.id, securityScope.organizationId);
         if (completed.result) return { status: 'completed', result: { ...completed.result, queryId: plan.queryId } };
       }
-      return { status: 'pending', jobId: job.id, queryId: job.queryId };
+      if (job.state !== 'PENDING') return { status: 'pending', jobId: job.id, queryId: job.queryId };
+      // An active duplicate may be the first request able to dispatch this job.
+      // The atomic PENDING -> DISPATCHED transition below selects one claimant.
+      plan.queryId = job.queryId;
+      plan.requestId = job.requestId;
     }
     try {
       const agentId = this.dispatcher.agentFor(securityScope.organizationId);
