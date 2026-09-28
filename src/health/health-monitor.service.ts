@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { JobRegistryService } from './job-registry.service';
 import { REDIS_CLIENT } from '../redis/redis.module';
+import { isSchedulerLeader } from '../common/scheduler-leader';
 import type { RedisClientType } from 'redis';
 
 const CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
@@ -23,6 +24,8 @@ export class HealthMonitorService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
+    // Cluster PM2 : un seul worker sonde, sinon checks et alertes en double.
+    if (!isSchedulerLeader()) return;
     setTimeout(() => {
       this.checkAll().catch(() => {});
       setInterval(() => this.checkAll().catch(() => {}), CHECK_INTERVAL_MS);

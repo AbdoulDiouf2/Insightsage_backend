@@ -346,24 +346,30 @@ export class AdminService {
   }
 
   async deleteUser(id: string, adminUserId?: string) {
-    // Fetch before delete to capture organizationId for the audit log
-    const user = await this.prisma.user.findUnique({
-      where: { id },
-      select: { id: true, organizationId: true, email: true },
-    });
+    let deleted: Awaited<ReturnType<typeof this.prisma.user.delete>>;
 
-    const deleted = await this.prisma.user.delete({
-      where: { id },
-    });
-
-    if (user) {
-      await this.auditLog.log({
-        organizationId: user.organizationId,
-        userId: adminUserId,
-        event: 'user_deleted',
-        payload: { deletedUserId: user.id, email: user.email },
-      });
+    try {
+      deleted = await this.prisma.user.delete({ where: { id } });
+    } catch (err) {
+      // P2025 : la ligne n'existe plus — typiquement supprimée en cascade avec son
+      // organisation, alors que la liste affichée côté admin est encore en cache.
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2025'
+      ) {
+        throw new NotFoundException(
+          "Cet utilisateur n'existe plus. Actualisez la liste.",
+        );
+      }
+      throw err;
     }
+
+    await this.auditLog.log({
+      organizationId: deleted.organizationId,
+      userId: adminUserId,
+      event: 'user_deleted',
+      payload: { deletedUserId: deleted.id, email: deleted.email },
+    });
 
     return deleted;
   }

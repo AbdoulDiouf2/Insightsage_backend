@@ -3,6 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailerService } from '../mailer/mailer.service';
 import { JobRegistryService } from '../health/job-registry.service';
+import { isSchedulerLeader } from '../common/scheduler-leader';
 import { differenceInCalendarDays } from 'date-fns';
 
 /** Jours avant la fin d'essai auxquels on envoie un rappel. */
@@ -20,6 +21,8 @@ export class BillingSchedulerService {
 
   @Cron('0 8 * * *', { name: 'trial-ending-reminders' })
   async sendTrialEndingReminders(): Promise<void> {
+    // Un seul worker envoie, sinon chaque client reçoit le rappel en double.
+    if (!isSchedulerLeader()) return;
     await this.jobRegistry.run('Rappels fin d\'essai', () => this._sendTrialEndingReminders()).catch(() => {});
   }
 

@@ -22,6 +22,7 @@ import { SqlSecurityService } from './sql-security.service';
 import { LicenseGuardianService } from '../subscriptions/license-guardian.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { REDIS_CLIENT } from '../redis/redis.module';
+import { isSchedulerLeader } from '../common/scheduler-leader';
 import type { RedisClientType } from 'redis';
 import { AiRouterService } from '../ai/ai-router.service';
 import { JobRegistryService } from '../health/job-registry.service';
@@ -53,6 +54,8 @@ export class AgentsService implements OnModuleInit {
   ) { }
 
   onModuleInit() {
+    // Cluster PM2 : un seul worker planifie, sinon double charge DB.
+    if (!isSchedulerLeader()) return;
     setInterval(() => {
       this.jobRegistry.run('Agents hors ligne', () => this.markStaleAgentsOffline()).catch(() => {});
       this.jobRegistry.run('Nettoyage jobs SQL', () => this.cleanupStaleJobs()).catch(() => {});
