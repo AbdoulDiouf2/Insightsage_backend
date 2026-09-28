@@ -1,6 +1,6 @@
 ---
 title: Déploiement sans Docker — Windows Server natif
-description: Guide de déploiement Cockpit sur Windows Server 2022 sans Docker. PostgreSQL 16, Redis (WSL2/Ubuntu) et NestJS via PM2. Serveur prod actuel Nafaka Tech.
+description: Guide de déploiement Cockpit sur Windows Server 2022 sans Docker. PostgreSQL 16, Redis natif en service Windows (NSSM) et NestJS via PM2. Serveur prod actuel Nafaka Tech.
 ---
 
 # Déploiement Production — Sans Docker (Windows natif)
@@ -9,12 +9,15 @@ description: Guide de déploiement Cockpit sur Windows Server 2022 sans Docker. 
     Ce guide s'applique au déploiement **nativement sur Windows Server 2022** sans Docker.
     C'est la configuration utilisée sur le serveur de production Nafaka Tech.
 
-    - ✅ WSL2 disponible (virtualisation imbriquée activée sur le CPU)
-    - ✅ Redis via WSL2/Ubuntu (remplace Memurai Developer Edition)
-    - ✅ PM2 + `pm2-windows-startup` pour l'auto-démarrage
+    - ✅ Redis natif Windows (Chocolatey), supervisé par un service NSSM
+    - ✅ PM2 + service Windows pour l'auto-démarrage de l'API
 
-    !!! warning "Ne pas utiliser Memurai Developer Edition en production"
-        Memurai Developer Edition s'éteint automatiquement après **10 jours** et interdit explicitement l'usage en production (licence). Utiliser Redis via WSL2 à la place.
+    !!! warning "Deux approches Redis écartées — ne pas y revenir"
+        **Memurai Developer Edition** s'éteint après 10 jours et interdit l'usage en production (licence).
+
+        **Redis via WSL2** a été déployé puis abandonné : le forwarding IPv4 de `localhost` est
+        cassé sur Windows Server 2022 build 20348, le *mirrored networking* n'y est pas supporté,
+        et l'IP de WSL change à chaque reboot. Voir le [runbook production](runbook-production.md).
 
 ---
 
@@ -31,7 +34,7 @@ graph TD
     RP -->|"/api/* et /socket.io/*"| API["⚙️ NestJS API\nlocalhost:3000\n(PM2 cluster)"]
 
     API --> PG["🐘 PostgreSQL 16\nlocalhost:5432\n(Service Windows)"]
-    API --> RD["⚡ Redis 8.0.5\nlocalhost:6379\n(WSL2/Ubuntu)"]
+    API --> RD["⚡ Redis 8.8.0\nlocalhost:6379\n(Service Windows NSSM)"]
 ```
 
 | Composant | Solution | URL / Accès |
@@ -40,7 +43,7 @@ graph TD
 | Frontend Client | Build statique — IIS | `votre-domaine.com` |
 | Frontend Admin | Build statique — IIS | `admin.votre-domaine.com` |
 | Base de données | PostgreSQL 16 for Windows | `localhost:5432` (interne) |
-| Cache / Jobs | Redis 8.0.5 via WSL2 (Ubuntu) | `localhost:6379` (interne) |
+| Cache / Jobs | Redis 8.8.0 natif (Chocolatey + NSSM) | `localhost:6379` (interne) |
 | Reverse proxy | IIS + ARR **ou** Nginx for Windows | Port 80/443 |
 | SSL | win-acme (Let's Encrypt) | Auto-renouvellement |
 
@@ -73,7 +76,7 @@ graph TD
 | Node.js | 20 LTS | nodejs.org/fr/download |
 | Git for Windows | Dernière stable | git-scm.com |
 | PostgreSQL | 16 (EDB installer) | postgresql.org/download/windows |
-| WSL2 + Ubuntu | Via `wsl --install` | Intégré Windows Server 2022 (virtualisation requise) |
+| Redis + NSSM | Via Chocolatey | `choco install redis nssm -y` |
 | IIS ARR | 3.0 | iis.net/downloads/microsoft/application-request-routing |
 | IIS URL Rewrite | 2.1 | iis.net/downloads/microsoft/url-rewrite |
 | win-acme | Dernière stable | github.com/win-acme/win-acme/releases |
@@ -179,84 +182,84 @@ Redémarrer le service : `services.msc` → `postgresql-x64-16` → Redémarrer.
 
 ---
 
-## 6. Installation Redis via WSL2
+## 6. Installation Redis (natif Windows + service NSSM)
 
-!!! warning "Ne pas utiliser Memurai Developer Edition"
-    Memurai Developer Edition s'éteint automatiquement après **10 jours** et interdit l'usage en production.
-    Utiliser Redis via WSL2 à la place — gratuit, sans limite.
+!!! danger "Historique — deux approches à ne pas reprendre"
+    **Memurai Developer Edition** : s'éteint après 10 jours, usage production interdit par la licence.
 
-### 6.1 Activer WSL2
+    **Redis via WSL2** : déployé puis abandonné. Le forwarding IPv4 de `localhost` est cassé sur
+    Windows Server 2022 build 20348, le *mirrored networking* n'y est pas supporté, et l'IP de WSL
+    change à chaque reboot.
 
-```powershell
-# Activer les features nécessaires
-dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
-dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
+    **PM2 pour superviser Redis** : testé puis abandonné. PM2 relance bien Redis après un kill à
+    chaud, mais ne le resurrecte pas au démarrage de la machine — or c'est le seul cas qui se
+    produit réellement en production (voir le [runbook](runbook-production.md)).
 
-# Redémarrer le serveur
-Restart-Computer -Force
-```
-
-### 6.2 Installer le kernel WSL2 et Ubuntu
-
-Après reboot :
+### 6.1 Installer Redis
 
 ```powershell
-# Mettre à jour WSL + installer kernel
-wsl --update
-
-# Définir WSL2 par défaut
-wsl --set-default-version 2
-
-# Installer Ubuntu
-wsl --install -d Ubuntu
+choco install redis -y
 ```
 
-Au premier lancement, créer un utilisateur Unix (ex: `redisadmin`) et un mot de passe.
+Le binaire réel se trouve dans `C:\ProgramData\chocolatey\lib\redis\tools\redis-server.exe`.
 
-### 6.3 Installer Redis dans Ubuntu
+!!! warning "Viser le binaire, pas le shim"
+    `C:\ProgramData\chocolatey\bin\redis-server.exe` est un *shim* Chocolatey qui relaie vers le
+    vrai exécutable. Un superviseur pointé sur le shim surveille le mauvais processus et ne détecte
+    pas la mort de Redis.
 
-```bash
-# Dans le terminal Ubuntu
-sudo apt update && sudo apt install redis-server -y
+### 6.2 Créer le service Windows
 
-# Vérifier
+```powershell
+choco install nssm -y
+
+New-Item -ItemType Directory -Force C:\Cockpit\logs
+New-Item -ItemType Directory -Force C:\Cockpit\redis-data
+
+nssm install Redis "C:\ProgramData\chocolatey\lib\redis\tools\redis-server.exe" "--port 6379 --bind 127.0.0.1 -::1 --maxmemory 512mb --maxmemory-policy allkeys-lru --logfile C:\Cockpit\logs\redis.log --dir C:\Cockpit\redis-data"
+nssm set Redis Start SERVICE_AUTO_START
+nssm set Redis AppExit Default Restart
+nssm set Redis AppRestartDelay 2000
+
+Start-Service Redis
 redis-cli ping
-# Réponse attendue : PONG
 ```
 
-### 6.4 Configurer l'auto-démarrage
+!!! warning "Le `-::1` n'est pas optionnel"
+    `REDIS_URL` vaut `redis://localhost:6379`, et sur ce serveur `localhost` se résout en `::1`
+    **avant** `127.0.0.1`. Bindé sur IPv4 seule, Redis répond à `redis-cli` mais pas à Node.
 
-**Étape A — `wsl.conf`** (démarrage Redis à chaque lancement WSL) :
+    La syntaxe `--bind 127.0.0.1 -::1` écoute sur les deux loopbacks ; le préfixe `-` signifie
+    « ne pas échouer si cette interface est absente ». C'est la syntaxe du `redis.conf` par défaut.
 
-```bash
-sudo nano /etc/wsl.conf
-```
+    Vérification : `redis-cli -h ::1 ping` **et** `redis-cli -h 127.0.0.1 ping` doivent répondre `PONG`.
 
-```ini
-[boot]
-systemd=true
-command = service redis-server start
+!!! note "Message trompeur de NSSM"
+    `nssm set Redis AppExit Default Restart` affiche « le paramètre AppExit a été repositionné à sa
+    valeur par défaut ». La valeur par défaut de NSSM *est* `Restart`, donc le résultat est correct.
+    Confirmer avec `nssm get Redis AppExit Default`.
 
-[user]
-default=<votre-user-ubuntu>
-```
-
-**Étape B — Task Scheduler Windows** (lance WSL au boot du serveur) :
+### 6.3 Valider — les deux seuls tests qui comptent
 
 ```powershell
-$action = New-ScheduledTaskAction -Execute "wsl.exe" -Argument "-d Ubuntu -u root -- service redis-server start"
-$trigger = New-ScheduledTaskTrigger -AtStartup
-$principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
-$settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Seconds 30) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
-Register-ScheduledTask -TaskName "WSL Redis Auto-Start" -Action $action -Trigger $trigger -Principal $principal -Settings $settings
+# Test 1 — crash à chaud
+Stop-Process -Name redis-server -Force; Start-Sleep 6; redis-cli ping
+
+# Test 2 — reboot (le seul qui reproduit l'incident réel)
+Restart-Computer -Force
+# Au retour, sans rien lancer :
+redis-cli ping
 ```
 
-### 6.5 Vérifier l'accès depuis Windows
+Les deux doivent répondre `PONG`. Le test 2 est indispensable : les configurations précédentes
+passaient toutes le test 1 et échouaient au test 2, ce qui a fait croire deux fois que le problème
+était réglé.
 
-```powershell
-Test-NetConnection -ComputerName localhost -Port 6379
-# TcpTestSucceeded : True
-```
+### 6.4 Pas de persistance critique
+
+Redis ne stocke ici que du cache, des sessions, des compteurs de rate limiting et des cooldowns de
+notifications. La perte du contenu au redémarrage est sans conséquence fonctionnelle : l'API
+reconstruit ces données à la demande. Le RDB dans `C:\Cockpit\redis-data` n'est qu'un confort.
 
 ---
 
@@ -284,7 +287,7 @@ PORT=3000
 DATABASE_URL=postgresql://cockpit_user:MOT_DE_PASSE_PG@localhost:5432/cockpit?schema=public
 DIRECT_URL=postgresql://cockpit_user:MOT_DE_PASSE_PG@localhost:5432/cockpit?schema=public
 
-# ─── Redis self-hosted (WSL2/Ubuntu local) ───────────────────────────────────
+# ─── Redis self-hosted (service Windows local) ──────────────────────────────
 REDIS_URL=redis://localhost:6379
 
 # ─── JWT (générer des secrets uniques) ───────────────────────────────────────
@@ -813,7 +816,7 @@ pm2 logs cockpit-api --lines 100   # 100 dernières lignes
 | API (erreurs) | `C:\Cockpit\logs\api-error.log` |
 | PostgreSQL | `C:\Program Files\PostgreSQL\16\data\log\` |
 | IIS | `C:\inetpub\logs\LogFiles\` |
-| Redis (WSL2) | `wsl -d Ubuntu -- journalctl -u redis-server` |
+| Redis | `C:\Cockpit\logs\redis.log` |
 
 ### Health check
 
@@ -883,14 +886,16 @@ npm run build
 - [ ] Seed exécuté : 5 rôles + 4 plans présents en base
 - [ ] Sauvegarde automatique planifiée (`pg_dump` via Task Scheduler)
 
-### Redis (WSL2/Ubuntu)
+### Redis (natif + service NSSM)
 
-- [ ] WSL2 activé (features DISM + kernel MSI installé)
-- [ ] Ubuntu installé (`wsl --install -d Ubuntu`)
-- [ ] `redis-server` installé dans Ubuntu (`sudo apt install redis-server`)
-- [ ] `/etc/wsl.conf` configuré : `[boot] command = service redis-server start`
-- [ ] Task Scheduler "WSL Redis Auto-Start" créée (SYSTEM, AtStartup)
-- [ ] `Test-NetConnection localhost -Port 6379` → `TcpTestSucceeded : True`
+- [ ] `choco install redis -y` et `choco install nssm -y`
+- [ ] Service `Redis` créé via NSSM, pointé sur `lib\redis\tools\redis-server.exe` (pas le shim)
+- [ ] `Get-Service Redis` → `Running` / `Automatic`
+- [ ] `nssm get Redis AppExit Default` → `Restart`
+- [ ] `redis-cli -h 127.0.0.1 ping` **et** `redis-cli -h ::1 ping` → `PONG`
+- [ ] Test crash : `Stop-Process -Name redis-server -Force` puis `redis-cli ping` → `PONG`
+- [ ] **Test reboot** : `Restart-Computer -Force` puis `redis-cli ping` sans intervention → `PONG`
+- [ ] Ancienne tâche planifiée Redis désactivée, aucune entrée `redis` dans `pm2 list`
 
 ### Node.js / PM2
 
@@ -979,11 +984,13 @@ Stop-Service  postgresql-x64-16
 # Sauvegarde manuelle
 & "C:\Program Files\PostgreSQL\16\bin\pg_dump.exe" -U cockpit_user cockpit > C:\Cockpit\backup_$(Get-Date -Format 'yyyyMMdd').sql
 
-# ─── Redis (WSL2) ────────────────────────────────────────────────────────────
-wsl -d Ubuntu -- service redis-server status
-wsl -d Ubuntu -u root -- service redis-server start
-wsl -d Ubuntu -u root -- service redis-server stop
-wsl -d Ubuntu -- redis-cli ping
+# ─── Redis (service Windows NSSM) ────────────────────────────────────────────
+Get-Service Redis | Select-Object Name, Status, StartType
+Restart-Service Redis
+redis-cli ping
+redis-cli -h ::1 ping
+Get-Content C:\Cockpit\logs\redis.log -Tail 50
+nssm get Redis AppParameters
 
 # ─── IIS ─────────────────────────────────────────────────────────────────────
 iisreset          # Redémarrer IIS
@@ -993,8 +1000,6 @@ iisreset /start   # Démarrer IIS
 # ─── Vérification services ───────────────────────────────────────────────────
 # Vérifier services Windows
 Get-Service postgresql-x64-16 | Select-Object Name, Status, StartType
-# Vérifier Redis WSL2
-wsl -d Ubuntu -- service redis-server status
-# Vérifier tâche planifiée WSL
-Get-ScheduledTask -TaskName "WSL Redis Auto-Start" | Select-Object TaskName, State
+# Vérifier Redis
+Get-Service Redis | Select-Object Name, Status, StartType
 ```

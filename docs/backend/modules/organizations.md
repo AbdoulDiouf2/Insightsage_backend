@@ -138,9 +138,34 @@ Les opérations admin sur les organisations (cross-tenant) sont dans `/admin/org
 | Créer (avec admin) | `POST /admin/clients` |
 
 !!! danger "Suppression en cascade"
-    `DELETE /admin/organizations/:id` supprime irréversiblement :
-    les utilisateurs, agents, dashboards, widgets, rôles, invitations et onboarding de l'organisation.
-    Les logs d'audit sont conservés (`onDelete: SetNull`).
+    `DELETE /admin/organizations/:id` supprime irréversiblement les utilisateurs, agents, jobs et
+    lots de synchronisation, dashboards, widgets, sessions NLQ, invitations, onboarding et données
+    de facturation de l'organisation.
+
+    La cascade est portée par les règles `onDelete` du schéma, pas par du code applicatif :
+    `deleteOrganization` se contente de dissocier l'owner (clé étrangère circulaire entre
+    `organizations.owner_id` et `users.id`) avant de supprimer la ligne.
+
+!!! info "Contenus anonymisés plutôt que supprimés"
+    Les contenus rédigés par les utilisateurs de l'organisation survivent à sa suppression, avec
+    leur auteur mis à `NULL` (`onDelete: SetNull`) :
+
+    | Table | Colonne |
+    |---|---|
+    | `bugs` | `submitted_by_id` |
+    | `bug_comments` | `author_id` |
+    | `demo_request_notes` | `author_id` |
+    | `demo_request_status_events` | `author_id` |
+
+    Les logs d'audit sont conservés de la même façon. Côté interface, l'auteur absent s'affiche
+    « Utilisateur supprimé ». **Toute vue exploitant `submittedBy` ou `author` doit traiter le cas
+    `null`.**
+
+!!! warning "Ajouter une relation vers User ou Organization"
+    Prisma applique `onDelete: Restrict` par défaut sur les relations obligatoires. Une nouvelle
+    relation sans règle explicite **bloquera la suppression d'organisation** avec une erreur de clé
+    étrangère. Choisir explicitement `Cascade` (donnée propre au tenant) ou `SetNull` (contenu à
+    conserver, colonne nullable). Voir le [runbook production](../../developer/runbook-production.md).
 
 ---
 

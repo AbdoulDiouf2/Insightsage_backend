@@ -184,6 +184,7 @@ nav:
     - Plans d'Abonnement: guides/subscriptions.md
     - Audit & Conformité: guides/audit.md
   - Développeur & DevOps:
+    - Runbook Production (incidents): developer/runbook-production.md
     - Standards de développement: developer/standards.md
     - Suite de tests: developer/testing.md
     - Déploiement:

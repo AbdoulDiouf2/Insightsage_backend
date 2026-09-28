@@ -17,7 +17,7 @@ description: Technologies utilisées par la plateforme Cockpit
 | **Auth** | Passport + JWT | — | Authentification JWT |
 | **Crypto** | bcrypt | v6 | Hash des mots de passe |
 | **Validation** | class-validator + class-transformer | — | DTO validation |
-| **Cache / Queue** | Redis + ioredis | — | Sessions, rate limiting, cooldowns notifications |
+| **Cache / Queue** | Redis + node-redis (`redis` v5) | — | Sessions, rate limiting, cooldowns notifications. Mode dégradé si indisponible |
 | **Storage** | MinIO (S3-compatible) | RELEASE | Fichiers binaires (releases agent, pièces jointes bugs) |
 | **Email** | Nodemailer | v6 | Emails transactionnels (SMTP) — fallback console en dev |
 | **Logging** | Winston + DailyRotateFile | v3 | Logs fichier rotatifs |
@@ -136,7 +136,7 @@ graph TB
 | **Base de données** | Supabase (PostgreSQL) | PaaS managé, PgBouncer pooling |
 | **Hébergement Frontend** | IIS + Vite build | Static `dist/` servi par IIS |
 | **Stockage objet** | MinIO | Service Windows (NSSM), exposé via IIS reverse proxy `/storage/*` |
-| **Cache** | Redis 8.0.5 via WSL2 (Ubuntu) | Port 6379 — remplace Memurai Developer Edition (limite 10j) |
+| **Cache** | Redis 8.8.0 natif (Chocolatey) | Port 6379, service Windows NSSM — WSL2 et Memurai écartés |
 | **Agent on-premise** | PM2 + Python | `socket_client.py`, reconnexion exponentielle |
 | **CI/CD** | GitHub Actions | `git fetch` + `git reset --hard origin/main` (évite les conflits lock) |
 | **Monitoring santé** | HealthMonitorService | Vérifie DB/Redis/MinIO toutes les 5 min, alerte par email |
