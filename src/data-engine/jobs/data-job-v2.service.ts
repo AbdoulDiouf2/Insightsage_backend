@@ -47,7 +47,7 @@ export class DataJobV2Service {
     const now = new Date();
     const change = await this.prisma.dataJobV2.updateMany({
       where: { id: jobId, organizationId, state: { in: allowed }, version: current.version,
-        ...(agentId ? { agentId } : {}) },
+        ...(agentId && next !== 'DISPATCHED' ? { agentId } : {}) },
       data: { state: next, version: { increment: 1 },
         ...(next === 'DISPATCHED' && agentId ? { agentId } : {}),
         ...(errorCode ? { errorCode } : {}),

@@ -53,6 +53,28 @@ describe('DataJobV2Service', () => {
         state: { in: ['DISPATCHED'] } }),
     }));
   });
+  it('associe un agent au job PENDING lors de la transition atomique vers DISPATCHED', async () => {
+    const job: any = { id: 'j1', organizationId: 'org-1', agentId: null,
+      state: 'PENDING', version: 0, dispatchedAt: null };
+    const prisma: any = { dataJobV2: {
+      findFirst: jest.fn().mockImplementation(async () => ({ ...job })),
+      findUnique: jest.fn().mockImplementation(async () => ({ ...job })),
+      updateMany: jest.fn().mockImplementation(async ({ where, data }) => {
+        if (where.id !== job.id || where.organizationId !== job.organizationId ||
+            !where.state.in.includes(job.state) || where.version !== job.version ||
+            where.agentId !== undefined && where.agentId !== job.agentId)
+          return { count: 0 };
+        Object.assign(job, { state: data.state, agentId: data.agentId,
+          dispatchedAt: data.dispatchedAt, version: job.version + 1 });
+        return { count: 1 };
+      }),
+    } };
+    const service = new DataJobV2Service(prisma, {} as any);
+    const result = await service.transition('j1', 'org-1', ['PENDING'], 'DISPATCHED', 'agent-1');
+    expect(result.changed).toBe(true);
+    expect(result.job).toMatchObject({ agentId: 'agent-1', state: 'DISPATCHED', version: 1 });
+    expect(result.job.dispatchedAt).toBeInstanceOf(Date);
+  });
   it('ignore une réponse provenant d’un autre agent', async () => {
     const job: any = { id: 'j1', organizationId: 'org-1', agentId: 'trusted',
       state: 'RUNNING', version: 1 };
