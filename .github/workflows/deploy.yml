@@ -15,10 +15,18 @@ jobs:
         run: npm install --legacy-peer-deps
         working-directory: C:\Cockpit\repos\Insightsage_backend
 
-      - name: Push Prisma schema to prod DB
+      - name: Push Prisma schema to Cockpit DB
         env:
           DOTENV_CONFIG_PATH: .env
         run: npx prisma db push
+        working-directory: C:\Cockpit\repos\Insightsage_backend
+
+      # Le projet utilise db push et non migrate deploy. L'index partiel V2,
+      # absent du schema Prisma, doit etre reapplique apres chaque db push.
+      - name: Ensure V2 active-job uniqueness
+        env:
+          DOTENV_CONFIG_PATH: .env
+        run: npx prisma db execute --file prisma/release/ensure-data-job-v2-index.sql
         working-directory: C:\Cockpit\repos\Insightsage_backend
 
       - name: Generate Prisma Client
@@ -28,6 +36,7 @@ jobs:
         working-directory: C:\Cockpit\repos\Insightsage_backend
 
       - name: Seed KPIs
+        if: ${{ vars.RUN_KPI_SEED == 'true' }}
         env:
           DOTENV_CONFIG_PATH: .env
         run: npx ts-node prisma/seed-kpis.ts

@@ -18,6 +18,7 @@ import { RolesModule } from './roles/roles.module';
 import { HealthModule } from './health/health.module';
 import { JobRegistryModule } from './health/job-registry.module';
 import { AgentsModule } from './agents/agents.module';
+import { DataEngineModule } from './data-engine/data-engine.module';
 import { AuditLogModule } from './logs/audit-log.module';
 import { MailerModule } from './mailer/mailer.module';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -75,6 +76,7 @@ import { PublicModule } from './public/public.module';
     JobRegistryModule,
     HealthModule,
     AgentsModule,
+    DataEngineModule,
     AuditLogModule,
     MailerModule,
     NotificationsModule,

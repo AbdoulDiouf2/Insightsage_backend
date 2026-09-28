@@ -11,9 +11,10 @@ import { UsersModule } from '../users/users.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { RedisModule } from '../redis/redis.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { DataEngineModule } from '../data-engine/data-engine.module';
 
 @Module({
-  imports: [PrismaModule, AuditLogModule, UsersModule, SubscriptionsModule, RedisModule, NotificationsModule],
+  imports: [PrismaModule, AuditLogModule, UsersModule, SubscriptionsModule, RedisModule, NotificationsModule, DataEngineModule],
   controllers: [AgentsController, AgentV1Controller],
   providers: [AgentsService, AgentsGateway, SqlSecurityService, AgentTokenGuard],
   exports: [AgentsService, AgentsGateway, SqlSecurityService],

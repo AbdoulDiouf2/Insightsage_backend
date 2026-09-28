@@ -8,9 +8,12 @@ import {
   ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { UseFilters, UsePipes, ValidationPipe, Logger } from '@nestjs/common';
+import { UseFilters, UsePipes, ValidationPipe, Logger, Optional, OnModuleInit } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { AgentsService } from './agents.service';
+import { DataJobV2Service } from '../data-engine/jobs/data-job-v2.service';
+import { DataJobV2Dispatcher } from '../data-engine/jobs/data-job-v2.dispatcher';
+import { QueryFailure } from '../data-engine/contracts/query-error';
 
 @WebSocketGateway({
   cors: {
@@ -21,7 +24,7 @@ import { AgentsService } from './agents.service';
   pingInterval: 10000,
   pingTimeout: 5000,
 })
-export class AgentsGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class AgentsGateway implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit {
   @WebSocketServer()
   server: Server;
 
@@ -30,7 +33,26 @@ export class AgentsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // Map pour suivre les sockets actifs par ID d'organisation
   private activeAgents = new Map<string, string>();
 
-  constructor(private readonly agentsService: AgentsService) {}
+  constructor(private readonly agentsService: AgentsService, private readonly dataJobsV2: DataJobV2Service,
+    @Optional() private readonly dispatcher?: DataJobV2Dispatcher) {}
+  onModuleInit() {
+    this.dispatcher?.registerTransport({
+      agentFor: organizationId => {
+        const id = this.activeAgents.get(organizationId);
+        const socket = id && ((this.server as any).sockets?.get?.(id) ??
+          (this.server as any).sockets?.sockets?.get?.(id));
+        return socket?.data?.v2Capable ? socket.data.agentId : undefined;
+      },
+      send: (organizationId, agentId, payload) => {
+        const id = this.activeAgents.get(organizationId);
+        const socket = id && ((this.server as any).sockets?.get?.(id) ??
+          (this.server as any).sockets?.sockets?.get?.(id));
+        if (!socket?.data?.v2Capable || socket.data.agentId !== agentId) return false;
+        this.server.to(id!).emit('execute_query_v2', payload);
+        return true;
+      },
+    });
+  }
 
   async handleConnection(client: Socket) {
     const token = client.handshake.auth?.token || client.handshake.query?.token;
@@ -70,7 +92,9 @@ export class AgentsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   handleDisconnect(client: Socket) {
     if (client.data.organizationId) {
-      this.activeAgents.delete(client.data.organizationId);
+      if (this.activeAgents.get(client.data.organizationId) === client.id)
+        this.activeAgents.delete(client.data.organizationId);
+      this.dispatcher?.disconnected(client.data.organizationId, client.data.agentId);
       this.agentsService.setAgentDisconnected(client.data.organizationId);
       this.agentsService.failActiveJobsForOrg(client.data.organizationId).catch(() => {});
       this.logger.log(`Agent disconnected: ${client.data.agentId}`);
@@ -114,6 +138,62 @@ export class AgentsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
 
     return { status: 'received' };
+  }
+
+  // Événements V2 séparés ; aucun agent V1 ne les émet.
+  @SubscribeMessage('agent_hello_v2')
+  handleAgentHelloV2(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { protocolVersions: number[]; capabilities: string[] },
+  ) {
+    if (!client.data.organizationId || !client.data.agentId ||
+        !Array.isArray(data?.protocolVersions) || !data.protocolVersions.includes(2) ||
+        !Array.isArray(data.capabilities) || !data.capabilities.includes('query_parameters') ||
+        !data.capabilities.includes('typed_schema'))
+      return { status: 'rejected' };
+    client.data.v2Capable = true;
+    return { status: 'accepted', protocolVersion: 2 };
+  }
+
+  @SubscribeMessage('query_acknowledged_v2')
+  async handleQueryAcknowledgedV2(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { protocolVersion: 2; jobId: string; queryId: string; sequence: number },
+  ) {
+    const { organizationId, agentId } = client.data;
+    if (!organizationId || !agentId || !client.data.v2Capable || data?.protocolVersion !== 2 ||
+        !this.dispatcher?.isPending(data.jobId, organizationId, agentId, data.queryId, data.sequence))
+      return { status: 'rejected' };
+    const transition = await this.dataJobsV2.transition(data.jobId, organizationId,
+      ['DISPATCHED'], 'RUNNING', agentId);
+    return { status: transition.changed || transition.job.state === 'RUNNING' ? 'received' : 'ignored' };
+  }
+
+  @SubscribeMessage('query_result_v2')
+  async handleQueryResultV2(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { protocolVersion: 2; jobId: string; queryId: string; sequence: number;
+      status?: 'success' | 'error'; rows?: Record<string, unknown>[]; error?: { code?: string } },
+  ) {
+    const { organizationId, agentId } = client.data;
+    if (!organizationId || !agentId || !client.data.v2Capable || data?.protocolVersion !== 2 ||
+        !this.dispatcher?.isPending(data.jobId, organizationId, agentId, data.queryId, data.sequence))
+      return { status: 'rejected' };
+    if (data.status === 'error' || data.error) {
+      this.dispatcher.fail(data.jobId, organizationId, agentId, data.queryId, data.sequence,
+        new QueryFailure(
+          ['QUERY_TIMEOUT', 'RESULT_TOO_LARGE', 'SOURCE_SCHEMA_MISMATCH'].includes(data.error?.code ?? '')
+            ? data.error!.code as any : 'SOURCE_UNAVAILABLE',
+          'Erreur source remontée par l’agent V2'));
+      return { status: 'received' };
+    }
+    if (!Array.isArray(data.rows) || data.rows.length > 1000 ||
+        Buffer.byteLength(JSON.stringify(data.rows)) > 1048576)
+      return { status: this.dispatcher.fail(data.jobId, organizationId, agentId,
+        data.queryId, data.sequence, new QueryFailure('RESULT_TOO_LARGE', 'Réponse agent invalide'))
+        ? 'received' : 'ignored' };
+    return { status: this.dispatcher.receive(data.jobId, organizationId, agentId,
+      data.queryId, data.sequence, data.rows) ? 'received' : 'ignored' };
   }
 
   /**

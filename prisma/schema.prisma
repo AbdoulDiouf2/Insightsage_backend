@@ -22,6 +22,7 @@ model Organization {
   sageMode   String? // "local" | "cloud" (step 3 onboarding)
   sageHost   String?
   sagePort   Int?
+  dataTimezone String? // Fuseau explicite pour les périodes V2 ; null jusqu’à configuration validée
   sageConfig Json? // mapping Sage tables → métriques (AUCUN CREDENTIAL)
   selectedProfiles String[] // profils métiers sélectionnés (step 4 onboarding)
   createdAt  DateTime @default(now())
@@ -40,6 +41,8 @@ model Organization {
   auditLogs   AuditLog[]
   agents      Agent[]
   agentJobs   AgentJob[]
+  dataJobsV2 DataJobV2[]
+  dataQueryCachesV2 DataQueryCacheV2[]
   invitations Invitation[]
   roles       Role[]
   onboardingStatus OnboardingStatus?
@@ -867,4 +870,55 @@ model DemoRequestStatusEvent {
 
   @@index([demoRequestId])
   @@map("demo_request_status_events")
+}
+
+
+// Noyau Data Engine V2. Tables distinctes ; aucun changement des jobs V1.
+model DataJobV2 {
+  id                  String   @id @default(uuid())
+  organizationId      String
+  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  queryId             String   @unique
+  requestId           String
+  agentId             String?
+  queryFingerprint    String
+  registryVersion     String
+  permissionAction    String
+  permissionResource  String
+  state               String   @default("PENDING")
+  version             Int      @default(0)
+  attempt             Int      @default(0)
+  createdAt           DateTime @default(now())
+  dispatchedAt        DateTime?
+  acknowledgedAt      DateTime?
+  startedAt           DateTime?
+  finishedAt          DateTime?
+  dispatchDeadlineAt  DateTime
+  executionDeadlineAt DateTime?
+  resultExpiresAt     DateTime?
+  errorCode           String?
+  resultCiphertext    Bytes?
+  resultIv            Bytes?
+  encryptionKeyId     String?
+
+  @@index([organizationId, state])
+  @@index([organizationId, queryFingerprint])
+  @@map("data_jobs_v2")
+}
+
+model DataQueryCacheV2 {
+  id               String   @id @default(uuid())
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  queryFingerprint String
+  registryVersion  String
+  resultCiphertext Bytes
+  resultIv         Bytes
+  encryptionKeyId  String
+  createdAt        DateTime @default(now())
+  expiresAt        DateTime
+
+  @@unique([organizationId, queryFingerprint, registryVersion])
+  @@index([expiresAt])
+  @@map("data_query_cache_v2")
 }

@@ -1,0 +1,1659 @@
+{
+  "methodology": "Analyse statique des catalogues versionnés uniquement ; aucune base, vue Sage ou donnée de production interrogée. COMPATIBLE qualifie seulement une forme SELECT simple, pas une validation métier ni une compatibilité opérationnelle V2.",
+  "sources": [
+    "prisma/kpi-bis.json",
+    "prisma/kpi.json"
+  ],
+  "counts": {
+    "COMPATIBLE": 24,
+    "ADAPTABLE": 102,
+    "INCOMPATIBLE": 45,
+    "BROKEN": 0,
+    "PLACEHOLDER": 10
+  },
+  "duplicateKeysWithinSource": [
+    "prisma/kpi-bis.json:f01_ca_ht",
+    "prisma/kpi-bis.json:f02_ca_ttc",
+    "prisma/kpi-bis.json:f03_marge_brute",
+    "prisma/kpi-bis.json:f04_taux_marge_brute",
+    "prisma/kpi-bis.json:a01_total_achats_ht",
+    "prisma/kpi-bis.json:a02_dpo",
+    "prisma/kpi-bis.json:a03_dettes_fournisseurs_echues",
+    "prisma/kpi-bis.json:s01_valeur_stock_total",
+    "prisma/kpi-bis.json:s02_taux_rotation_stocks",
+    "prisma/kpi-bis.json:s06_marge_par_article",
+    "prisma/kpi-bis.json:ml02_score_churn_client",
+    "prisma/kpi-bis.json:ml03_prevision_rupture_stock"
+  ],
+  "findings": [
+    {
+      "key": "f01_ca_ht",
+      "name": "Chiffre d'Affaires (CA) HT",
+      "source": "prisma/kpi-bis.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "f02_ca_ttc",
+      "name": "Chiffre d'Affaires TTC",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "f03_marge_brute",
+      "name": "Marge Brute",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "f04_taux_marge_brute",
+      "name": "Taux de Marge Brute (%)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "f05_dso",
+      "name": "DSO — Days Sales Outstanding",
+      "source": "prisma/kpi-bis.json",
+      "status": "PLACEHOLDER",
+      "reasons": [
+        "SQL absent, commentaire descriptif ou marqueur de substitution ; aucune requête exécutable garantie."
+      ]
+    },
+    {
+      "key": "f06_encours_clients",
+      "name": "Encours Clients Total",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "f07_taux_impayes",
+      "name": "Taux d'Impayés (%)",
+      "source": "prisma/kpi-bis.json",
+      "status": "PLACEHOLDER",
+      "reasons": [
+        "SQL absent, commentaire descriptif ou marqueur de substitution ; aucune requête exécutable garantie."
+      ]
+    },
+    {
+      "key": "f08_solde_tresorerie_net",
+      "name": "Solde de Trésorerie Net",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "f09_bfr",
+      "name": "BFR — Besoin en Fonds de Roulement",
+      "source": "prisma/kpi-bis.json",
+      "status": "COMPATIBLE",
+      "reasons": [
+        "SELECT simple apparent ; compatibilité limitée à la forme statique, jamais validée contre Sage."
+      ]
+    },
+    {
+      "key": "f10_variation_ca",
+      "name": "Variation de CA vs N-1 (%)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "c01_nb_clients_actifs",
+      "name": "Nombre de Clients Actifs",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "c02_ca_moyen_par_client",
+      "name": "CA Moyen par Client",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "c03_top10_clients_ca",
+      "name": "Top 10 Clients par CA",
+      "source": "prisma/kpi-bis.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "c04_taux_concentration_client",
+      "name": "Taux de Concentration Client (Pareto 20/80)",
+      "source": "prisma/kpi-bis.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "c05_delai_moyen_paiement_client",
+      "name": "Délai Moyen de Paiement Client",
+      "source": "prisma/kpi-bis.json",
+      "status": "PLACEHOLDER",
+      "reasons": [
+        "SQL absent, commentaire descriptif ou marqueur de substitution ; aucune requête exécutable garantie."
+      ]
+    },
+    {
+      "key": "c06_factures_echues_non_soldees",
+      "name": "Factures Échues Non Soldées",
+      "source": "prisma/kpi-bis.json",
+      "status": "PLACEHOLDER",
+      "reasons": [
+        "SQL absent, commentaire descriptif ou marqueur de substitution ; aucune requête exécutable garantie."
+      ]
+    },
+    {
+      "key": "c07_score_risque_client",
+      "name": "Score de Risque Client (Composite ML)",
+      "source": "prisma/kpi-bis.json",
+      "status": "PLACEHOLDER",
+      "reasons": [
+        "SQL absent, commentaire descriptif ou marqueur de substitution ; aucune requête exécutable garantie."
+      ]
+    },
+    {
+      "key": "c08_taux_fidelisation_client",
+      "name": "Taux de Fidélisation Client",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "a01_total_achats_ht",
+      "name": "Total Achats HT",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "a02_dpo",
+      "name": "DPO — Days Payable Outstanding",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "a03_dettes_fournisseurs_echues",
+      "name": "Dettes Fournisseurs Échues",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "a04_top10_fournisseurs",
+      "name": "Top 10 Fournisseurs par Achats",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "s01_valeur_stock_total",
+      "name": "Valeur du Stock Total (PUMP)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "s02_taux_rotation_stocks",
+      "name": "Taux de Rotation des Stocks",
+      "source": "prisma/kpi-bis.json",
+      "status": "COMPATIBLE",
+      "reasons": [
+        "SELECT simple apparent ; compatibilité limitée à la forme statique, jamais validée contre Sage."
+      ]
+    },
+    {
+      "key": "s03_stocks_dormants",
+      "name": "Stocks Dormants / Obsolètes",
+      "source": "prisma/kpi-bis.json",
+      "status": "COMPATIBLE",
+      "reasons": [
+        "SELECT simple apparent ; compatibilité limitée à la forme statique, jamais validée contre Sage."
+      ]
+    },
+    {
+      "key": "s04_couverture_stock",
+      "name": "Couverture de Stock (jours)",
+      "source": "prisma/kpi-bis.json",
+      "status": "COMPATIBLE",
+      "reasons": [
+        "SELECT simple apparent ; compatibilité limitée à la forme statique, jamais validée contre Sage."
+      ]
+    },
+    {
+      "key": "s05_taux_rupture_stock",
+      "name": "Taux de Rupture de Stock (%)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "s06_marge_par_article",
+      "name": "Marge par Article",
+      "source": "prisma/kpi-bis.json",
+      "status": "COMPATIBLE",
+      "reasons": [
+        "SELECT simple apparent ; compatibilité limitée à la forme statique, jamais validée contre Sage."
+      ]
+    },
+    {
+      "key": "s07_classe_abc_stocks",
+      "name": "Distribution ABC des Stocks",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "s08_taux_service_logistique",
+      "name": "Taux de Service Logistique",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "s09_valorisation_surstock",
+      "name": "Valorisation du Surstock",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "k01_resultat_net_comptable",
+      "name": "Résultat Net Comptable",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "k02_balance_agee_clients",
+      "name": "Balance Âgée Clients",
+      "source": "prisma/kpi-bis.json",
+      "status": "PLACEHOLDER",
+      "reasons": [
+        "SQL absent, commentaire descriptif ou marqueur de substitution ; aucune requête exécutable garantie."
+      ]
+    },
+    {
+      "key": "k03_ca_par_axe_analytique",
+      "name": "CA par Axe Analytique",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "k04_taux_lettrage",
+      "name": "Taux de Lettrage des Comptes",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "k05_charges_par_nature_centre",
+      "name": "Charges par Nature et Centre",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "k06_ecart_budget_realise",
+      "name": "Écart Budget / Réalisé",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "ml01_prevision_ca_3mois",
+      "name": "Prévision CA à 3 mois",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "ml02_score_churn_client",
+      "name": "Score de Churn Client",
+      "source": "prisma/kpi-bis.json",
+      "status": "PLACEHOLDER",
+      "reasons": [
+        "SQL absent, commentaire descriptif ou marqueur de substitution ; aucune requête exécutable garantie."
+      ]
+    },
+    {
+      "key": "ml03_prevision_rupture_stock",
+      "name": "Prévision de Rupture de Stock",
+      "source": "prisma/kpi-bis.json",
+      "status": "PLACEHOLDER",
+      "reasons": [
+        "SQL absent, commentaire descriptif ou marqueur de substitution ; aucune requête exécutable garantie."
+      ]
+    },
+    {
+      "key": "ml04_detection_anomalies_comptables",
+      "name": "Détection d'Anomalies Comptables",
+      "source": "prisma/kpi-bis.json",
+      "status": "COMPATIBLE",
+      "reasons": [
+        "SELECT simple apparent ; compatibilité limitée à la forme statique, jamais validée contre Sage."
+      ]
+    },
+    {
+      "key": "ml05_prevision_tresorerie_90j",
+      "name": "Prévision de Trésorerie à 90 jours",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "f01_ca_ht",
+      "name": "Chiffre d'Affaires HT",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "f02_ca_ttc",
+      "name": "Chiffre d'Affaires TTC",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "f03_marge_brute",
+      "name": "Marge Brute",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "f04_taux_marge_brute",
+      "name": "Taux de Marge Brute (%)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "f05_ebitda",
+      "name": "EBITDA (Résultat Brut d'Exploitation)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "f06_resultat_net",
+      "name": "Résultat Net Comptable",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "f07_variation_ca",
+      "name": "Variation CA N vs N-1 (%)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "f08_ca_ytd_vs_budget",
+      "name": "CA Cumulé YTD vs Budget",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "f09_point_mort",
+      "name": "Point Mort / Seuil de Rentabilité",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "f10_ratio_charges_ca",
+      "name": "Ratio Charges / CA (%)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "t01_solde_tresorerie_net",
+      "name": "Solde de Trésorerie Net Global",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "t02_solde_par_compte_bancaire",
+      "name": "Solde par Compte Bancaire",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "t03_encaissements",
+      "name": "Encaissements de la Période",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "t04_decaissements",
+      "name": "Décaissements de la Période",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "t05_prevision_tresorerie",
+      "name": "Prévision de Trésorerie 30/60/90 jours",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "t06_bfr",
+      "name": "BFR — Besoin en Fonds de Roulement",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "t07_tableau_flux_tresorerie",
+      "name": "Tableau de Flux de Trésorerie (TFT)",
+      "source": "prisma/kpi-bis.json",
+      "status": "COMPATIBLE",
+      "reasons": [
+        "SELECT simple apparent ; compatibilité limitée à la forme statique, jamais validée contre Sage."
+      ]
+    },
+    {
+      "key": "t08_tresorerie_consolidee",
+      "name": "Trésorerie Consolidée Multi-Entités",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "t09_flux_intra_groupe",
+      "name": "Flux Intra-Groupe Nets",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "t10_triple_courbe_bfr",
+      "name": "Évolution Dettes / Créances / Tréso (Triple Courbe)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "c01_dso_global",
+      "name": "DSO Global — Days Sales Outstanding",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "c02_dso_par_bu",
+      "name": "DSO par Ligne de Service / Département",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "c03_encours_clients",
+      "name": "Encours Clients Total",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "c04_balance_agee_clients",
+      "name": "Balance Âgée Clients (5 tranches)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "c05_taux_impayes",
+      "name": "Taux d'Impayés (%)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "c06_score_risque_client",
+      "name": "Score de Risque Client (Composite)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "c07_top_clients_ca",
+      "name": "Top 10/20 Clients par CA",
+      "source": "prisma/kpi-bis.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "c08_taux_concentration_client",
+      "name": "Taux de Concentration Client (Pareto 20/80)",
+      "source": "prisma/kpi-bis.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "c09_creances_groupe_vs_externes",
+      "name": "Créances Groupe vs Créances Externes",
+      "source": "prisma/kpi-bis.json",
+      "status": "PLACEHOLDER",
+      "reasons": [
+        "SQL absent, commentaire descriptif ou marqueur de substitution ; aucune requête exécutable garantie."
+      ]
+    },
+    {
+      "key": "c10_churn_client",
+      "name": "Taux de Fidélisation / Churn Client",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "c11_ecart_creances_vs_objectif",
+      "name": "Écart Créances vs Objectif Balance par BU",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "c12_cumul_facturation_vs_creances",
+      "name": "Cumul Facturation vs Solde Créances",
+      "source": "prisma/kpi-bis.json",
+      "status": "COMPATIBLE",
+      "reasons": [
+        "SELECT simple apparent ; compatibilité limitée à la forme statique, jamais validée contre Sage."
+      ]
+    },
+    {
+      "key": "a01_total_achats_ht",
+      "name": "Total Achats HT par Période",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "a02_dpo",
+      "name": "DPO — Days Payable Outstanding",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "a03_dettes_fournisseurs_echues",
+      "name": "Dettes Fournisseurs Échues Non Soldées",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "a04_balance_agee_fournisseurs",
+      "name": "Balance Âgée Fournisseurs (5 tranches)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "a05_echeancier_dettes_fournisseurs",
+      "name": "Échéancier Dettes Fournisseurs (Mois/Mois)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "a06_dettes_par_type_depense",
+      "name": "Dettes par Type de Dépense / Rubrique",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "a07_top10_fournisseurs_dpo",
+      "name": "Top 10 Fournisseurs avec DPO Individuel",
+      "source": "prisma/kpi-bis.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "a08_dettes_groupe_vs_externes",
+      "name": "Dettes Groupe vs Dettes Externes",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "a09_evolution_dettes_rubrique",
+      "name": "Évolution Mensuelle Dettes par Rubrique N/N-1",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "s01_valeur_stock_total",
+      "name": "Valeur du Stock Total (PUMP)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "s02_taux_rotation_stocks",
+      "name": "Taux de Rotation des Stocks",
+      "source": "prisma/kpi-bis.json",
+      "status": "COMPATIBLE",
+      "reasons": [
+        "SELECT simple apparent ; compatibilité limitée à la forme statique, jamais validée contre Sage."
+      ]
+    },
+    {
+      "key": "s03_couverture_stock",
+      "name": "Couverture de Stock (jours)",
+      "source": "prisma/kpi-bis.json",
+      "status": "COMPATIBLE",
+      "reasons": [
+        "SELECT simple apparent ; compatibilité limitée à la forme statique, jamais validée contre Sage."
+      ]
+    },
+    {
+      "key": "s04_taux_rupture_stock",
+      "name": "Taux de Rupture de Stock (%)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "s05_stocks_dormants",
+      "name": "Stocks Dormants / Obsolètes",
+      "source": "prisma/kpi-bis.json",
+      "status": "COMPATIBLE",
+      "reasons": [
+        "SELECT simple apparent ; compatibilité limitée à la forme statique, jamais validée contre Sage."
+      ]
+    },
+    {
+      "key": "s06_marge_par_article",
+      "name": "Marge par Article / Famille",
+      "source": "prisma/kpi-bis.json",
+      "status": "COMPATIBLE",
+      "reasons": [
+        "SELECT simple apparent ; compatibilité limitée à la forme statique, jamais validée contre Sage."
+      ]
+    },
+    {
+      "key": "s07_valorisation_stock_depot",
+      "name": "Valorisation Stock par Dépôt",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "s08_taux_service",
+      "name": "Taux de Service (Taux de Satisfaction des Commandes)",
+      "source": "prisma/kpi-bis.json",
+      "status": "COMPATIBLE",
+      "reasons": [
+        "SELECT simple apparent ; compatibilité limitée à la forme statique, jamais validée contre Sage."
+      ]
+    },
+    {
+      "key": "k01_taux_lettrage",
+      "name": "Taux de Lettrage des Comptes de Tiers",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "k02_rapprochement_bancaire",
+      "name": "Rapprochement Bancaire — Écarts",
+      "source": "prisma/kpi-bis.json",
+      "status": "COMPATIBLE",
+      "reasons": [
+        "SELECT simple apparent ; compatibilité limitée à la forme statique, jamais validée contre Sage."
+      ]
+    },
+    {
+      "key": "k03_nb_ecritures_par_journal",
+      "name": "Nombre d'Écritures Saisies par Journal",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "k04_charges_par_nature",
+      "name": "Charges par Nature (Classes 60 à 66)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "k05_dotations_amortissements",
+      "name": "Dotations aux Amortissements",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "k06_tva_collectee_vs_deductible",
+      "name": "TVA Collectée vs TVA Déductible",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "k07_resultat_par_exercice",
+      "name": "Résultat par Exercice (P&L Synthétique)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "an01_ca_par_axe_analytique",
+      "name": "CA par Axe Analytique (Section)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "an02_charges_par_axe",
+      "name": "Charges par Axe Analytique",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "an03_resultat_par_centre_profit",
+      "name": "Résultat par Centre de Profit",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "an04_ecart_budget_realise",
+      "name": "Écart Budget / Réalisé par Axe",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "an05_ca_par_commercial",
+      "name": "Répartition CA par Commercial / Vendeur",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "an06_ca_par_region",
+      "name": "CA par Région / Zone Géographique",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "v01_taux_transformation_devis",
+      "name": "Taux de Transformation Devis → Commande",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "v02_backlog_commandes",
+      "name": "Commandes en Cours (Backlog)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "v03_delai_moyen_livraison",
+      "name": "Délai Moyen de Livraison",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "v04_ticket_moyen",
+      "name": "Ticket Moyen par Commande",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "v05_taux_retour_avoir",
+      "name": "Taux de Retour / Avoir (%)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "i01_valeur_brute_immobilisations",
+      "name": "Valeur Brute des Immobilisations",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "i02_vnc",
+      "name": "Valeur Nette Comptable (VNC)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "i03_taux_amortissement_moyen",
+      "name": "Taux d'Amortissement Moyen (%)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "i04_dotations_amortissements_previsionnelles",
+      "name": "Dotations aux Amortissements Prévisionnelles",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "rh01_masse_salariale",
+      "name": "Masse Salariale Totale",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "rh02_ratio_masse_salariale_ca",
+      "name": "Ratio Masse Salariale / CA (%)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "rh03_cout_moyen_collaborateur",
+      "name": "Coût Moyen par Collaborateur",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "rh04_masse_salariale_par_departement",
+      "name": "Masse Salariale par Département / Axe",
+      "source": "prisma/kpi-bis.json",
+      "status": "COMPATIBLE",
+      "reasons": [
+        "SELECT simple apparent ; compatibilité limitée à la forme statique, jamais validée contre Sage."
+      ]
+    },
+    {
+      "key": "au01_detection_ecritures_atypiques",
+      "name": "Détection d'Écritures Atypiques (Anomaly Score)",
+      "source": "prisma/kpi-bis.json",
+      "status": "COMPATIBLE",
+      "reasons": [
+        "SELECT simple apparent ; compatibilité limitée à la forme statique, jamais validée contre Sage."
+      ]
+    },
+    {
+      "key": "au02_doublons_factures_fournisseurs",
+      "name": "Doublons de Factures Fournisseurs",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "au03_transactions_hors_horaire",
+      "name": "Transactions Hors Plage Horaire",
+      "source": "prisma/kpi-bis.json",
+      "status": "COMPATIBLE",
+      "reasons": [
+        "SELECT simple apparent ; compatibilité limitée à la forme statique, jamais validée contre Sage."
+      ]
+    },
+    {
+      "key": "au04_loi_benford",
+      "name": "Montants Ronds Suspicieux (Benford's Law)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "au05_modifications_ecritures_lettrées",
+      "name": "Modifications d'Écritures Lettrées",
+      "source": "prisma/kpi-bis.json",
+      "status": "COMPATIBLE",
+      "reasons": [
+        "SELECT simple apparent ; compatibilité limitée à la forme statique, jamais validée contre Sage."
+      ]
+    },
+    {
+      "key": "ml01_prevision_ca_forecast",
+      "name": "Prévision CA à 3/6/12 mois",
+      "source": "prisma/kpi-bis.json",
+      "status": "COMPATIBLE",
+      "reasons": [
+        "SELECT simple apparent ; compatibilité limitée à la forme statique, jamais validée contre Sage."
+      ]
+    },
+    {
+      "key": "ml02_score_churn_client",
+      "name": "Score de Churn Client (Probabilité d'Abandon)",
+      "source": "prisma/kpi-bis.json",
+      "status": "COMPATIBLE",
+      "reasons": [
+        "SELECT simple apparent ; compatibilité limitée à la forme statique, jamais validée contre Sage."
+      ]
+    },
+    {
+      "key": "ml03_prevision_rupture_stock",
+      "name": "Prévision de Rupture de Stock par Article",
+      "source": "prisma/kpi-bis.json",
+      "status": "COMPATIBLE",
+      "reasons": [
+        "SELECT simple apparent ; compatibilité limitée à la forme statique, jamais validée contre Sage."
+      ]
+    },
+    {
+      "key": "ml04_prevision_tresorerie_ml",
+      "name": "Prévision de Trésorerie à 90 jours (ML)",
+      "source": "prisma/kpi-bis.json",
+      "status": "COMPATIBLE",
+      "reasons": [
+        "SELECT simple apparent ; compatibilité limitée à la forme statique, jamais validée contre Sage."
+      ]
+    },
+    {
+      "key": "ml05_scoring_risque_fournisseur",
+      "name": "Scoring de Risque Fournisseur",
+      "source": "prisma/kpi-bis.json",
+      "status": "COMPATIBLE",
+      "reasons": [
+        "SELECT simple apparent ; compatibilité limitée à la forme statique, jamais validée contre Sage."
+      ]
+    },
+    {
+      "key": "ml06_detection_anomalies_automl",
+      "name": "Détection d'Anomalies Comptables (AutoML)",
+      "source": "prisma/kpi-bis.json",
+      "status": "COMPATIBLE",
+      "reasons": [
+        "SELECT simple apparent ; compatibilité limitée à la forme statique, jamais validée contre Sage."
+      ]
+    },
+    {
+      "key": "ml07_nlq_natural_language_query",
+      "name": "NLQ — Natural Language Query sur les KPIs",
+      "source": "prisma/kpi-bis.json",
+      "status": "PLACEHOLDER",
+      "reasons": [
+        "SQL absent, commentaire descriptif ou marqueur de substitution ; aucune requête exécutable garantie."
+      ]
+    },
+    {
+      "key": "com01_backlog_commercial",
+      "name": "Backlog Commercial (Carnet de Commandes)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "com02_taux_retard_livraison",
+      "name": "Taux de Retard de Livraison (%)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "imm01_vnc_totale",
+      "name": "Valeur Nette Comptable (VNC) Totale",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "imm02_taux_usure_immo",
+      "name": "Taux d'Usure des Immobilisations (%)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "imm03_investissements_annee",
+      "name": "Investissements de l'Année (Capex)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "ana01_ca_par_axe",
+      "name": "CA par Axe Analytique",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "rh05_poids_charges_patronales",
+      "name": "Poids des Charges Patronales (%)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "rh06_cout_total_employeur_mensuel",
+      "name": "Coût Total Employeur Mensuel",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "t11_burn_rate_mensuel",
+      "name": "Burn Rate Mensuel (Cash Burn)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "a05_repartition_dettes_groupe_externe",
+      "name": "Dettes Groupe vs Externes",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "c09_taux_lettrage_clients",
+      "name": "Taux de Lettrage Clients (%)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "c10_creances_critiques_120j",
+      "name": "Créances Critiques (> 120 jours)",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "f11_ratio_autonomie_financiere",
+      "name": "Ratio d'Autonomie Financière",
+      "source": "prisma/kpi-bis.json",
+      "status": "ADAPTABLE",
+      "reasons": [
+        "Agrégat identifiable ; vérifier source, colonnes, filtres et périodes avant tout mapping V2."
+      ]
+    },
+    {
+      "key": "ca_ht",
+      "name": "Chiffre d'Affaires (CA) HT",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "ca_ttc",
+      "name": "Chiffre d'Affaires TTC",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "marge_brute",
+      "name": "Marge Brute",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "taux_marge_brute",
+      "name": "Taux de Marge Brute (%)",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "dso",
+      "name": "DSO - Days Sales Outstanding",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "encours_clients_total",
+      "name": "Encours Clients Total",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "taux_impayes",
+      "name": "Taux d'Impayés (%)",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "solde_tresorerie_net",
+      "name": "Solde de Trésorerie Net",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "bfr",
+      "name": "Besoin en Fonds de Roulement (BFR)",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "variation_ca_n_1",
+      "name": "Variation de CA vs N-1 (%)",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "nb_clients_actifs",
+      "name": "Nombre de Clients Actifs",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "ca_moyen_client",
+      "name": "CA Moyen par Client",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "top10_clients_ca",
+      "name": "Top 10 Clients par CA",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "taux_concentration_clients",
+      "name": "Taux de Concentration Client (Pareto)",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "delai_moyen_paiement_client",
+      "name": "Délai Moyen de Paiement Client",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "factures_echues_non_soldees",
+      "name": "Factures Échues Non Soldées",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "score_risque_client",
+      "name": "Score de Risque Client",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "taux_fidelisation_client",
+      "name": "Taux de Fidélisation Client",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "total_achats_ht",
+      "name": "Total Achats HT",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "dpo",
+      "name": "DPO - Days Payable Outstanding",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "dettes_fournisseurs_echues",
+      "name": "Dettes Fournisseurs Échues",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "top10_fournisseurs_achats",
+      "name": "Top 10 Fournisseurs par Achats",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "valeur_stock_total",
+      "name": "Valeur du Stock Total",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "taux_rotation_stocks",
+      "name": "Taux de Rotation des Stocks",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "stocks_dormants",
+      "name": "Stocks Dormants / Obsolètes",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "couverture_stock",
+      "name": "Couverture de Stock (jours)",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "taux_rupture_stock",
+      "name": "Taux de Rupture de Stock (%)",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "marge_par_article",
+      "name": "Marge par Article",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "resultat_net_comptable",
+      "name": "Résultat Net Comptable",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "balance_agee_clients",
+      "name": "Balance Âgée Clients",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "ca_par_axe_analytique",
+      "name": "CA par Axe Analytique",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "taux_lettrage_comptes",
+      "name": "Taux de Lettrage des Comptes",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "charges_par_nature_centre",
+      "name": "Charges par Nature et Centre",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "ecart_budget_realise",
+      "name": "Écart Budget / Réalisé",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "prev_ca_3_mois",
+      "name": "Prévision CA à 3 mois",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "score_churn_client",
+      "name": "Score de Churn Client",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "prev_rupture_stock",
+      "name": "Prévision de Rupture de Stock",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "anomalies_comptables",
+      "name": "Détection d'Anomalies Comptables",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    },
+    {
+      "key": "prev_tresorerie_90j",
+      "name": "Prévision de Trésorerie à 90 jours",
+      "source": "prisma/kpi.json",
+      "status": "INCOMPATIBLE",
+      "reasons": [
+        "Template, paramètre ou composition SQL à traduire en mapping sémantique contrôlé."
+      ]
+    }
+  ]
+}

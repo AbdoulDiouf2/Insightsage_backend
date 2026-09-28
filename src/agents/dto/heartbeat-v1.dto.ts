@@ -30,4 +30,15 @@ export class HeartbeatV1Dto {
   @Min(0)
   @Type(() => Number)
   nbRecordsTotal?: number;
+  @ApiPropertyOptional({ description: "Nombre d'erreurs SQL depuis le dernier succès" })
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  @Type(() => Number)
+  errorCount?: number;
+
+  @ApiPropertyOptional({ description: "Dernière erreur SQL observée" })
+  @IsString()
+  @IsOptional()
+  lastError?: string;
 }

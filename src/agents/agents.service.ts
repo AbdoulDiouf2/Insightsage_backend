@@ -160,7 +160,7 @@ export class AgentsService implements OnModuleInit {
     // Cas 1: L'agent renvoie un tableau d'objets (format SQL classique)
     if (Array.isArray(result)) {
       // Si vide
-      if (result.length === 0) return { value: 0, data: [] };
+      if (result.length === 0) return { data: [], count: 0 };
 
       // Si c'est une seule ligne avec une seule colonne (ex: SELECT COUNT(*)...)
       if (result.length === 1) {
@@ -441,13 +441,11 @@ export class AgentsService implements OnModuleInit {
     let errorCount = agent.errorCount;
     let lastError = agent.lastError;
 
-    if (dto.errorCount && dto.errorCount > 0) {
+    if (dto.errorCount !== undefined) {
       errorCount = dto.errorCount;
-      newStatus = dto.errorCount > 5 ? 'error' : 'online';
+      if (dto.errorCount > 5 && newStatus !== 'offline') newStatus = 'error';
     }
-    if (dto.lastError) {
-      lastError = dto.lastError;
-    }
+    if (dto.lastError !== undefined) lastError = dto.lastError;
 
     const updatedAgent = await this.prisma.agent.update({
       where: { id: agent.id },
@@ -755,8 +753,12 @@ export class AgentsService implements OnModuleInit {
     // Normalisation du résultat avant stockage
     const transformedResult = error ? null : this.transformResult(result);
 
-    const updatedJob = await this.prisma.agentJob.update({
-      where: { id: jobId },
+    const transition = await this.prisma.agentJob.updateMany({
+      where: {
+        id: jobId,
+        organizationId,
+        status: { in: [JobStatus.PENDING, JobStatus.RUNNING] },
+      },
       data: {
         status: error ? JobStatus.FAILED : JobStatus.COMPLETED,
         result: transformedResult || null,
@@ -764,6 +766,8 @@ export class AgentsService implements OnModuleInit {
         completedAt: new Date(),
       },
     });
+    const updatedJob = await this.prisma.agentJob.findUnique({ where: { id: jobId } });
+    if (!transition.count) return updatedJob;
 
     // Génération d'insight CFO en arrière-plan (fire-and-forget)
     if (!error && transformedResult) {
@@ -911,13 +915,13 @@ export class AgentsService implements OnModuleInit {
     }
 
     // 7. Marquer le job comme RUNNING et enregistrer l'heure de début
-    return this.prisma.agentJob.update({
-      where: { id: job.id },
-      data: {
-        status: JobStatus.RUNNING,
-        startedAt: new Date(),
-      },
+    await this.prisma.agentJob.updateMany({
+      where: { id: job.id, status: JobStatus.PENDING },
+      data: { status: JobStatus.RUNNING, startedAt: new Date() },
     });
+    const currentJob = await this.prisma.agentJob.findUnique({ where: { id: job.id } });
+    if (!currentJob) throw new NotFoundException('Job introuvable');
+    return currentJob;
   }
 
   /**
@@ -1194,6 +1198,8 @@ export class AgentsService implements OnModuleInit {
         lastSeen: new Date(),
         lastSync: dto.lastSync ? new Date(dto.lastSync) : agent.lastSync,
         rowsSynced: dto.nbRecordsTotal != null ? BigInt(dto.nbRecordsTotal) : agent.rowsSynced,
+        errorCount: dto.errorCount ?? agent.errorCount,
+        lastError: dto.errorCount === 0 ? null : (dto.lastError ?? agent.lastError),
         pendingCommand: null, // Effacer la commande après envoi
       },
     });

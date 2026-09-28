@@ -1,0 +1,8 @@
+{
+  "now": "2026-09-28T12:00:00.000Z",
+  "timezone": "Africa/Dakar",
+  "period": { "type": "relative", "value": "current_quarter" },
+  "expectedFrom": "2026-07-01T00:00:00.000Z",
+  "expectedTo": "2026-10-01T00:00:00.000Z",
+  "simulatedRows": [{ "value": 0 }]
+}
