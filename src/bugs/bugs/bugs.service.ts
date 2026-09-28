@@ -246,7 +246,7 @@ export class BugsService {
       }
     });
 
-    if (comment.mentionedUserIds.length > 0) {
+    if (comment.mentionedUserIds.length > 0 && comment.author) {
       this.notificationsService.notifyBugMention(comment.bug, comment.author, comment.mentionedUserIds).catch((err) => {
         this.logger.error(`Failed to notify mentions for bug ${comment.bug.bugId}: ${err.message}`);
       });

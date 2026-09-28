@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma, JobStatus, DemoRequestStatus } from '@prisma/client';
 import { UpdateDemoRequestDto } from './dto/update-demo-request.dto';
@@ -26,6 +26,8 @@ import { AiRouterService } from '../ai/ai-router.service';
 
 @Injectable()
 export class AdminService {
+  private readonly logger = new Logger(AdminService.name);
+
   constructor(
     private prisma: PrismaService,
     private auditLog: AuditLogService,
@@ -254,33 +256,32 @@ export class AdminService {
       });
     }
 
-    // Suppression en cascade dans le bon ordre
-    // (seuls Agent/AgentJob/AgentLog/Dashboard n'ont pas onDelete:Cascade dans le schéma)
-    return this.prisma.$transaction(async (tx) => {
-      // 1. AgentLog + AgentJob → Agent (pas de cascade DB)
-      const agents = await tx.agent.findMany({ where: { organizationId: id }, select: { id: true } });
-      const agentIds = agents.map((a) => a.id);
-      if (agentIds.length > 0) {
-        await tx.agentLog.deleteMany({ where: { agentId: { in: agentIds } } });
-        await tx.agentJob.deleteMany({ where: { agentId: { in: agentIds } } });
-        await tx.agent.deleteMany({ where: { organizationId: id } });
+    // Le schéma porte désormais les règles onDelete explicites : la suppression de
+    // l'organisation cascade sur Agent, AgentJob, AgentSyncBatch, AgentViewSnapshot,
+    // Dashboard, Widget, NlqSession, User, Invitation, Billing*, etc. Les contenus
+    // dont l'auteur est supprimé (bugs, commentaires, notes de démo) sont anonymisés
+    // via onDelete: SetNull plutôt que détruits.
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        // Dissocier l'owner : la FK organizations.owner_id → users.id est circulaire
+        // avec User.organizationId → organizations.id.
+        await tx.organization.update({ where: { id }, data: { ownerId: null } });
+        return tx.organization.delete({ where: { id } });
+      });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2003'
+      ) {
+        this.logger.error(
+          `Suppression org ${id} bloquée par une contrainte FK: ${err.meta?.field_name ?? 'inconnue'}`,
+        );
+        throw new BadRequestException(
+          "Suppression impossible : cette organisation possède des données liées qui ne peuvent pas être supprimées automatiquement. Contactez le support.",
+        );
       }
-
-      // 2. Widget → Dashboard (pas de cascade DB sur Dashboard)
-      // Supprime tous les widgets de l'org directement (dashboardId nullable = widgets orphelins possibles)
-      await tx.widget.deleteMany({ where: { organizationId: id } });
-      await tx.dashboard.deleteMany({ where: { organizationId: id } });
-
-      // 3. NlqSession (pas de cascade DB)
-      await tx.nlqSession.deleteMany({ where: { organizationId: id } });
-
-      // 4. Dissocier l'owner pour éviter la contrainte circulaire Organization ↔ User
-      await tx.organization.update({ where: { id }, data: { ownerId: null } });
-
-      // 5. Supprimer l'organisation — le reste cascade (User, Invitation, AuditLog,
-      //    OnboardingStatus, BillingCustomer, BillingSubscription, BillingInvoice…)
-      return tx.organization.delete({ where: { id } });
-    });
+      throw err;
+    }
   }
 
   // --- Users Management ---
