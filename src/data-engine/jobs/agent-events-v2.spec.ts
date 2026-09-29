@@ -42,7 +42,7 @@ describe('agent_hello_v2 backend logs', () => {
   });
 });
 
-describe('Gate 1 Agent event correlation', () => {
+describe('Agent V2 event correlation', () => {
   afterEach(() => jest.restoreAllMocks());
 
   it('logs acknowledged and result identifiers without logging Agent rows', async () => {

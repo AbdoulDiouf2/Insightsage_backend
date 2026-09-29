@@ -1,5 +1,7 @@
 # Protocole de certification Gate 1 — `revenue_ht`
 
+**Document de certification historique.** Les cases et statuts ci-dessous reflètent l'instantané de leur rédaction, pas l'état du déploiement actuel. Dans la branche de productisation, `revenue_ht` est enregistré sans `DATA_ENGINE_REVENUE_HT_PILOT_ENABLED` ; le déploiement de ce changement reste à effectuer. Les preuves E2E rapportées depuis couvrent notamment valeur positive, `empty`, zéro, période relative et cache MISS→HIT. La décision métier et la preuve complète d'isolation tenant restent distinctes de ces contrôles.
+
 **Statut : contrôles Sage directs partiels exécutés — Gate 1 BLOQUÉ.** La comparaison complète via l'Agent installé et le backend reste à exécuter. Les montants des fixtures et du harness technique ne sont pas des preuves de conformité Sage.
 
 ## 1. Définition métier à faire signer

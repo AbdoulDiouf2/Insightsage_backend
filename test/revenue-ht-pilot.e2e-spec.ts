@@ -85,7 +85,6 @@ describe('revenue_ht — harness comptable fictif, hors Sage', () => {
   beforeAll(async () => {
     process.env.NODE_ENV = 'test';
     process.env.DATA_ENGINE_V2_ENABLED = 'true';
-    process.env.DATA_ENGINE_REVENUE_HT_PILOT_ENABLED = 'true';
     process.env.DATA_ENGINE_V2_ENCRYPTION_KEY = Buffer.alloc(32, 6).toString('base64');
     const module = await Test.createTestingModule({ imports: [DataEngineModule] })
       .overrideProvider(PrismaService).useValue(prisma).compile();
@@ -106,8 +105,18 @@ describe('revenue_ht — harness comptable fictif, hors Sage', () => {
   afterAll(async () => {
     await app?.close();
     delete process.env.DATA_ENGINE_V2_ENABLED;
-    delete process.env.DATA_ENGINE_REVENUE_HT_PILOT_ENABLED;
     delete process.env.DATA_ENGINE_V2_ENCRYPTION_KEY;
+  });
+
+  it('conserve le kill-switch global V2 pour revenue_ht', async () => {
+    process.env.DATA_ENGINE_V2_ENABLED = 'false';
+    try {
+      const response = await request(app.getHttpServer()).post('/api/data/query')
+        .send(fromRequest(absolute('2026-07-01', '2026-08-01'))).expect(422);
+      expect(response.body.code).toBe('NOT_CONFIGURED');
+    } finally {
+      process.env.DATA_ENGINE_V2_ENABLED = 'true';
+    }
   });
 
   it.each([
@@ -177,7 +186,7 @@ describe('revenue_ht — harness comptable fictif, hors Sage', () => {
       const job = [...jobs.values()].find(row => row.queryId === queryId);
       expect(job).toMatchObject({ organizationId: 'org-1', state: 'COMPLETED' });
       const evidence = log.mock.calls.map(([message]) => String(message))
-        .find(message => message.startsWith(`gate1_v2 completed queryId=${queryId} jobId=${job.id} `));
+        .find(message => message.startsWith(`data_v2 completed queryId=${queryId} jobId=${job.id} `));
       expect(evidence).toContain('state=COMPLETED resultStatus=success resultRows=1 sourceRows=1');
       expect(evidence).not.toContain(response.body.result.rows[0].value);
     } finally { log.mockRestore(); }

@@ -105,8 +105,10 @@ export class DataService {
       };
       const completed = await this.jobs.complete(job.id, securityScope.organizationId, result);
       if (!completed.changed) return { status: 'pending', jobId: job.id, queryId: plan.queryId };
-      if (plan.metric.key === 'revenue_ht')
-        this.logger.log(`gate1_v2 completed queryId=${plan.queryId} jobId=${job.id} agentId=${agentId ?? 'simulated'} organizationId=${securityScope.organizationId} state=COMPLETED resultStatus=${result.status} resultRows=${result.meta.rowCount} sourceRows=${execution.rows.reduce((sum, row) => sum + Number(row.__source_row_count), 0)}`);
+      const sourceRows = execution.rows.some(row => row.__source_row_count !== undefined)
+        ? execution.rows.reduce((sum, row) => sum + Number(row.__source_row_count ?? 0), 0)
+        : 'unavailable';
+      this.logger.log(`data_v2 completed queryId=${plan.queryId} jobId=${job.id} metric=${plan.metric.key} agentId=${agentId ?? 'simulated'} organizationId=${securityScope.organizationId} state=COMPLETED resultStatus=${result.status} resultRows=${result.meta.rowCount} sourceRows=${sourceRows} durationMs=${result.meta.executionTimeMs}`);
       try {
         await this.cache.put(securityScope.organizationId, plan.queryFingerprint,
           this.registry.version, result, plan.metric.defaultCacheTtlSeconds);

@@ -57,22 +57,9 @@ export class DataJobV2Dispatcher {
           sequence, limits: { ...plan.limits, maxResultBytes: 1048576 },
         };
         const sent = this.transport!.send(organizationId, agentId, payload);
-        if (sent && plan.metric?.key === 'revenue_ht') {
-          const sql = payload.statement;
-          const params = payload.parameters;
-          // Only the fixed pilot SELECT and its two civil dates may enter the release log.
-          const safeSql = /^SELECT TOP \([1-9][0-9]{0,3}\) CONVERT\(varchar\(64\), SUM\(\[ca_ht\]\)\) AS \[value\], COUNT_BIG\(\*\) AS \[__source_row_count\](, \[annee_mois\] AS \[month\])? FROM \[dbo\]\.\[VW_FINANCE_GENERAL\] WHERE \[dt_jour\] >= @periodFrom AND \[dt_jour\] < @periodTo( GROUP BY \[annee_mois\])?( ORDER BY \[annee_mois\] (ASC|DESC))?$/.test(sql);
-          const safeParams = Object.keys(params).sort().join(',') === 'periodFrom,periodTo' &&
-            /^\d{4}-\d{2}-\d{2}$/.test(String(params.periodFrom)) &&
-            /^\d{4}-\d{2}-\d{2}$/.test(String(params.periodTo));
-          if (safeSql && safeParams)
-            this.logger.log(`gate1_v2 dispatch ${JSON.stringify({ queryId: plan.queryId, jobId,
-              metric: 'revenue_ht', agentId, organizationId, sequence, statement: sql,
-              parameters: { periodFrom: { transportType: 'string', agentSqlType: 'DATE', value: params.periodFrom },
-                periodTo: { transportType: 'string', agentSqlType: 'DATE', value: params.periodTo } } })}`);
-          else
-            this.logger.warn(`gate1_v2 dispatch_evidence_unavailable queryId=${plan.queryId} jobId=${jobId} agentId=${agentId} organizationId=${organizationId}`);
-        }
+        if (sent) this.logger.log(`data_v2 dispatch ${JSON.stringify({
+          queryId: plan.queryId, jobId, metric: plan.metric?.key ?? 'unknown', agentId, organizationId, sequence,
+        })}`);
         if (!sent) this.fail(jobId, organizationId, agentId, plan.queryId, sequence,
           new QueryFailure('AGENT_OFFLINE', 'Agent V2 déconnecté'));
       } catch {

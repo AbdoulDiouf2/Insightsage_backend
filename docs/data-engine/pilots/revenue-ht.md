@@ -1,4 +1,6 @@
-# Pilote `revenue_ht` — Gate 1 en cours, E2E bloqué
+# Historique du pilote `revenue_ht` — Gate 1
+
+**État de la branche au 29 septembre 2026 :** `revenue_ht` est enregistré sans flag spécifique dans le registre Data Engine V2. Le déploiement de cette productisation reste à effectuer. Le kill-switch global V2, l'approbation de persistance, le RBAC et l'opt-in Agent restent requis. Les résultats et statuts ci-dessous sont des instantanés historiques du pilote, pas l'état opérationnel actuel. Les contrôles E2E positifs, `empty`, zéro, période relative et cache MISS→HIT ont été rapportés après cet instantané ; la certification métier et l'isolation tenant complète ne sont pas déclarées terminées ici.
 
 **Statut au 28 septembre 2026 : source `dbo.VW_FINANCE_GENERAL.ca_ht` validée, contrôle Sage direct partiel effectué, E2E Backend → Agent installé non exécuté.** La base Sage BIJOU a été autorisée pour ce projet en lecture seule. Les montants du tableau de fixtures ci-dessous restent fictifs et ne constituent pas une certification Sage. Le Gate 1 reste bloqué tant que le chemin complet et les neuf scénarios applicables ne sont pas vérifiés.
 
@@ -12,7 +14,7 @@ Les métadonnées Sage BIJOU montrent `VW_FINANCE_GENERAL.ca_ht NUMERIC(38,6)`, 
 
 ## Mapping et requêtes
 
-Le registre pilote, activable seulement par `DATA_ENGINE_REVENUE_HT_PILOT_ENABLED=true`, définit la ressource `sage100:finance_general` sur `dbo.VW_FINANCE_GENERAL`, `ca_ht`, `dt_jour` et `annee_mois`. Seule la dimension `month` est exposée, sans filtre utilisateur. Les périodes relatives `current_month`, `current_quarter`, `current_year` et une plage absolue à minuits locaux sont prises en charge ; les comparaisons sont `previous_period` et `previous_year`. Le fuseau vient de `organizations.dataTimezone`. La requête utilise `[dt_jour] >= @periodFrom AND [dt_jour] < @periodTo`. L'Agent convertit les décimaux Sage à six décimales en chaînes à deux décimales uniquement si les décimales supplémentaires sont nulles ; une fraction de centime est rejetée. `COUNT_BIG(*)` distingue une somme nulle d'une absence de lignes.
+Le registre de la branche définit la ressource `sage100:finance_general` sur `dbo.VW_FINANCE_GENERAL`, `ca_ht`, `dt_jour` et `annee_mois`, sans flag spécifique à `revenue_ht`. Seule la dimension `month` est exposée, sans filtre utilisateur. Les périodes relatives `current_month`, `current_quarter`, `current_year` et une plage absolue à minuits locaux sont prises en charge ; les comparaisons sont `previous_period` et `previous_year`. Le fuseau vient de `organizations.dataTimezone`. La requête utilise `[dt_jour] >= @periodFrom AND [dt_jour] < @periodTo`. L'Agent convertit les décimaux Sage à six décimales en chaînes à deux décimales uniquement si les décimales supplémentaires sont nulles ; une fraction de centime est rejetée. `COUNT_BIG(*)` distingue une somme nulle d'une absence de lignes.
 
 La [référence Gate 1](../revenue-ht-reference.sql) interroge directement **`VW_FINANCE_GENERAL.ca_ht`**, avec les mêmes bornes et dimensions que la demande V2. Les résultats directs doivent encore être rapprochés de l'API V2 pour chaque scénario.
 
@@ -40,7 +42,7 @@ Le harness teste également tenant différent, cache miss/hit, demandes concurre
 - Exécuter la référence directe et V2 sur cette même base pour chaque ligne de la matrice, puis archiver montants et écarts exacts. Toute différence non expliquée est un FAIL.
 - La vue joint `calendrier` en `LEFT JOIN` et peut perdre des dates hors calendrier. Vérifier couverture et cardinalité sur la base pilote.
 - Le transport V2 garde les attentes de réponse en mémoire d'un processus backend. Multi-worker, reprise après redémarrage et annulation physique ne sont pas démontrés.
-- Le cache cloud reste soumis aux validations opérationnelles et contractuelles d'ADR-005 avant persistance de données Sage. Le pilote est désactivé par défaut.
+- Le cache cloud reste soumis aux validations opérationnelles et contractuelles d'ADR-005. Le kill-switch global V2 et l'approbation explicite de persistance restent requis ; cette version de la branche n'est pas encore déployée.
 - `useKpiData`, les widgets V1 et les templates historiques restent inchangés.
 
 ## Contrôles Sage réels du 28 septembre 2026

@@ -5,18 +5,37 @@ import { PeriodResolverService } from '../../planner/period-resolver.service';
 import { SqlCompilerService } from '../../planner/sql-compiler.service';
 import { QueryPlannerService } from '../../planner/query-planner.service';
 import { user } from '../../../../test/fixtures/data-engine-v2/synthetic-query';
+import { revenueHtMetric } from './revenue-ht.metric';
+import { revenueMonthDimension } from '../dimensions/sage100-finance.dimensions';
+import { financeGeneralResource } from '../../connectors/sage100/sage100-finance.resources';
 
-describe('revenue_ht pilote candidat', () => {
+describe('revenue_ht production metric', () => {
   let registry: SemanticRegistryService;
   let planner: QueryPlannerService;
   beforeAll(() => {
-    process.env.DATA_ENGINE_REVENUE_HT_PILOT_ENABLED = 'true';
     registry = new SemanticRegistryService();
     planner = new QueryPlannerService(registry,
       new QueryValidatorService(registry, new SecurityScopeService()),
       new PeriodResolverService(), new SqlCompilerService());
   });
-  afterAll(() => { delete process.env.DATA_ENGINE_REVENUE_HT_PILOT_ENABLED; });
+  it('enregistre les définitions sans ancien flag et conserve registryVersion', () => {
+    const previous = process.env.DATA_ENGINE_REVENUE_HT_PILOT_ENABLED;
+    try {
+      delete process.env.DATA_ENGINE_REVENUE_HT_PILOT_ENABLED;
+      const absent = new SemanticRegistryService();
+      process.env.DATA_ENGINE_REVENUE_HT_PILOT_ENABLED = 'false';
+      const disabled = new SemanticRegistryService();
+      for (const candidate of [absent, disabled]) {
+        expect(candidate.metric('revenue_ht')).toEqual(revenueHtMetric);
+        expect(candidate.dimension('month')).toEqual(revenueMonthDimension);
+        expect(candidate.resource('sage100', 'finance_general')).toEqual(financeGeneralResource);
+        expect(candidate.version).toBe('aa52fabebbede69296a18517c775b6b38c2522efe33b2dbcc85b1c1a9237a3b4');
+      }
+    } finally {
+      if (previous === undefined) delete process.env.DATA_ENGINE_REVENUE_HT_PILOT_ENABLED;
+      else process.env.DATA_ENGINE_REVENUE_HT_PILOT_ENABLED = previous;
+    }
+  });
   const base = { version: '2' as const, metric: 'revenue_ht',
     period: { type: 'relative' as const, value: 'current_month' as const } };
   it('borne la date locale avec paramètres sans recalculer le CA de la vue', () => {

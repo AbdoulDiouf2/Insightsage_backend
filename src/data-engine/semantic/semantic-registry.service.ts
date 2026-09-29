@@ -17,12 +17,9 @@ export class SemanticRegistryService {
   private readonly dimensions = new Map<string, DimensionDefinition>();
   private readonly resources = new Map<string, SourceResource>();
   constructor() {
-    // Opt-in explicite tant que la formule n'est pas rapprochée avec Sage de test.
-    if (process.env.DATA_ENGINE_REVENUE_HT_PILOT_ENABLED === 'true') {
-      this.registerResource(financeGeneralResource);
-      this.registerDimension(revenueMonthDimension);
-      this.registerMetric(revenueHtMetric);
-    }
+    this.registerResource(financeGeneralResource);
+    this.registerDimension(revenueMonthDimension);
+    this.registerMetric(revenueHtMetric);
   }
 
   // Les définitions ne sont enregistrées que par du code backend audité.
