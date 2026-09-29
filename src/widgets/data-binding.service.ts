@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { SemanticRegistryService } from '../data-engine/semantic/semantic-registry.service';
 import { ResultShape } from '../data-engine/contracts/semantic-definition';
+import { isCertifiedMetric } from '../data-engine/certification/certification-state';
 
 export interface DataEngineBinding {
   kind: 'data_engine_v2';
@@ -66,7 +67,7 @@ export class DataBindingService {
     let metric;
     try { metric = this.registry.metric(binding.metric); }
     catch { throw new BadRequestException('Metrique V2 inconnue'); }
-    if (metric.certificationStatus === 'uncertified')
+    if (!isCertifiedMetric(metric))
       throw new BadRequestException('Metrique V2 non certifiee');
     if (comparison && !metric.supportedComparisons.includes(comparison))
       throw new BadRequestException('Comparaison incompatible avec la metrique');

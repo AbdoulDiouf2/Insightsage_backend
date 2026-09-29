@@ -15,6 +15,17 @@ export interface MetricResultPolicy {
   dimensionPatterns?: Record<string, string>;
 }
 export type ComparisonType = 'previous_period' | 'previous_year' | 'budget' | 'target';
+export type CertificationState = 'draft' | 'awaiting_source_validation' |
+  'certified' | 'rejected' | 'deferred';
+export interface MetricCertification {
+  version: 1;
+  state: CertificationState;
+  // Reviewed evidence is required for production execution; static checks cannot promote a metric.
+  evidence?: { referenceId: string; reviewedAt: string; source: string;
+    definitionSha256: string;
+    periodFrom: string; periodTo: string; value: string; sourceRows: number };
+  reason?: string;
+}
 export interface SourceMetricMapping {
   connector: ConnectorId;
   resource: string;
@@ -43,7 +54,7 @@ export interface MetricDefinition {
   defaultCacheTtlSeconds: number;
   nullPolicy: 'preserve' | 'zero_if_empty_set';
   resultPolicy?: MetricResultPolicy;
-  certificationStatus?: 'certified' | 'uncertified';
+  certification: MetricCertification;
   requiresPeriod?: boolean;
   requiredPermission: { action: string; resource: string };
 }

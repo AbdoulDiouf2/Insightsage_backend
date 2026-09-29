@@ -3,11 +3,19 @@ import { QueryRequest, FILTER_OPERATORS, RELATIVE_PERIODS } from '../contracts/q
 import { QueryFailure } from '../contracts/query-error';
 import { SemanticRegistryService } from '../semantic/semantic-registry.service';
 import { SecurityScopeService, AuthenticatedIdentity } from './security-scope.service';
+import { isCertifiedMetric } from '../certification/certification-state';
 
 @Injectable()
 export class QueryValidatorService {
   constructor(private readonly registry: SemanticRegistryService, private readonly scope: SecurityScopeService) {}
   validate(request: QueryRequest, user: AuthenticatedIdentity) {
+    return this.validateInternal(request, user, false);
+  }
+  /** Called only after CertificationPolicyService has authorized a server-owned campaign case. */
+  validateCandidate(request: QueryRequest, user: AuthenticatedIdentity) {
+    return this.validateInternal(request, user, true);
+  }
+  private validateInternal(request: QueryRequest, user: AuthenticatedIdentity, candidate: boolean) {
     if (!request || request.version !== '2' || !request.metric || typeof request.metric !== 'string')
       throw new QueryFailure('QUERY_INVALID', 'Requête V2 invalide');
     const forbidden = ['scope', 'organizationId', 'connector', 'sql', 'statement'];
@@ -15,7 +23,8 @@ export class QueryValidatorService {
       throw new QueryFailure('QUERY_INVALID', 'Champ public interdit');
     const securityScope = this.scope.resolve(user);
     const metric = this.registry.metric(request.metric);
-    if (metric.certificationStatus === 'uncertified')
+    if (!isCertifiedMetric(metric) &&
+        !(candidate && metric.certification.state === 'awaiting_source_validation'))
       throw new QueryFailure('NOT_CONFIGURED', 'Metrique non certifiee');
     if (!this.scope.hasPermission(user, metric.requiredPermission.action, metric.requiredPermission.resource))
       throw new QueryFailure('PERMISSION_DENIED', 'Permission manquante');

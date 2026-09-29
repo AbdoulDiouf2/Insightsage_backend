@@ -40,6 +40,8 @@ export const DEFAULT_PERMISSIONS = [
   // Agent & Data
   { action: 'read', resource: 'agents', description: 'View agent status' },
   { action: 'read', resource: 'data', description: 'Query organization data' },
+  { action: 'execute', resource: 'data_certification',
+    description: 'Run allowlisted Data Engine V2 certification campaigns' },
   {
     action: 'manage',
     resource: 'agents',

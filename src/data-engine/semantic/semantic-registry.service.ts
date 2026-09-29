@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { DimensionDefinition, MetricDefinition, SourceResource } from '../contracts/semantic-definition';
 import { QueryFailure } from '../contracts/query-error';
 import { revenueHtMetric } from './metrics/revenue-ht.metric';
-import { grossMarginMetric, revenueTtcMetric } from './metrics/finance-general.metrics';
+import { ebitdaMetric, grossMarginMetric, revenueTtcMetric } from './metrics/finance-general.metrics';
 import { revenueMonthDimension } from './dimensions/sage100-finance.dimensions';
 import { financeGeneralResource } from '../connectors/sage100/sage100-finance.resources';
 
@@ -23,6 +23,7 @@ export class SemanticRegistryService {
     this.registerMetric(revenueHtMetric);
     this.registerMetric(revenueTtcMetric);
     this.registerMetric(grossMarginMetric);
+    this.registerMetric(ebitdaMetric);
   }
 
   // Les définitions ne sont enregistrées que par du code backend audité.

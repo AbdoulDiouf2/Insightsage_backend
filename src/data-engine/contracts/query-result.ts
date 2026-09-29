@@ -13,6 +13,8 @@ export interface QueryResult {
   rows: Record<string, unknown>[];
   meta: {
     rowCount: number;
+    executionPurpose?: 'certification';
+    sourceRowCount?: number;
     generatedAt: string;
     queryExecutedAt: string;
     sourceFreshness?: string;

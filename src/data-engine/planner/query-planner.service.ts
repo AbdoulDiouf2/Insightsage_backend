@@ -25,7 +25,15 @@ export class QueryPlannerService {
     private readonly compiler: SqlCompilerService) {}
 
   plan(request: QueryRequest, user: AuthenticatedIdentity, timezone: string, now = new Date()): QueryPlan {
-    const { metric, resource, securityScope } = this.validator.validate(request, user);
+    return this.planInternal(request, user, timezone, now, false);
+  }
+  planCandidate(request: QueryRequest, user: AuthenticatedIdentity, timezone: string, now = new Date()): QueryPlan {
+    return this.planInternal(request, user, timezone, now, true);
+  }
+  private planInternal(request: QueryRequest, user: AuthenticatedIdentity, timezone: string,
+    now: Date, candidate: boolean): QueryPlan {
+    const { metric, resource, securityScope } = candidate
+      ? this.validator.validateCandidate(request, user) : this.validator.validate(request, user);
     const dimensions = (request.dimensions ?? []).map(key => this.registry.dimension(key));
     const filters = (request.filters ?? []).map(f => ({ definition: this.registry.dimension(f.field),
       operator: f.operator, value: f.value }));

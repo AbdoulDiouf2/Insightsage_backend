@@ -53,12 +53,18 @@ export class DataJobV2Dispatcher {
         const payload = {
           protocolVersion: 2, jobId, queryId: plan.queryId, requestId: plan.requestId,
           resourceId: 'sage100:finance_general',
+          ...(plan.executionPurpose ? {
+            executionPurpose: plan.executionPurpose,
+            certificationCampaign: plan.certificationCampaign,
+            registryVersion: plan.registryVersion,
+          } : {}),
           statement: plan.execution.statement, parameters: plan.execution.parameters,
           sequence, limits: { ...plan.limits, maxResultBytes: 1048576 },
         };
         const sent = this.transport!.send(organizationId, agentId, payload);
         if (sent) this.logger.log(`data_v2 dispatch ${JSON.stringify({
           queryId: plan.queryId, jobId, metric: plan.metric?.key ?? 'unknown', agentId, organizationId, sequence,
+          ...(plan.executionPurpose ? { purpose: plan.executionPurpose } : {}),
         })}`);
         if (!sent) this.fail(jobId, organizationId, agentId, plan.queryId, sequence,
           new QueryFailure('AGENT_OFFLINE', 'Agent V2 déconnecté'));

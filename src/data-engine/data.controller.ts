@@ -11,6 +11,10 @@ export class DataController {
   query(@Body() request: QueryRequest, @CurrentUser() user: AuthenticatedIdentity) {
     return this.data.query(request, user);
   }
+  @Post('certification/query')
+  certify(@Body() request: unknown, @CurrentUser() user: AuthenticatedIdentity) {
+    return this.data.certify(request, user);
+  }
   @Get('jobs/:id')
   getJob(@Param('id') id: string, @CurrentUser() user: AuthenticatedIdentity) {
     return this.data.getJob(id, user);

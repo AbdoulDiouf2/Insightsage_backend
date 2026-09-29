@@ -79,7 +79,7 @@ describe('V2 Agent selection across the actual Nest module graph', () => {
     const data = new DataService({ organization: { findUnique: jest.fn().mockResolvedValue({
       dataTimezone: 'Africa/Dakar' }) } } as any, new SecurityScopeService(),
     { plan: jest.fn().mockReturnValue(plan) } as any, { get: jest.fn().mockResolvedValue(null),
-      put: jest.fn() } as any, jobs, dispatcher, { version: 'test' } as any);
+      put: jest.fn() } as any, jobs, dispatcher, { version: 'test' } as any, {} as any);
     const originalFlag = process.env.DATA_ENGINE_V2_ENABLED;
     process.env.DATA_ENGINE_V2_ENABLED = 'true';
     try {

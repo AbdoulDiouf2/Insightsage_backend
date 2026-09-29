@@ -9,14 +9,15 @@ import { JobStateV2 } from './data-job-v2.state';
 @Injectable()
 export class DataJobV2Service {
   constructor(private readonly prisma: PrismaService, private readonly cache: QueryCacheService) {}
-  async createOrGet(plan: QueryPlan) {
+  async createOrGet(plan: QueryPlan,
+    permission?: { action: string; resource: string }) {
     const organizationId = plan.securityScope.organizationId;
     try {
       const job = await this.prisma.dataJobV2.create({ data: {
         organizationId, queryId: plan.queryId, requestId: plan.requestId,
         queryFingerprint: plan.queryFingerprint, registryVersion: plan.registryVersion,
-        permissionAction: plan.metric.requiredPermission.action,
-        permissionResource: plan.metric.requiredPermission.resource,
+        permissionAction: permission?.action ?? plan.metric.requiredPermission.action,
+        permissionResource: permission?.resource ?? plan.metric.requiredPermission.resource,
         dispatchDeadlineAt: new Date(Date.now() + 15000),
       } });
       return { job, created: true };

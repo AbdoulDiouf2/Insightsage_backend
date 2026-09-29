@@ -11,13 +11,14 @@ import { QueryPlannerService } from './planner/query-planner.service';
 import { QueryCacheService } from './cache/query-cache.service';
 import { DataJobV2Service } from './jobs/data-job-v2.service';
 import { DataJobV2Dispatcher } from './jobs/data-job-v2.dispatcher';
+import { CertificationPolicyService } from './certification/certification-policy.service';
 
 @Module({
   imports: [PrismaModule],
   controllers: [DataController],
   providers: [DataService, SemanticRegistryService, SecurityScopeService, QueryValidatorService,
     PeriodResolverService, SqlCompilerService, QueryPlannerService, QueryCacheService,
-    DataJobV2Service, DataJobV2Dispatcher],
+    DataJobV2Service, DataJobV2Dispatcher, CertificationPolicyService],
   exports: [DataJobV2Service, DataJobV2Dispatcher, SemanticRegistryService],
 })
 export class DataEngineModule {}

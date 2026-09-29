@@ -8,7 +8,8 @@ const common = {
   supportedComparisons: [], sourceMapping: { connector: 'sage100',
     resource: 'finance_general', dateDimension: 'accounting_date', sourceCurrency: 'XOF' },
   defaultCacheTtlSeconds: 60, nullPolicy: 'preserve' as const, requiresPeriod: true,
-  certificationStatus: 'uncertified' as const,
+  certification: { version: 1 as const, state: 'awaiting_source_validation' as const,
+    reason: 'Source, grain et formule Sage non certifies' },
   resultPolicy: { unit: 'XOF', scale: 2, valueEncoding: 'decimal_string' as const,
     sourceRowCount: 'required' as const, empty: 'preserve' as const,
     shapes: ['scalar', 'time_series'] as const, dimensionPatterns: { month: '^\\d{4}-\\d{2}$' } },
@@ -27,4 +28,11 @@ export const grossMarginMetric: MetricDefinition = {
   supportedVisualizations: ['card', 'bar', 'line', 'table'],
   sourceMapping: { ...common.sourceMapping, measureExpressionId: 'gross_margin' },
   resultPolicy: { ...common.resultPolicy, shapes: [...common.resultPolicy.shapes] },
+};
+
+export const ebitdaMetric: MetricDefinition = {
+  ...common, key: 'ebitda', label: 'EBITDA',
+  supportedVisualizations: ['card', 'table'],
+  sourceMapping: { ...common.sourceMapping, measureExpressionId: 'ebitda' },
+  resultPolicy: { ...common.resultPolicy, shapes: ['scalar'] },
 };

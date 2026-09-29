@@ -7,6 +7,11 @@ import { SecurityScopeService } from '../data-engine/planner/security-scope.serv
 import { PermissionsGuard } from './guards/permissions.guard';
 
 describe('RBAC Data Engine V2 seed', () => {
+  it('defines certification permission without assigning it to a default role', () => {
+    const dedicated = { action: 'execute', resource: 'data_certification' };
+    expect(DEFAULT_PERMISSIONS).toContainEqual(expect.objectContaining(dedicated));
+    for (const role of DEFAULT_ROLES) expect(role.permissions).not.toContainEqual(dedicated);
+  });
   it('grants read:data to global daf and owner, not controller or analyst', () => {
     const readData = { action: 'read', resource: 'data' };
     expect(DEFAULT_PERMISSIONS).toContainEqual(

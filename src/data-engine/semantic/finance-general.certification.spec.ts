@@ -8,6 +8,7 @@ import { validateMetricRows } from '../results/metric-result-policy';
 import { DataBindingService } from '../../widgets/data-binding.service';
 import { revenueHtMetric } from './metrics/revenue-ht.metric';
 import { user } from '../../../test/fixtures/data-engine-v2/synthetic-query';
+import { metricDefinitionHash } from '../certification/certification-state';
 
 const registry = new SemanticRegistryService();
 const planner = new QueryPlannerService(registry,
@@ -20,7 +21,7 @@ const identity = user();
 
 describe.each(registry.familyMetrics('finance_general'))('finance_general declaration $key', metric => {
   const request = { version: '2' as const, metric: metric.key, period };
-  if (metric.certificationStatus === 'uncertified') {
+  if (metric.certification.state !== 'certified') {
     it('cannot be queried or bound before source and business certification', () => {
       expect(() => planner.plan(request, identity, 'Africa/Dakar')).toThrow();
       expect(() => binding.validate({ kind: 'data_engine_v2', metric: metric.key })).toThrow();
@@ -74,8 +75,12 @@ describe.each(registry.familyMetrics('finance_general'))('finance_general declar
 
 it('can add a certified simple measure by declaration without a metric-name branch', () => {
   const extension = new SemanticRegistryService();
-  extension.registerMetric({ ...revenueHtMetric, key: 'synthetic_finance_measure',
-    sourceMapping: { ...revenueHtMetric.sourceMapping, measureExpressionId: 'revenue_ttc' } });
+  const synthetic = { ...revenueHtMetric, key: 'synthetic_finance_measure',
+    sourceMapping: { ...revenueHtMetric.sourceMapping, measureExpressionId: 'revenue_ttc' },
+    certification: { ...revenueHtMetric.certification, evidence: {
+      ...revenueHtMetric.certification.evidence!, definitionSha256: '' } } };
+  synthetic.certification.evidence.definitionSha256 = metricDefinitionHash(synthetic);
+  extension.registerMetric(synthetic);
   const extendedPlanner = new QueryPlannerService(extension,
     new QueryValidatorService(extension, new SecurityScopeService()),
     new PeriodResolverService(), new SqlCompilerService());

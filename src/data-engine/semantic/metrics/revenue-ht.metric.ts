@@ -11,7 +11,12 @@ export const revenueHtMetric: MetricDefinition = {
   sourceMapping: { connector: 'sage100', resource: 'finance_general',
     measureExpressionId: 'revenue', dateDimension: 'accounting_date', sourceCurrency: 'XOF' },
   defaultCacheTtlSeconds: 60, nullPolicy: 'preserve', requiresPeriod: true,
-  certificationStatus: 'certified',
+  certification: { version: 1, state: 'certified', evidence: {
+    referenceId: 'docs/data-engine/pilots/revenue-ht-certification.md#gate-1',
+    reviewedAt: '2026-09-29', source: 'BIJOU/VW_FINANCE_GENERAL',
+    definitionSha256: 'fd505e68e3f3b054d726cd6a6dde531c513de011f6e5c63e0f189e86aee06bec',
+    periodFrom: '2022-01-01', periodTo: '2022-02-01',
+    value: '4186862.37', sourceRows: 62 } },
   resultPolicy: { unit: 'XOF', scale: 2, valueEncoding: 'decimal_string',
     sourceRowCount: 'required', empty: 'preserve', shapes: ['scalar', 'time_series'],
     dimensionPatterns: { month: '^\\d{4}-\\d{2}$' } },

@@ -9,6 +9,8 @@ export interface ResolvedPeriod { dateDimension: string; fromInclusive: string; 
 export interface ResolvedComparison { type: ComparisonType; fromInclusive?: string; toExclusive?: string; sourceKey?: string }
 export interface QueryPlan {
   version: '2';
+  executionPurpose?: 'certification';
+  certificationCampaign?: { id: string; version: number };
   queryId: string;
   requestId: string;
   securityScope: SecurityScope;

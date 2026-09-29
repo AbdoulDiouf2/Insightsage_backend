@@ -1,4 +1,5 @@
 import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { createHash, randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { QueryRequest } from './contracts/query-request';
 import { QueryFailure } from './contracts/query-error';
@@ -10,6 +11,7 @@ import { DataJobV2Service } from './jobs/data-job-v2.service';
 import { DataJobV2Dispatcher } from './jobs/data-job-v2.dispatcher';
 import { SemanticRegistryService } from './semantic/semantic-registry.service';
 import { comparisonDimensionValue, validateMetricRows } from './results/metric-result-policy';
+import { CertificationPolicyService } from './certification/certification-policy.service';
 
 @Injectable()
 export class DataService {
@@ -20,13 +22,23 @@ export class DataService {
     private readonly cache: QueryCacheService,
     private readonly jobs: DataJobV2Service,
     private readonly dispatcher: DataJobV2Dispatcher,
-    private readonly registry: SemanticRegistryService) {}
+    private readonly registry: SemanticRegistryService,
+    private readonly certification: CertificationPolicyService) {}
 
   private enabled() {
     if (process.env.DATA_ENGINE_V2_ENABLED !== 'true')
       throw new QueryFailure('NOT_CONFIGURED', 'Data Engine V2 non activé');
   }
   async query(request: QueryRequest, user: AuthenticatedIdentity) {
+    return this.runQuery(request, user);
+  }
+  async certify(raw: unknown, user: AuthenticatedIdentity) {
+    this.enabled();
+    const { request, campaignId, campaignVersion } = this.certification.authorize(raw, user);
+    return this.runQuery(request, user, campaignId, campaignVersion);
+  }
+  private async runQuery(request: QueryRequest, user: AuthenticatedIdentity,
+    campaignId?: string, campaignVersion?: number) {
     this.enabled();
     const securityScope = this.scope.resolve(user);
     const org = await this.prisma.organization.findUnique({
@@ -35,11 +47,23 @@ export class DataService {
     if (!org) throw new QueryFailure('PERMISSION_DENIED', 'Organisation introuvable');
     if (request.period && !org.dataTimezone)
       throw new QueryFailure('NOT_CONFIGURED', 'Fuseau organisation non configuré');
-    const plan = this.planner.plan(request, user, org.dataTimezone ?? 'UTC');
+    const plan = campaignId
+      ? this.planner.planCandidate(request, user, org.dataTimezone ?? 'UTC')
+      : this.planner.plan(request, user, org.dataTimezone ?? 'UTC');
+    if (campaignId) {
+      plan.executionPurpose = 'certification';
+      plan.certificationCampaign = { id: campaignId, version: campaignVersion! };
+      plan.requestId = `certification:${campaignId}:${randomUUID()}`;
+      plan.queryFingerprint = createHash('sha256')
+        .update(`certification:${campaignId}:${plan.queryFingerprint}`).digest('hex');
+      this.logger.log(`data_v2 certification start campaign=${campaignId} queryId=${plan.queryId} metric=${plan.metric.key} organizationId=${securityScope.organizationId}`);
+    }
     // La permission métrique est revalidée par le planificateur avant tout cache.
-    const cached = await this.cache.get(securityScope.organizationId, plan.queryFingerprint, this.registry.version);
+    const cached = campaignId ? null :
+      await this.cache.get(securityScope.organizationId, plan.queryFingerprint, this.registry.version);
     if (cached) return { status: 'completed', result: { ...cached, queryId: plan.queryId } };
-    const { job, created } = await this.jobs.createOrGet(plan);
+    const { job, created } = await this.jobs.createOrGet(plan, campaignId
+      ? { action: 'execute', resource: 'data_certification' } : undefined);
     if (!created) {
       if (job.state === 'COMPLETED') {
         const completed = await this.jobs.get(job.id, securityScope.organizationId);
@@ -81,6 +105,10 @@ export class DataService {
           other[d.key] === comparisonDimensionValue(d.key, row[d.key], plan)));
         return { ...row, previous_value: match?.value ?? null };
       }) : currentRows;
+      const sourceRows = execution.rows.length === 0 ? 0 :
+        execution.rows.some(row => row.__source_row_count !== undefined)
+        ? execution.rows.reduce((sum, row) => sum + Number(row.__source_row_count ?? 0), 0)
+        : 'unavailable';
       await this.jobs.transition(job.id, securityScope.organizationId, ['DISPATCHED'], 'RUNNING');
       if (joinedRows.length > plan.limits.maxRows)
         throw new QueryFailure('RESULT_TOO_LARGE', 'Résultat trop volumineux');
@@ -95,15 +123,14 @@ export class DataService {
         rows: joinedRows,
         meta: { rowCount: joinedRows.length, generatedAt, queryExecutedAt: generatedAt,
           sourceFreshness: execution.sourceFreshness, executionTimeMs: Date.now() - started,
-          cache: 'none', truncated: false },
+          cache: 'none', truncated: false,
+          ...(campaignId ? { executionPurpose: 'certification' as const,
+            ...(typeof sourceRows === 'number' ? { sourceRowCount: sourceRows } : {}) } : {}) },
       };
       const completed = await this.jobs.complete(job.id, securityScope.organizationId, result);
       if (!completed.changed) return { status: 'pending', jobId: job.id, queryId: plan.queryId };
-      const sourceRows = execution.rows.some(row => row.__source_row_count !== undefined)
-        ? execution.rows.reduce((sum, row) => sum + Number(row.__source_row_count ?? 0), 0)
-        : 'unavailable';
-      this.logger.log(`data_v2 completed queryId=${plan.queryId} jobId=${job.id} metric=${plan.metric.key} agentId=${agentId ?? 'simulated'} organizationId=${securityScope.organizationId} state=COMPLETED resultStatus=${result.status} resultRows=${result.meta.rowCount} sourceRows=${sourceRows} durationMs=${result.meta.executionTimeMs}`);
-      try {
+      this.logger.log(`data_v2 completed queryId=${plan.queryId} jobId=${job.id} metric=${plan.metric.key} agentId=${agentId ?? 'simulated'} organizationId=${securityScope.organizationId} state=COMPLETED resultStatus=${result.status} resultRows=${result.meta.rowCount} sourceRows=${sourceRows} durationMs=${result.meta.executionTimeMs}${campaignId ? ' purpose=certification campaign=' + campaignId : ''}`);
+      if (!campaignId) try {
         await this.cache.put(securityScope.organizationId, plan.queryFingerprint,
           this.registry.version, result, plan.metric.defaultCacheTtlSeconds);
       } catch (cacheError: any) {
@@ -122,6 +149,9 @@ export class DataService {
     const organizationId = this.scope.resolve(user).organizationId;
     const job = await this.prisma.dataJobV2.findFirst({ where: { id: jobId, organizationId } });
     if (!job) throw new NotFoundException('Job V2 introuvable');
+    if (job.permissionAction === 'execute' && job.permissionResource === 'data_certification' &&
+        user.id !== process.env.DATA_ENGINE_V2_CERTIFICATION_USER_ID)
+      throw new ForbiddenException('Resultat de certification reserve');
     if (!this.scope.hasPermission(user, job.permissionAction, job.permissionResource))
       throw new ForbiddenException('Permission manquante');
     return organizationId;
