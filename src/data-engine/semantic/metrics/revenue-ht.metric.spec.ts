@@ -29,7 +29,7 @@ describe('revenue_ht production metric', () => {
         expect(candidate.metric('revenue_ht')).toEqual(revenueHtMetric);
         expect(candidate.dimension('month')).toEqual(revenueMonthDimension);
         expect(candidate.resource('sage100', 'finance_general')).toEqual(financeGeneralResource);
-        expect(candidate.version).toBe('aa52fabebbede69296a18517c775b6b38c2522efe33b2dbcc85b1c1a9237a3b4');
+        expect(candidate.version).toBe('1970e0f8d7084e161a259eb9f331b18f1cc4ef125a54bddc235d0df30e49aeef');
       }
     } finally {
       if (previous === undefined) delete process.env.DATA_ENGINE_REVENUE_HT_PILOT_ENABLED;

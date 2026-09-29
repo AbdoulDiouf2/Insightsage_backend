@@ -15,6 +15,8 @@ export class QueryValidatorService {
       throw new QueryFailure('QUERY_INVALID', 'Champ public interdit');
     const securityScope = this.scope.resolve(user);
     const metric = this.registry.metric(request.metric);
+    if (metric.certificationStatus === 'uncertified')
+      throw new QueryFailure('NOT_CONFIGURED', 'Metrique non certifiee');
     if (!this.scope.hasPermission(user, metric.requiredPermission.action, metric.requiredPermission.resource))
       throw new QueryFailure('PERMISSION_DENIED', 'Permission manquante');
     const resource = this.registry.resource(metric.sourceMapping.connector, metric.sourceMapping.resource);
@@ -25,6 +27,19 @@ export class QueryValidatorService {
       const dimension = this.registry.dimension(key);
       if (dimension.sourceMapping.connector !== resource.connector || dimension.sourceMapping.resource !== resource.key)
         throw new QueryFailure('QUERY_INVALID', 'Dimension incompatible avec la source');
+    }
+    if (new Set(request.dimensions ?? []).size !== (request.dimensions ?? []).length)
+      throw new QueryFailure('QUERY_INVALID', 'Dimension repetee');
+    if (metric.resultPolicy) {
+      const shape = request.dimensions?.length ? 'time_series' : 'scalar';
+      if (!metric.resultPolicy.shapes.includes(shape))
+        throw new QueryFailure('QUERY_INVALID', 'Forme de resultat non autorisee');
+      if (shape === 'time_series' &&
+          request.dimensions?.some(key => !this.registry.dimension(key).temporalGrain))
+        throw new QueryFailure('QUERY_INVALID', 'Dimension temporelle requise');
+      if (request.comparison && request.dimensions?.some(key =>
+        !this.registry.dimension(key).comparisonAlignment))
+        throw new QueryFailure('QUERY_INVALID', 'Comparaison groupee non alignee');
     }
     for (const filter of request.filters ?? []) {
       if (!filter || !metric.allowedFilters.includes(filter.field) || !FILTER_OPERATORS.includes(filter.operator))

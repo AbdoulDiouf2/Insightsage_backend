@@ -22,4 +22,16 @@ describe('Widget Store semantic binding', () => {
   it('marks malformed stored binding unavailable instead of treating it as V1', () => {
     expect(service.publicValue({ kind: 'data_engine_v2', metric: 'missing' })).toEqual({ kind: 'unavailable' });
   });
+  it('validates a declared time series and rejects unsupported combinations', () => {
+    const series = { kind: 'data_engine_v2', metric: 'revenue_ht',
+      query: { dimensions: ['month'], comparison: 'previous_year' },
+      presentation: { shape: 'time_series' } };
+    expect(service.validate(series, 'table')).toEqual(series);
+    expect(() => service.validate({ ...series, query: { dimensions: ['agency'] } })).toThrow();
+    expect(() => service.validate({ ...series, presentation: { shape: 'scalar' } })).toThrow();
+    expect(() => service.validate({ ...series, defaults: {} })).toThrow();
+    expect(() => service.validate({ kind: 'data_engine_v2', metric: 'gross_margin' })).toThrow();
+    expect(service.publicValue({ kind: 'data_engine_v2', metric: 'gross_margin' }))
+      .toEqual({ kind: 'unavailable' });
+  });
 });

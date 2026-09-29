@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { DimensionDefinition, MetricDefinition, SourceResource } from '../contracts/semantic-definition';
 import { QueryFailure } from '../contracts/query-error';
 import { revenueHtMetric } from './metrics/revenue-ht.metric';
+import { grossMarginMetric, revenueTtcMetric } from './metrics/finance-general.metrics';
 import { revenueMonthDimension } from './dimensions/sage100-finance.dimensions';
 import { financeGeneralResource } from '../connectors/sage100/sage100-finance.resources';
 
@@ -20,10 +21,16 @@ export class SemanticRegistryService {
     this.registerResource(financeGeneralResource);
     this.registerDimension(revenueMonthDimension);
     this.registerMetric(revenueHtMetric);
+    this.registerMetric(revenueTtcMetric);
+    this.registerMetric(grossMarginMetric);
   }
 
   // Les définitions ne sont enregistrées que par du code backend audité.
   registerMetric(metric: MetricDefinition) { this.metrics.set(metric.key, metric); }
+  familyMetrics(family: string): MetricDefinition[] {
+    return [...this.metrics.values()].filter(metric => metric.family === family)
+      .sort((a, b) => a.key.localeCompare(b.key));
+  }
   registerDimension(dimension: DimensionDefinition) { this.dimensions.set(dimension.key, dimension); }
   registerResource(resource: SourceResource) { this.resources.set(`${resource.connector}:${resource.key}`, resource); }
   metric(key: string): MetricDefinition {

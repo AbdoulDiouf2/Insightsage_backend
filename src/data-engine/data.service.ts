@@ -9,6 +9,7 @@ import { QueryCacheService } from './cache/query-cache.service';
 import { DataJobV2Service } from './jobs/data-job-v2.service';
 import { DataJobV2Dispatcher } from './jobs/data-job-v2.dispatcher';
 import { SemanticRegistryService } from './semantic/semantic-registry.service';
+import { comparisonDimensionValue, validateMetricRows } from './results/metric-result-policy';
 
 @Injectable()
 export class DataService {
@@ -67,25 +68,17 @@ export class DataService {
             toExclusive: plan.comparison.toExclusive! } : undefined,
           comparisonExecution: undefined }, job.id, 2)
         : undefined;
-      if (plan.metric.key === 'revenue_ht') {
-        const allRows = [...execution.rows, ...(previous?.rows ?? [])];
-        if (allRows.some(row => {
-          const count = Number(row.__source_row_count);
-          return !Number.isSafeInteger(count) || count < 0 ||
-            (count > 0 && (typeof row.value !== 'string' ||
-              !/^-?\d+\.\d{2}$/.test(row.value))) ||
-            (count === 0 && row.value !== null) ||
-            (plan.dimensions.some(d => d.key === 'month') &&
-              (typeof row.month !== 'string' || !/^\d{4}-\d{2}$/.test(row.month)));
-        })) throw new QueryFailure('SOURCE_SCHEMA_MISMATCH', 'Résultat comptable V2 invalide');
-      }
+      validateMetricRows(plan, execution.rows);
+      if (previous) validateMetricRows(plan, previous.rows);
       const normalize = (rows: Record<string, unknown>[]) => rows
-        .filter(row => row.__source_row_count === undefined || Number(row.__source_row_count) > 0)
+        .filter(row => plan.metric.resultPolicy?.empty === 'zero_if_empty_set' ||
+          row.__source_row_count === undefined || Number(row.__source_row_count) > 0)
         .map(({ __source_row_count, ...row }) => row);
       const currentRows = normalize(execution.rows);
       const comparisonRows = normalize(previous?.rows ?? []);
       const joinedRows = previous ? currentRows.map(row => {
-        const match = comparisonRows.find(other => plan.dimensions.every(d => other[d.key] === row[d.key]));
+        const match = comparisonRows.find(other => plan.dimensions.every(d =>
+          other[d.key] === comparisonDimensionValue(d.key, row[d.key], plan)));
         return { ...row, previous_value: match?.value ?? null };
       }) : currentRows;
       await this.jobs.transition(job.id, securityScope.organizationId, ['DISPATCHED'], 'RUNNING');
@@ -94,10 +87,11 @@ export class DataService {
       const generatedAt = new Date().toISOString();
       const result: QueryResult = {
         queryId: plan.queryId, status: currentRows.length ? 'success' : 'empty',
-        schema: [{ key: 'value', type: plan.metric.dataType, nullable: true, role: 'metric' },
+        schema: [{ key: 'value', type: plan.metric.dataType, nullable: true, role: 'metric',
+          unit: plan.metric.resultPolicy?.unit },
           ...plan.dimensions.map(d => ({ key: d.key, type: d.dataType, nullable: true, role: 'dimension' as const })),
           ...(previous ? [{ key: 'previous_value', type: plan.metric.dataType,
-            nullable: true, role: 'comparison' as const }] : [])],
+            nullable: true, role: 'comparison' as const, unit: plan.metric.resultPolicy?.unit }] : [])],
         rows: joinedRows,
         meta: { rowCount: joinedRows.length, generatedAt, queryExecutedAt: generatedAt,
           sourceFreshness: execution.sourceFreshness, executionTimeMs: Date.now() - started,

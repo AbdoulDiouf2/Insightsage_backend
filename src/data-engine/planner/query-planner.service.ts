@@ -53,7 +53,8 @@ export class QueryPlannerService {
     return {
       version: '2', queryId: randomUUID(), requestId: request.context?.requestId ?? randomUUID(),
       securityScope, metric,
-      dimensions: dimensions.map(d => ({ key: d.key, expressionId: d.sourceMapping.expressionId, dataType: d.dataType })),
+      dimensions: dimensions.map(d => ({ key: d.key, expressionId: d.sourceMapping.expressionId,
+        dataType: d.dataType, comparisonAlignment: d.comparisonAlignment })),
       analyticalFilters: (request.filters ?? []).map((f, i) => ({
         field: f.field, expressionId: filters[i].definition.sourceMapping.expressionId,
         operator: f.operator, value: f.value,
