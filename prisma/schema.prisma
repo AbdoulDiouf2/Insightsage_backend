@@ -472,6 +472,7 @@ model KpiDefinition {
   sqlSage100View   String?           // vue principale Sage 100
   sqlSage100Tables String[]          // tables Sage 100 sous-jacentes
   mlUsage          String?           // usage ML / IA
+  dataBinding      Json?             // NULL = legacy V1; validated semantic V2 binding otherwise
   isActive         Boolean  @default(true)
   createdAt        DateTime @default(now())
 

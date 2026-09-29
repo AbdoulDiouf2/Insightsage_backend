@@ -1,6 +1,8 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { DataBindingService } from './data-binding.service';
+import { publicKpiDefinition, publicWidgetTemplate } from './dto/public-widget-store.dto';
 import {
   CreateKpiDefinitionDto,
   UpdateKpiDefinitionDto,
@@ -12,7 +14,7 @@ import {
 
 @Injectable()
 export class WidgetsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private bindings: DataBindingService) {}
 
   /**
    * Retourne le catalogue Widget Store pour une organisation.
@@ -41,7 +43,6 @@ export class WidgetsService {
 
     // Récupérer toutes les KPI definitions actives
     const kpiDefinitions = await this.prisma.kpiDefinition.findMany({
-      where: { isActive: true },
       orderBy: { category: 'asc' },
     });
 
@@ -52,7 +53,8 @@ export class WidgetsService {
     });
 
     // Construire une map kpiKey → définition pour enrichir les packs
-    const kpiDefMap = new Map(kpiDefinitions.map((k) => [k.key, k]));
+    const publicDefinitions = kpiDefinitions.map(k => publicKpiDefinition(k, this.bindings));
+    const kpiDefMap = new Map(publicDefinitions.filter(k => k.isActive).map((k) => [k.key, k]));
 
     const enrichedPacks = kpiPacks.map((pack) => ({
       ...pack,
@@ -61,8 +63,8 @@ export class WidgetsService {
 
     return {
       kpiPacks: enrichedPacks,
-      kpiDefinitions,
-      widgetTemplates,
+      kpiDefinitions: publicDefinitions,
+      widgetTemplates: widgetTemplates.map(publicWidgetTemplate),
     };
   }
 
@@ -73,13 +75,24 @@ export class WidgetsService {
     if (existing) {
       throw new BadRequestException(`Une KPI Definition avec la clé "${dto.key}" existe déjà.`);
     }
-    return this.prisma.kpiDefinition.create({ data: dto });
+    const { dataBinding, ...fields } = dto;
+    const binding = this.bindings.validate(dataBinding, dto.defaultVizType);
+    return this.prisma.kpiDefinition.create({ data: {
+      ...fields, ...(dataBinding !== undefined ? { dataBinding: binding === null ? Prisma.DbNull : binding as unknown as Prisma.InputJsonValue } : {}),
+    } });
   }
 
   async updateKpiDefinition(id: string, dto: UpdateKpiDefinitionDto) {
     const kpi = await this.prisma.kpiDefinition.findUnique({ where: { id } });
     if (!kpi) throw new NotFoundException(`KPI Definition introuvable : ${id}`);
-    return this.prisma.kpiDefinition.update({ where: { id }, data: dto });
+    const { dataBinding, ...fields } = dto;
+    const binding = dataBinding === undefined ? undefined :
+      this.bindings.validate(dataBinding, dto.defaultVizType ?? kpi.defaultVizType);
+    if (dataBinding === undefined && dto.defaultVizType && kpi.dataBinding != null)
+      this.bindings.validate(kpi.dataBinding, dto.defaultVizType);
+    return this.prisma.kpiDefinition.update({ where: { id }, data: {
+      ...fields, ...(binding !== undefined ? { dataBinding: binding === null ? Prisma.DbNull : binding as unknown as Prisma.InputJsonValue } : {}),
+    } });
   }
 
   async toggleKpiDefinition(id: string) {

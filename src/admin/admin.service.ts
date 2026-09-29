@@ -23,6 +23,7 @@ import { MailerService } from '../mailer/mailer.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { AiRouterService } from '../ai/ai-router.service';
+import { DataBindingService } from '../widgets/data-binding.service';
 
 @Injectable()
 export class AdminService {
@@ -35,6 +36,7 @@ export class AdminService {
     private notifications: NotificationsService,
     private aiRouter: AiRouterService,
     private config: ConfigService,
+    private bindings: DataBindingService,
   ) { }
 
   async createClientAccount(dto: CreateClientDto) {
@@ -768,13 +770,24 @@ export class AdminService {
     if (existing) {
       throw new BadRequestException(`Une KPI Definition avec la clé "${dto.key}" existe déjà.`);
     }
-    return this.prisma.kpiDefinition.create({ data: dto });
+    const { dataBinding, ...fields } = dto;
+    const binding = this.bindings.validate(dataBinding, dto.defaultVizType);
+    return this.prisma.kpiDefinition.create({ data: {
+      ...fields, ...(dataBinding !== undefined ? { dataBinding: binding === null ? Prisma.DbNull : binding as unknown as Prisma.InputJsonValue } : {}),
+    } });
   }
 
   async updateKpiDefinition(id: string, dto: UpdateKpiDefinitionDto) {
     const kpi = await this.prisma.kpiDefinition.findUnique({ where: { id } });
     if (!kpi) throw new NotFoundException(`KPI Definition introuvable : ${id}`);
-    return this.prisma.kpiDefinition.update({ where: { id }, data: dto });
+    const { dataBinding, ...fields } = dto;
+    const binding = dataBinding === undefined ? undefined :
+      this.bindings.validate(dataBinding, dto.defaultVizType ?? kpi.defaultVizType);
+    if (dataBinding === undefined && dto.defaultVizType && kpi.dataBinding != null)
+      this.bindings.validate(kpi.dataBinding, dto.defaultVizType);
+    return this.prisma.kpiDefinition.update({ where: { id }, data: {
+      ...fields, ...(binding !== undefined ? { dataBinding: binding === null ? Prisma.DbNull : binding as unknown as Prisma.InputJsonValue } : {}),
+    } });
   }
 
   async toggleKpiDefinition(id: string) {

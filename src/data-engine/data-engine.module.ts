@@ -18,6 +18,6 @@ import { DataJobV2Dispatcher } from './jobs/data-job-v2.dispatcher';
   providers: [DataService, SemanticRegistryService, SecurityScopeService, QueryValidatorService,
     PeriodResolverService, SqlCompilerService, QueryPlannerService, QueryCacheService,
     DataJobV2Service, DataJobV2Dispatcher],
-  exports: [DataJobV2Service, DataJobV2Dispatcher],
+  exports: [DataJobV2Service, DataJobV2Dispatcher, SemanticRegistryService],
 })
 export class DataEngineModule {}

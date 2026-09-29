@@ -8,9 +8,10 @@ import { AuthModule } from '../auth/auth.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AgentReleasesModule } from './agent-releases/agent-releases.module';
 import { AgentsModule } from '../agents/agents.module';
+import { WidgetsModule } from '../widgets/widgets.module';
 
 @Module({
-  imports: [PrismaModule, UsersModule, AuthModule, NotificationsModule, AgentReleasesModule, AgentsModule],
+  imports: [PrismaModule, UsersModule, AuthModule, NotificationsModule, AgentReleasesModule, AgentsModule, WidgetsModule],
   controllers: [AdminController],
   providers: [AdminService, CockpitGateway],
 })

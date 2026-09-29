@@ -3,6 +3,7 @@ import { WidgetsController } from './widgets.controller';
 import { WidgetsService } from './widgets.service';
 import { UsersService } from '../users/users.service';
 import { Reflector } from '@nestjs/core';
+import { PermissionsGuard } from '../auth/guards';
 
 describe('WidgetsController', () => {
   let controller: WidgetsController;
@@ -24,7 +25,7 @@ describe('WidgetsController', () => {
           useValue: {},
         },
       ],
-    }).compile();
+    }).overrideGuard(PermissionsGuard).useValue({ canActivate: () => true }).compile();
 
     controller = module.get<WidgetsController>(WidgetsController);
   });

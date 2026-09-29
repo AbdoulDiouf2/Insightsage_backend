@@ -12,6 +12,10 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 // ─── KpiDefinition DTOs ───────────────────────────────────────────────────────
 
 export class CreateKpiDefinitionDto {
+  @ApiPropertyOptional({ description: 'Binding semantique V2 valide cote serveur' })
+  @IsOptional()
+  @IsObject()
+  dataBinding?: Record<string, unknown> | null;
   @ApiProperty({ example: 'f01_ca_ht', description: 'Clé unique du KPI' })
   @IsString()
   @IsNotEmpty()
@@ -111,6 +115,10 @@ export class CreateKpiDefinitionDto {
 }
 
 export class UpdateKpiDefinitionDto {
+  @ApiPropertyOptional({ description: 'Binding semantique V2, null pour le parcours V1' })
+  @IsOptional()
+  @IsObject()
+  dataBinding?: Record<string, unknown> | null;
   @ApiPropertyOptional({ example: 'KPI-F01 (mis à jour)' })
   @IsString()
   @IsOptional()
